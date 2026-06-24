@@ -1,0 +1,15 @@
+{
+  "name": "@sidetab/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./llm": "./llm/index.ts",
+    "./rag": "./rag/index.ts",
+    "./locale": "./locale/index.ts",
+    "./pipeline": "./pipeline.ts"
+  },
+  "dependencies": {
+    "@sidetab/shared": "*"
+  }
+}

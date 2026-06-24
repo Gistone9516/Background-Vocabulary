@@ -1,0 +1,9 @@
+# 로컬 개발용 환경 변수 예시 파일.
+# 이 파일을 .dev.vars로 복사하고 실제 값을 채운다.
+# .dev.vars는 git에 커밋하지 않는다(.gitignore에 추가 필수).
+# wrangler dev 실행 시 이 파일을 자동으로 읽어 Workers env에 주입한다.
+
+DEEPSEEK_API_KEY=your_deepseek_api_key_here
+TAVILY_API_KEY=your_tavily_api_key_here
+UPSTASH_REDIS_REST_URL=https://your-upstash-instance.upstash.io
+UPSTASH_REDIS_REST_TOKEN=your_upstash_rest_token_here

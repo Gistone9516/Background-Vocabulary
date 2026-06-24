@@ -1,0 +1,25 @@
+{
+  "name": "sidetab",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/shared",
+    "packages/core",
+    "packages/adapters/workers",
+    "packages/adapters/search-providers",
+    "packages/extension",
+    "packages/scripts"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "typecheck": "tsc -b",
+    "guard": "node packages/scripts/portability-guard.mjs",
+    "check": "tsc --noEmit -p tsconfig.check.json && npm run guard"
+  },
+  "devDependencies": {
+    "tsx": "^4.22.4",
+    "typescript": "^5.7.2"
+  }
+}

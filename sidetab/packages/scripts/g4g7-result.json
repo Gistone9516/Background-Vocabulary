@@ -1,0 +1,260 @@
+{
+  "g4": [
+    {
+      "input": "로봇 팔 PID 제어 튜닝을 하려고 한다",
+      "expect": "en",
+      "got_locale": "en",
+      "expect_high": false,
+      "got_risk": "low",
+      "domain": "로봇 팔 PID 제어 튜닝",
+      "job": [
+        "문제해결"
+      ],
+      "ok": true
+    },
+    {
+      "input": "React 상태관리 라이브러리를 고르려고 한다",
+      "expect": "en",
+      "got_locale": "en",
+      "expect_high": false,
+      "got_risk": "low",
+      "domain": "Frontend Development",
+      "job": [
+        "의사결정"
+      ],
+      "ok": true
+    },
+    {
+      "input": "스타트업 시드 투자 피칭 덱을 만든다",
+      "expect": "en",
+      "got_locale": "en",
+      "expect_high": false,
+      "got_risk": "low",
+      "domain": "Startup Fundraising Deck",
+      "job": [
+        "기획전략",
+        "보고서작성"
+      ],
+      "ok": true
+    },
+    {
+      "input": "머신러닝 모델을 프로덕션에 배포하려 한다",
+      "expect": "en",
+      "got_locale": "en",
+      "expect_high": false,
+      "got_risk": "low",
+      "domain": "머신러닝·AI",
+      "job": [
+        "문제해결",
+        "기획전략"
+      ],
+      "ok": true
+    },
+    {
+      "input": "결제 시스템 정산 아키텍처를 설계한다",
+      "expect": "en",
+      "got_locale": "en",
+      "expect_high": false,
+      "got_risk": "low",
+      "domain": "결제 시스템 정산 아키텍처",
+      "job": [
+        "기획전략",
+        "문제해결"
+      ],
+      "ok": true
+    },
+    {
+      "input": "UX 사용성 테스트를 설계하려 한다",
+      "expect": "en",
+      "got_locale": "en",
+      "expect_high": false,
+      "got_risk": "low",
+      "domain": "UX/UI 디자인",
+      "job": [
+        "보고서작성",
+        "기획전략"
+      ],
+      "ok": true
+    },
+    {
+      "input": "디자인 시스템 토큰 구조를 잡으려 한다",
+      "expect": "en",
+      "got_locale": "en",
+      "expect_high": false,
+      "got_risk": "low",
+      "domain": "디자인 시스템",
+      "job": [
+        "기획전략"
+      ],
+      "ok": true
+    },
+    {
+      "input": "소상공인 정책자금 지원 사업에 신청하려 한다",
+      "expect": "ko",
+      "got_locale": "ko",
+      "expect_high": false,
+      "got_risk": "low",
+      "domain": "소상공인 정책자금",
+      "job": [
+        "서류제출",
+        "의사결정"
+      ],
+      "ok": true
+    },
+    {
+      "input": "전세 계약 보증금 반환 문제를 알아보려 한다",
+      "expect": "ko",
+      "got_locale": "ko",
+      "expect_high": false,
+      "got_risk": "high",
+      "domain": "부동산 법률",
+      "job": [
+        "이해학습"
+      ],
+      "ok": true
+    },
+    {
+      "input": "부가가치세 신고를 직접 하려고 한다",
+      "expect": "ko",
+      "got_locale": "ko",
+      "expect_high": false,
+      "got_risk": "low",
+      "domain": "세무",
+      "job": [
+        "보고서작성",
+        "서류제출"
+      ],
+      "ok": true
+    },
+    {
+      "input": "근로계약서를 처음 작성해보려 한다",
+      "expect": "ko",
+      "got_locale": "ko",
+      "expect_high": false,
+      "got_risk": "low",
+      "domain": "근로계약서 작성",
+      "job": [
+        "서류제출",
+        "이해학습"
+      ],
+      "ok": true
+    },
+    {
+      "input": "국내 상표를 출원하려고 한다",
+      "expect": "ko",
+      "got_locale": "ko",
+      "expect_high": false,
+      "got_risk": "low",
+      "domain": "지식재산권",
+      "job": [
+        "서류제출",
+        "이해학습"
+      ],
+      "ok": true
+    },
+    {
+      "input": "갑상선 결절 진단 결과를 직접 해석하려 한다",
+      "expect": "ko",
+      "got_locale": "ko",
+      "expect_high": true,
+      "got_risk": "high",
+      "domain": "갑상선 결절 진단 해석",
+      "job": [
+        "진단판단"
+      ],
+      "ok": true
+    },
+    {
+      "input": "교통사고 합의금을 변호사 없이 직접 협상하려 한다",
+      "expect": "ko",
+      "got_locale": "ko",
+      "expect_high": true,
+      "got_risk": "high",
+      "domain": "교통사고 합의금 협상",
+      "job": [
+        "협상설득준비"
+      ],
+      "ok": true
+    }
+  ],
+  "g7": [
+    {
+      "name": "gap_c+글쓰기",
+      "term_count": 8,
+      "expect_fields": [
+        "use_example",
+        "direction"
+      ],
+      "field_hit": {
+        "use_example": 8,
+        "direction": 8
+      },
+      "beginner_ok": true,
+      "priority_ok": true,
+      "terms": [
+        "전문 용어 (Jargon)",
+        "양날의 검 (Double-edged sword)",
+        "능동태 (Active voice)",
+        "수동태 (Passive voice)",
+        "명확성 (Clarity)",
+        "좀비 명사 (Zombie noun)",
+        "불완전한 접속 (Faulty coordination)",
+        "각각 (Respectively)"
+      ]
+    },
+    {
+      "name": "gap_b",
+      "term_count": 8,
+      "expect_fields": [
+        "relates_to",
+        "order"
+      ],
+      "field_hit": {
+        "relates_to": 8,
+        "order": 8
+      },
+      "beginner_ok": true,
+      "priority_ok": true,
+      "terms": [
+        "포드 CIDR",
+        "CNI",
+        "kube-proxy",
+        "일시 정지 컨테이너",
+        "서비스(Service)",
+        "네트워크 정책",
+        "DNS",
+        "노드"
+      ]
+    },
+    {
+      "name": "gap_d+의사결정",
+      "term_count": 7,
+      "expect_fields": [
+        "direction",
+        "context_note"
+      ],
+      "field_hit": {
+        "direction": 7,
+        "context_note": 1
+      },
+      "beginner_ok": true,
+      "priority_ok": true,
+      "terms": [
+        "예약 인스턴스",
+        "절감형 플랜",
+        "스팟 인스턴스",
+        "온디맨드",
+        "커미트 기반 할인",
+        "사용률",
+        "적용 범위"
+      ]
+    }
+  ],
+  "g4_summary": {
+    "acc_pct": 100,
+    "total": 14,
+    "ok": 14,
+    "ko_misclassified_as_en": 0,
+    "high_risk_detected": "2/2"
+  }
+}

@@ -1,0 +1,23 @@
+name = "sidetab-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-18"
+
+# Workers Paid 플랜 필요(CPU 30초 기본, 5분 확장 가능, I/O 대기 무과금).
+# 무료 플랜은 CPU 10ms로 LLM 프록시에 불충분하다(구현계획 2장 확인 완료).
+
+[build]
+command = ""
+
+# [vars]에는 비밀이 아닌 공개 설정 값만 넣는다.
+# 실제 API 키는 반드시 wrangler secret put 명령으로 Secrets로 등록한다.
+# wrangler secret put DEEPSEEK_API_KEY
+# wrangler secret put TAVILY_API_KEY
+# wrangler secret put UPSTASH_REDIS_REST_URL
+# wrangler secret put UPSTASH_REDIS_REST_TOKEN
+[vars]
+# 비밀이 아닌 공개 설정이 필요할 때 여기에 추가한다.
+# 예시: NODE_ENV = "production"
+
+# 로컬 개발(.dev.vars 파일 참조):
+# .dev.vars 파일에 키를 넣으면 wrangler dev 실행 시 자동으로 env에 주입된다.
+# .dev.vars는 git에 커밋하지 않는다(.gitignore 필수).

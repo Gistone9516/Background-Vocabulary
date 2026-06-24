@@ -1,0 +1,13 @@
+{
+  "name": "@sidetab/providers",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./tavily": "./tavily.ts",
+    "./upstash-cache": "./upstash-cache.ts"
+  },
+  "dependencies": {
+    "@sidetab/shared": "*"
+  }
+}

@@ -1,0 +1,142 @@
+{
+  "classify": {
+    "domain": "로봇 팔 PID 제어",
+    "job_type": [
+      "문제해결"
+    ],
+    "search_locale": "en",
+    "domain_risk": "low",
+    "condition_required": false,
+    "choices": 4
+  },
+  "recommend": {
+    "term_count": 7,
+    "firstTermMs": 2828,
+    "done": true,
+    "error": null,
+    "terms": [
+      {
+        "term": "PID 제어기",
+        "kind": "개념",
+        "group": "제어 구조",
+        "priority": 1,
+        "why": "로봇 제어에서 가장 기본적인 피드백 제어 알고리즘으로, 문제해결 시 반드시 이해해야 함",
+        "one_line": "비례(P), 적분(I), 미분(D) 항을 결합하여 시스템 출력을 원하는 값으로 유지하는 피드백 제어기",
+        "tag": "몰라",
+        "direction": "양방향",
+        "context_note": "PID는 모션 제어의 핵심 알고리즘으로, gap_type d에서는 정확한 동작 원리와 각 항의 역할을 알아야 디버깅 가능"
+      },
+      {
+        "term": "Kp (비례 게인)",
+        "kind": "파라미터",
+        "group": "PID 게인",
+        "priority": 2,
+        "why": "PID 튜닝의 첫 단계로, 현재 오차에 비례하는 제어량을 결정하는 핵심 파라미터",
+        "one_line": "현재 오차 크기에 비례하여 제어 출력을 내는 게인으로, 응답 속도를 결정함",
+        "tag": "몰라",
+        "direction": "양방향"
+      },
+      {
+        "term": "Ki (적분 게인)",
+        "kind": "파라미터",
+        "group": "PID 게인",
+        "priority": 3,
+        "why": "정상 상태 오차를 없애기 위해 필요하며, 오차 누적을 보상하는 역할 이해가 중요",
+        "one_line": "과거 오차를 누적하여 정상 상태 오차를 제거하는 게인으로, 오차가 지속될 때 출력 증가",
+        "tag": "몰라",
+        "direction": "양방향"
+      },
+      {
+        "term": "Kd (미분 게인)",
+        "kind": "파라미터",
+        "group": "PID 게인",
+        "priority": 4,
+        "why": "오차 변화율을 이용해 진동과 오버슛을 억제하지만, 잡음에 민감하므로 주의 필요",
+        "one_line": "오차의 변화율에 비례하여 제동을 걸어 오버슛과 진동을 줄이는 게인",
+        "tag": "몰라",
+        "direction": "양방향"
+      },
+      {
+        "term": "PID 튜닝",
+        "kind": "방법",
+        "group": "튜닝 과정",
+        "priority": 5,
+        "why": "로봇 제어 문제해결에서 Kp, Ki, Kd 값을 실험적으로 조정하는 핵심 과정",
+        "one_line": "PID 게인을 조정하여 시스템의 응답 속도, 안정성, 정확도를 최적화하는 과정",
+        "tag": "몰라",
+        "direction": "양방향",
+        "context_note": "gap_type d에서는 튜닝 방법(Ziegler-Nichols, trial-and-error)과 오버슛/정상상태오차 관찰이 중요"
+      },
+      {
+        "term": "오버슛",
+        "kind": "현상",
+        "group": "성능 지표",
+        "priority": 6,
+        "why": "PID 튜닝 시 목표값을 초과하는 현상으로, Kd와 Kp의 균형이 중요함을 인식해야 함",
+        "one_line": "제어 응답이 목표값을 초과하여 진동하는 현상으로, 과도한 Kp나 부족한 Kd가 원인",
+        "tag": "몰라",
+        "direction": "양방향"
+      },
+      {
+        "term": "정상 상태 오차",
+        "kind": "현상",
+        "group": "성능 지표",
+        "priority": 7,
+        "why": "Ki가 해결하는 핵심 문제로, PID 제어의 정확도를 평가하는 지표",
+        "one_line": "시간이 충분히 지난 후에도 목표값과 실제 출력 간에 남아있는 오차",
+        "tag": "몰라",
+        "direction": "양방향"
+      }
+    ]
+  },
+  "highrisk": {
+    "refused": true,
+    "error": {
+      "code": "HIGH_RISK_REFUSED",
+      "message": "고위험 도메인은 안전상 직접 다루지 않습니다"
+    },
+    "term_count": 0
+  },
+  "next": {
+    "question": "정확도·품질을 높이기 위해 로봇이 수행해야 할 가장 중요한 작업은 무엇인가요?",
+    "choices": 4,
+    "enough": false,
+    "confidence": 0.3
+  },
+  "detail": {
+    "what": true,
+    "whymine": true,
+    "how": true,
+    "related": 4,
+    "sources": 2,
+    "sourcesSample": [
+      {
+        "title": "PID 제어기 - Enthusiasm - 티스토리",
+        "url": "https://soaring-dylan.tistory.com/24",
+        "site": "soaring-dylan.tistory.com"
+      },
+      {
+        "title": "[20] PID 제어 Anti windup - 네이버 블로그",
+        "url": "https://m.blog.naver.com/lagrange0115/220622798380",
+        "site": "m.blog.naver.com"
+      }
+    ]
+  },
+  "exclude": {
+    "excluded": [
+      "PID 제어기",
+      "Kp (비례 게인)",
+      "Ki (적분 게인)"
+    ],
+    "term_count": 6,
+    "overlap_with_excluded": 0,
+    "terms": [
+      "Kd (미분 게인)",
+      "오버슛 (Overshoot)",
+      "정상 상태 오차 (Steady-State Error)",
+      "튜닝 (Tuning)",
+      "피드백 루프 (Feedback Loop)",
+      "Ziegler-Nichols 방법"
+    ]
+  }
+}

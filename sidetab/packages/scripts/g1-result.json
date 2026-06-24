@@ -1,0 +1,478 @@
+[
+  {
+    "area": "로봇 제어",
+    "topic": "PID 제어 튜닝",
+    "tavily": {
+      "sources": [
+        "https://arxiv.org/html/2606.01959v1",
+        "https://industrialmonitordirect.com/blogs/knowledgebase/pid-tuning-for-robotics-a-practical-guide-to-kp-ki-kd",
+        "https://www.mathworks.com/help/simulink/slref/anti-windup-control-using-a-pid-controller.html",
+        "https://upcommons.upc.edu/bitstreams/93557630-e994-47ae-95c1-49b7e98410e7/download"
+      ],
+      "facts_chars": 3918
+    },
+    "flash": {
+      "ms": 9573,
+      "parseOk": true,
+      "parseErr": null,
+      "coverage": {
+        "hit": 5,
+        "of": 5,
+        "missing": [],
+        "terms": [
+          "안티와인드업 (Anti-Windup)",
+          "적분기 와인드업 (Integrator Windup)",
+          "백계산 (Back-Calculation)",
+          "PID 제어기 (PID Controller)",
+          "튜닝 (Tuning)",
+          "포화 (Actuator Saturation)",
+          "오버슈트 (Overshoot)"
+        ]
+      },
+      "terms": [
+        {
+          "term": "안티와인드업 (Anti-Windup)",
+          "kind": "개념/기법",
+          "priority": 1,
+          "why": "PID 제어에서 적분기 와인드업을 방지하는 핵심 기법. 문제해결을 위해 반드시 알아야 하는 개념.",
+          "one_line": "PID 제어기 출력이 제한될 때 적분기의 과도한 축적을 막아 안정성을 높이는 방법",
+          "tag": "몰라",
+          "direction": "출력 제한이 있는 시스템에서 필수적",
+          "context_note": "튜닝 시 백계산(back-calculation) 등의 구체적 방식 이해 필요"
+        },
+        {
+          "term": "적분기 와인드업 (Integrator Windup)",
+          "kind": "현상",
+          "priority": 2,
+          "why": "PID 제어의 일반적 문제점. 문제해결의 출발점으로 이해 필요.",
+          "one_line": "출력이 포화되어도 적분이 계속되어 오버슈트나 느린 응답을 유발하는 현상",
+          "tag": "몰라",
+          "direction": "출력 제한이 있는 시스템에서 발생",
+          "context_note": "튜닝 시 반드시 고려해야 할 문제"
+        },
+        {
+          "term": "백계산 (Back-Calculation)",
+          "kind": "기법",
+          "priority": 3,
+          "why": "안티와인드업의 대표적 방법. 실제 튜닝에 자주 사용.",
+          "one_line": "포화가 발생하면 적분기를 재설정하여 적분 축적을 조정하는 방법",
+          "tag": "몰라",
+          "direction": "안티와인드업 구현 시 우선 고려",
+          "context_note": "트래킹 게인(tracking gain) 설정 필요"
+        },
+        {
+          "term": "PID 제어기 (PID Controller)",
+          "kind": "구성요소",
+          "priority": 4,
+          "why": "문제해결의 대상. 기본 구조와 튜닝 파라미터를 알아야 함.",
+          "one_line": "비례(P), 적분(I), 미분(D) 항을 결합한 피드백 제어기",
+          "tag": "몰라",
+          "direction": "중립",
+          "context_note": "튜닝은 Kp, Ki, Kd 값 조정을 의미"
+        },
+        {
+          "term": "튜닝 (Tuning)",
+          "kind": "프로세스",
+          "priority": 5,
+          "why": "사용자의 직접적 목표. PID 파라미터를 최적화하는 과정.",
+          "one_line": "제어기의 성능을 최적화하기 위해 Kp, Ki, Kd 값을 조정하는 과정",
+          "tag": "몰라",
+          "direction": "중립",
+          "context_note": "지글러-니콜스 같은 방법이나 최적화 기법 사용"
+        },
+        {
+          "term": "포화 (Actuator Saturation)",
+          "kind": "조건",
+          "priority": 6,
+          "why": "와인드업의 근본 원인. 문제해결을 위해 이해해야 할 제약 조건.",
+          "one_line": "액추에이터의 물리적 한계로 출력이 제한되는 현상",
+          "tag": "몰라",
+          "direction": "입력 제약 조건",
+          "context_note": "실제 로봇 시스템에서 흔히 발생"
+        },
+        {
+          "term": "오버슈트 (Overshoot)",
+          "kind": "성능지표",
+          "priority": 7,
+          "why": "튜닝 결과 평가의 주요 지표. 문제해결 시 목표 중 하나.",
+          "one_line": "제어 응답이 목표값을 초과하는 정도를 나타내는 성능 척도",
+          "tag": "몰라",
+          "direction": "성능 평가 지표",
+          "context_note": "튜닝 시 줄이거나 제어해야 할 대상"
+        }
+      ],
+      "usage": {
+        "prompt_tokens": 1386,
+        "completion_tokens": 975,
+        "total_tokens": 2361,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 1386
+      }
+    },
+    "flash_stream": {
+      "ttfbMs": 1100,
+      "firstTermMs": 2681,
+      "streamedTermObjs": 6,
+      "parseOk": true,
+      "parseErr": null
+    },
+    "pro": {
+      "ms": 21223,
+      "parseOk": true,
+      "coverage": {
+        "hit": 5,
+        "of": 5,
+        "missing": [],
+        "terms": [
+          "PID 제어 (Proportional-Integral-Derivative Control)",
+          "적분기 와인드업 (Integrator Windup)",
+          "안티와인드업 (Anti-Windup)",
+          "게인 스케줄링 (Gain Scheduling)",
+          "추종 모드 (Tracking Mode)",
+          "캐스케이드 제어 (Cascade Control)",
+          "FOPDT 모델 (First-Order Plus Dead-Time Model)"
+        ]
+      },
+      "terms": [
+        {
+          "term": "PID 제어 (Proportional-Integral-Derivative Control)",
+          "kind": "개념",
+          "priority": 1,
+          "why": "PID 제어는 로봇의 정밀한 움직임을 위한 가장 기본적인 피드백 제어 방식입니다. 비전공자가 로봇 제어 문제를 해결하기 위해 반드시 이해해야 할 출발점입니다.",
+          "one_line": "목표값과 현재값의 오차에 비례(P), 적분(I), 미분(D)하여 제어 입력을 계산하는 피드백 제어 기법",
+          "tag": "몰라",
+          "direction": "P, I, D 각 요소가 로봇의 응답 속도, 정상 상태 오차 제거, 오버슈트 감쇠에 어떻게 기여하는지 학습하세요.",
+          "context_note": "로봇 관절 모터의 위치나 속도를 제어할 때 사용되며, 게인 튜닝이 성능을 좌우합니다."
+        },
+        {
+          "term": "적분기 와인드업 (Integrator Windup)",
+          "kind": "현상",
+          "priority": 2,
+          "why": "비전공자가 PID 튜닝 시 흔히 겪는 오버슈트와 응답 지연의 주범입니다. 액추에이터 포화 시 적분항이 과도하게 누적되는 현상을 이해하지 못하면 튜닝이 불가능합니다.",
+          "one_line": "액추에이터가 물리적 한계에 도달해도 오차 적분이 계속 누적되어 제어 성능을 악화시키는 현상",
+          "tag": "몰라",
+          "direction": "실제 로봇 관절에 힘 제한이 있을 때 와인드업이 어떻게 발생하는지 시뮬레이션해보세요.",
+          "context_note": "로봇이 무거운 물체를 들거나 갑자기 방향을 바꿀 때 모터가 포화되면 와인드업이 발생하여 큰 오버슈트나 떨림을 유발할 수 있습니다."
+        },
+        {
+          "term": "안티와인드업 (Anti-Windup)",
+          "kind": "기법",
+          "priority": 3,
+          "why": "와인드업을 해결하는 실질적 방법으로, PID 튜닝 시 반드시 고려해야 합니다. 제공된 자료에서 집중적으로 다루는 주제이므로 최우선으로 학습해야 합니다.",
+          "one_line": "적분기 와인드업을 방지하거나 완화하기 위해 제어기에 추가하는 보상 기법 (예: 백계산, 클램핑)",
+          "tag": "몰라",
+          "direction": "백계산(back-calculation)과 적분기 클램핑(clamping) 기법의 동작 원리와 로봇 제어 적용 사례를 비교하세요.",
+          "context_note": "산업용 로봇의 PID 제어 블록에는 종종 내장되어 있으며, 잘못 튜닝하면 응답이 느려질 수 있으므로 게인 조정이 필요합니다."
+        },
+        {
+          "term": "게인 스케줄링 (Gain Scheduling)",
+          "kind": "기법",
+          "priority": 4,
+          "why": "로봇의 동작 중 부하나 관절 각도에 따라 시스템 특성이 변할 때, 고정 PID 게인으로는 최적 제어가 어렵습니다. 비선형성을 다루는 현실적인 접근법입니다.",
+          "one_line": "시스템의 동작 조건에 따라 PID 게인을 실시간으로 변경하는 제어 기법",
+          "tag": "몰라",
+          "direction": "로봇 팔의 자세나 속도에 따라 Kp, Ki, Kd를 어떻게 스케줄링하는지 간단한 실험을 통해 파악하세요.",
+          "context_note": "로봇이 다양한 자세에서 다른 관성을 가질 때, 게인 스케줄링으로 모든 영역에서 안정적인 성능을 유지할 수 있습니다."
+        },
+        {
+          "term": "추종 모드 (Tracking Mode)",
+          "kind": "기능",
+          "priority": 5,
+          "why": "안티와인드업 기법 중 하나로, 특히 수동 조작과 자동 제어가 전환되는 협동 로봇이나 산업용 로봇에서 매끄러운 전환을 위해 중요합니다.",
+          "one_line": "PID 제어기가 액추에이터 포화 시 적분기를 실제 출력에 추종하도록 하여 와인드업을 방지하는 모드",
+          "tag": "몰라",
+          "direction": "MATLAB 예제를 참고하여 추종 모드가 기존 안티와인드업과 어떻게 다른지 확인하세요.",
+          "context_note": "로봇이 사람에게 밀려 기준을 벗어났다가 다시 자동 복귀할 때, 추종 모드를 사용하면 급격한 점프 없이 제어가 재개됩니다."
+        },
+        {
+          "term": "캐스케이드 제어 (Cascade Control)",
+          "kind": "구조",
+          "priority": 6,
+          "why": "로봇 관절은 종종 내부 전류/속도 루프와 외부 위치 루프로 구성됩니다. 각 루프의 포화와 와인드업 문제를 이해하면 전체 튜닝을 더 효과적으로 할 수 있습니다.",
+          "one_line": "외부 루프의 출력이 내부 루프의 설정점이 되는 다층 제어 구조",
+          "tag": "몰라",
+          "direction": "제공된 비선형 캐스케이드 시스템 논문을 참고하여 외부 루프 와인드업이 내부 루프에 미치는 영향을 분석하세요.",
+          "context_note": "로봇 관절에서 속도 제어 루프가 먼저 포화되면 위치 제어 루프에 와인드업이 전파될 수 있으므로, 적절한 안티와인드업이 각 루프에 필요합니다."
+        },
+        {
+          "term": "FOPDT 모델 (First-Order Plus Dead-Time Model)",
+          "kind": "모델",
+          "priority": 7,
+          "why": "많은 PID 튜닝 규칙과 안티와인드업 분석이 FOPDT 모델을 기반으로 합니다. 복잡한 로봇 동역학을 단순화하여 이해하는 데 도움이 됩니다.",
+          "one_line": "시스템의 응답을 1차 지연과 데드타임(순수 지연)으로 근사하는 동적 모델",
+          "tag": "몰라",
+          "direction": "로봇 관절의 계단 응답 데이터를 이용해 FOPDT 파라미터를 추정하고, 이 모델로 PID 게인 초기값을 구하는 방법을 배우세요.",
+          "context_note": "로봇 통신 지연이나 유압 시스템의 지연을 모델링할 때 유용하며, 많은 상용 튜너가 이 모델을 사용합니다."
+        }
+      ]
+    }
+  },
+  {
+    "area": "재무 모델링",
+    "topic": "스타트업 밸류에이션",
+    "tavily": {
+      "sources": [
+        "https://www.kern-it.be/en/definitions/valuation",
+        "https://www.finrofca.com/news/startup-valuation-methods",
+        "https://waveup.com/blog/startup-valuation-methods",
+        "https://www.equidam.com/startup-valuation-methods-to-use-and-avoid"
+      ],
+      "facts_chars": 3904
+    },
+    "flash": {
+      "ms": 12732,
+      "parseOk": true,
+      "parseErr": null,
+      "coverage": {
+        "hit": 3,
+        "of": 5,
+        "missing": [
+          "캡테이블",
+          "런웨이"
+        ],
+        "terms": [
+          "밸류에이션 방법론",
+          "DCF (할인현금흐름법)",
+          "비교법 (Comparable Company Analysis)",
+          "VC법 (벤처캐피탈 방법)",
+          "사전·사후 밸류에이션 (Pre-money & Post-money Valuation)",
+          "번-멀티플 (Burn Multiple)",
+          "자금 조달 라운드 (Funding Round)",
+          "출구 전략 (Exit Strategy)"
+        ]
+      },
+      "terms": [
+        {
+          "term": "밸류에이션 방법론",
+          "kind": "개념",
+          "priority": 1,
+          "why": "스타트업 가치 산정의 핵심 프레임워크로, 다양한 방법 중 상황에 맞는 선택이 필요. 방법론 이해 없이 투자 협상 불가.",
+          "one_line": "스타트업 가치를 계산하는 여러 접근법(예: DCF, 비교법, VC법)의 총칭.",
+          "tag": "몰라",
+          "direction": "양방향",
+          "context_note": "투자자와 협상 시 특정 방법론의 근거, 가정, 한계를 이해해야 협상력이 생김."
+        },
+        {
+          "term": "DCF (할인현금흐름법)",
+          "kind": "기법",
+          "priority": 2,
+          "why": "전통적인 기업가치 평가 방법이지만 초기 스타트업에는 적용 한계가 큼. '왜 DCF가 안 맞는지'를 아는 게 중요.",
+          "one_line": "미래 예상 현금흐름을 현재 가치로 할인하여 기업가치를 산정하는 방법.",
+          "tag": "몰라",
+          "direction": "단방향",
+          "context_note": "매출 이력과 현금흐름 예측이 어려운 스타트업에는 부적합할 수 있음."
+        },
+        {
+          "term": "비교법 (Comparable Company Analysis)",
+          "kind": "기법",
+          "priority": 3,
+          "why": "유사 기업의 가치 배수를 참고해 상대적 가치를 평가하는 실용적 방법. 많은 투자자들이 선호.",
+          "one_line": "유사한 업종·규모의 상장사 또는 최근 투자 사례의 배수(예: 매출 배수)를 비교해 가치를 산정.",
+          "tag": "몰라",
+          "direction": "양방향",
+          "context_note": "시장 상황과 비교 대상 선정의 적절성이 중요."
+        },
+        {
+          "term": "VC법 (벤처캐피탈 방법)",
+          "kind": "기법",
+          "priority": 4,
+          "why": "초기 스타트업 전용으로 널리 사용되며, '기대 수익률'과 '출구 가치' 개념을 이해해야 함.",
+          "one_line": "미리 정한 출구 시점의 기대 가치를 목표 수익률로 할인하여 현재 가치를 산정하는 방법.",
+          "tag": "몰라",
+          "direction": "양방향",
+          "context_note": "엔젤·시드 라운드에서 자주 사용. 출구 가정에 민감함."
+        },
+        {
+          "term": "사전·사후 밸류에이션 (Pre-money & Post-money Valuation)",
+          "kind": "개념",
+          "priority": 5,
+          "why": "투자 라운드에서 지분율 계산의 핵심. 협상 시 혼동을 피하기 위해 반드시 구분 필요.",
+          "one_line": "투자 전 기업 가치(Pre-money)와 투자 후 기업 가치(Post-money = Pre-money + 투자금).",
+          "tag": "몰라",
+          "direction": "양방향",
+          "context_note": "투자자 지분율 = 투자금 / Post-money. 협상의 기본 요소."
+        },
+        {
+          "term": "번-멀티플 (Burn Multiple)",
+          "kind": "지표",
+          "priority": 6,
+          "why": "스타트업 현금 소모 효율성을 측정하는 지표로, 투자자들이 생존 가능성을 평가할 때 중요.",
+          "one_line": "일정 기간 순현금 소모액을 같은 기간 매출 증가액으로 나눈 비율.",
+          "tag": "몰라",
+          "direction": "단방향",
+          "context_note": "1 미만이면 효율적, 2 이상이면 과소비 의심."
+        },
+        {
+          "term": "자금 조달 라운드 (Funding Round)",
+          "kind": "개념",
+          "priority": 7,
+          "why": "시드, 시리즈 A/B 등 단계별로 적합한 밸류에이션 방법과 기준이 다르므로 반드시 숙지 필요.",
+          "one_line": "스타트업이 성장 단계에 따라 자금을 유치하는 일련의 투자 이벤트.",
+          "tag": "몰라",
+          "direction": "양방향",
+          "context_note": "라운드에 따라 기대 수익률, 지분 희석 등이 달라짐."
+        },
+        {
+          "term": "출구 전략 (Exit Strategy)",
+          "kind": "개념",
+          "priority": 8,
+          "why": "밸류에이션은 최종 출구(M&A, IPO) 가치에 기반하므로, 출구 유형과 시점 가정이 핵심.",
+          "one_line": "투자자가 투자금을 회수하는 방법(예: 기업 매각, 상장).",
+          "tag": "몰라",
+          "direction": "양방향",
+          "context_note": "VC법 등에서 출구 가치 추정이 밸류에이션의 큰 변수."
+        }
+      ],
+      "usage": {
+        "prompt_tokens": 1403,
+        "completion_tokens": 1287,
+        "total_tokens": 2690,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 1403
+      }
+    },
+    "flash_stream": {
+      "ttfbMs": 1065,
+      "firstTermMs": 2082,
+      "streamedTermObjs": 8,
+      "parseOk": true,
+      "parseErr": null
+    }
+  },
+  {
+    "area": "결제 정산 시스템",
+    "topic": "정산 주기와 수수료 구조",
+    "tavily": {
+      "sources": [
+        "https://optimus.tech/knowledge-base/interchange-fees",
+        "https://www.rapyd.net/blog/payment-settlement-process",
+        "https://stripe.com/resources/more/payment-settlement-explained-how-it-works-and-how-long-it-takes",
+        "https://invoicedataextraction.com/blog/reconcile-merchant-deposits-to-bank-month-end"
+      ],
+      "facts_chars": 3845
+    },
+    "flash": {
+      "ms": 11240,
+      "parseOk": true,
+      "parseErr": null,
+      "coverage": {
+        "hit": 4,
+        "of": 5,
+        "missing": [
+          "에스크로"
+        ],
+        "terms": [
+          "정산 주기",
+          "인터체인지 수수료 (Interchange fee)",
+          "정산 대금 내역 (Settlement report)",
+          "대사 (Reconciliation)",
+          "총매출 vs 순입금 (Gross vs Net)",
+          "정산 지연 (Settlement delay)",
+          "수수료 면제 협상 (Fee negotiation)"
+        ]
+      },
+      "terms": [
+        {
+          "term": "정산 주기",
+          "kind": "개념",
+          "priority": 1,
+          "why": "정산금이 실제로 계좌에 입금되는 시점을 결정하며, 현금 흐름 계획에 직접적인 영향을 미칩니다.",
+          "one_line": "카드 결제 대금이 가맹점 계좌에 입금되는 시간 간격 (예: D+1은 결제 다음날 입금, 주간 정산은 1주일 단위).",
+          "tag": "몰라",
+          "direction": "결제일로부터 정산일까지의 지연 일수",
+          "context_note": "정산 주기는 비즈니스 유형, 계약 조건, 카드사 정책에 따라 달라집니다."
+        },
+        {
+          "term": "인터체인지 수수료 (Interchange fee)",
+          "kind": "개념",
+          "priority": 2,
+          "why": "결제 비용의 핵심 요소로, 수수료 구조를 이해하기 위해 반드시 알아야 합니다.",
+          "one_line": "카드 결제 시 가맹점의 은행이 카드 발급사에 지불하는 수수료로, 거래 처리 위험과 사기 방지 비용을 포함합니다.",
+          "tag": "몰라",
+          "context_note": "수수료는 카드 종류(신용/체크, 일반/프리미엄), 거래 방식(온라인/오프라인), 업종에 따라 달라집니다."
+        },
+        {
+          "term": "정산 대금 내역 (Settlement report)",
+          "kind": "문서",
+          "priority": 3,
+          "why": "실제 입금액과 예상 금액의 차이를 확인하고 수수료를 검증하는 데 필수 자료입니다.",
+          "one_line": "정산 시점에 가맹점이 받는 상세 명세서로, 총 매출, 각종 수수료, 차감 내역이 포함됩니다.",
+          "tag": "몰라",
+          "context_note": "월별 정산 시 이 보고서를 은행 거래 내역과 비교하여 오류를 찾습니다."
+        },
+        {
+          "term": "대사 (Reconciliation)",
+          "kind": "프로세스",
+          "priority": 4,
+          "why": "정산 오류나 지연 등 문제를 조기에 발견하고 대응하는 핵심 절차입니다.",
+          "one_line": "정산 대금 내역서의 금액과 실제 은행 입금액을 비교하여 차이를 확인하는 과정.",
+          "tag": "몰라",
+          "direction": "예상 금액 대비 실 입금액 차이를 줄이는 방향",
+          "context_note": "정산 주기별로 수행하며, 차이가 발생하면 원인을 분석하여 정정 요청합니다."
+        },
+        {
+          "term": "총매출 vs 순입금 (Gross vs Net)",
+          "kind": "개념",
+          "priority": 5,
+          "why": "수수료 부담을 명확히 이해하고 수익성을 평가하는 데 기본 개념입니다.",
+          "one_line": "총매출은 모든 결제 금액의 합계이고, 순입금은 수수료, 환불, 차지백 등을 차감한 실제 입금액입니다.",
+          "tag": "몰라",
+          "direction": "총매출에서 공제 항목을 줄여 순입금을 높이는 방향",
+          "context_note": "계약서의 수수료율과 실제 차감액을 비교하여 과다 징수 여부를 확인합니다."
+        },
+        {
+          "term": "정산 지연 (Settlement delay)",
+          "kind": "리스크",
+          "priority": 6,
+          "why": "예상치 못한 현금 흐름 부족을 초래할 수 있으므로 방지 및 대응이 필요합니다.",
+          "one_line": "거래 승인 후 실제 자금이 입금되기까지 예상보다 더 오래 걸리는 현상.",
+          "tag": "몰라",
+          "context_note": "주말·공휴일, 카드사 시스템 점검, 대규모 거래, 위험 거래 심사 등이 원인입니다."
+        },
+        {
+          "term": "수수료 면제 협상 (Fee negotiation)",
+          "kind": "전략",
+          "priority": 7,
+          "why": "장기적으로 비용을 절감하고 경쟁력을 높이는 기획 전략의 핵심 요소입니다.",
+          "one_line": "가맹점이 PG사나 카드사와 특정 조건 하에 수수료 인하 또는 면제를 요청하는 과정.",
+          "tag": "몰라",
+          "context_note": "거래량이 많은 경우, 특정 업종, 프로모션 기간 등에 협상 여지가 있습니다."
+        }
+      ],
+      "usage": {
+        "prompt_tokens": 1484,
+        "completion_tokens": 1149,
+        "total_tokens": 2633,
+        "prompt_tokens_details": {
+          "cached_tokens": 256
+        },
+        "prompt_cache_hit_tokens": 256,
+        "prompt_cache_miss_tokens": 1228
+      }
+    },
+    "flash_stream": {
+      "ttfbMs": 1129,
+      "firstTermMs": 2561,
+      "streamedTermObjs": 7,
+      "parseOk": true,
+      "parseErr": null
+    }
+  },
+  {
+    "prompt1_oov": {
+      "parseOk": true,
+      "job_type": [
+        "기획전략"
+      ],
+      "domain": "창업·사업",
+      "condition_required": true,
+      "job_in_enum": true
+    }
+  }
+]
