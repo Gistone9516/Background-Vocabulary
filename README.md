@@ -51,5 +51,5 @@ npm -w @sidetab/extension run build                       # 확장 빌드(dist/)
 ## 현재 상태 / 다음
 
 - **cycle 1 완료·검증:** 프론트↔백엔드 계약 싱크(SoT)를 shared/core/adapters에 반영. 아키네이터 종료 신호(enough/confidence) · 어휘 상세 3단+출처 · "더 보기" exclude 페이지네이션 · 고위험 거부 · 취소 signal · /summarize 유료 게이팅. 타입체크 + 이식성 가드 + 실런타임 e2e 전부 PASS.
-- **다음 cycle 2:** `panel.html` 5화면을 React 확장(`sidetab/packages/extension/sidepanel/`)으로 이식·배선(단일 SPA라 직렬 위주).
-- **백로그:** detail 출처가 한국어 블로그로 나옴(검색 쿼리 영어화 튜닝 필요) · 워커 배포(로컬 검증 후) · userId 익명 게이팅(Tier3).
+- **cycle 2 완료·검증:** `panel.html` 5화면을 React 확장(`sidepanel/`)으로 이식(theme.css=panel.html verbatim) + 5엔드포인트 배선(DEV는 mock, 빌드는 실 워커). 헤드리스 렌더 검증 통과(entry→classify→narrow→recommend 스트리밍→terms→detail 출처→summary, 콘솔 에러 0). vite 빌드 PASS, dist에 아이콘 포함.
+- **다음(cycle 3 후보):** 워커 `wrangler dev` 로컬 기동 + 실 API로 확장 end-to-end(현재 빌드는 WORKER_BASE placeholder) · detail 출처 쿼리 영어화 튜닝 · Pretendard self-host(MV3 CSP) · 워커 배포 · userId 익명 게이팅(Tier3). 상세는 `배경어휘-사이드탭-사용자판단대기.md`.
