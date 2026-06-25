@@ -127,7 +127,7 @@ export function App() {
   // ----- 좁히기 -----
   const toggleSel = (o: string) => {
     const sel = sref.current.sel;
-    const next = sel.includes(o) ? sel.filter((x) => x !== o) : sel.length >= 2 ? [sel[1]!, o] : [...sel, o];
+    const next = sel.includes(o) ? sel.filter((x) => x !== o) : [...sel, o];
     merge({ sel: next });
   };
   const nextStep = useCallback(async () => {
@@ -358,7 +358,7 @@ function Narrow({ state, merge, toggleSel, nextStep, undoStep, jumpToTerms }: { 
       </div>
       <div className="progress" style={{ marginBottom: 16 }}><div className="track"><i style={{ width: pct + "%" }} /></div></div>
       <h2>{cur?.question ?? ""}</h2>
-      <p className="lead" style={{ margin: "6px 0 16px" }}>가까운 걸 고르세요 · 두 개까지 가능</p>
+      <p className="lead" style={{ margin: "6px 0 16px" }}>해당하는 걸 모두 고르세요 · 여러 개 가능</p>
       {(cur?.choices ?? []).map((o) => {
         const on = state.sel.includes(o.label);
         return <button key={o.label} className={`opt ${on ? "sel" : ""}`} onClick={() => toggleSel(o.label)}><span>{o.label}</span><span className="tick">✓</span></button>;

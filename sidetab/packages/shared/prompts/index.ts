@@ -21,6 +21,7 @@ export function buildPrompt1(raw_input: string, context_object?: string): Msg[] 
     "domain_risk 판정: 의료 진단이나 법률 개인 판단처럼 개인에게 직접 위해가 될 수 있는 고위험 분야면 'high', 그 외 'low'.",
     "condition_required: 비교나 의사결정처럼 사용자 개인 조건이 있어야 답이 갈리는 작업이면 true.",
     "사용자가 이미 상황을 서술했으면 다시 묻지 말고 세부 의중을 가르는 선택지를 낸다.",
+    "선택지는 사용자가 여러 개를 동시에 고를 수 있다(복수 선택). 그러므로 'A와 B 둘 다' 또는 '모두 해당'처럼 다른 선택지를 합쳐 만든 통합 보기를 절대 만들지 마라. 각 선택지는 서로 겹치지 않는 단일 갈래여야 한다.",
     EYE_LEVEL,
     'JSON 객체 하나만 출력한다. 형식: {"domain","job_type":[],"user_condition"?,"condition_required":bool,"search_locale":"en|ko","domain_risk":"low|high","question","choices":[{"label","domain_tag"}]}',
     "반드시 유효한 json만 출력한다.",
@@ -45,6 +46,7 @@ export function buildPrompt2(input: {
 }): Msg[] {
   const sys = [
     "사용자의 선택 이력을 보고 의중을 더 좁히는 다음 질문과 선택지 3개에서 4개를 만든다.",
+    "선택지는 사용자가 여러 개를 동시에 고를 수 있다(복수 선택). 그러므로 'A와 B 둘 다' 또는 '모두 해당'처럼 다른 선택지를 합쳐 만든 통합 보기를 절대 만들지 마라. 각 선택지는 서로 겹치지 않는 단일 갈래여야 한다.",
     "action이 '더깊이'면 직전 갈래의 하위 또는 파생 선택지를 만든다(의중 분포는 갱신하지 않는다).",
     "context_object나 user_condition이 있으면 그 맥락에 맞춰 선택지를 좁힌다.",
     EYE_LEVEL,
