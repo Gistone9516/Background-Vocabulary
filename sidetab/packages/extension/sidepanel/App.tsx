@@ -436,10 +436,10 @@ function Entry({ state, merge, submitEntry, chip, openHistory, acceptFile, attac
   return (
     <main className="scroll entryMain">
       <div className="hero">
-        <div className="heroGlow">
-        <div className="aurora" aria-hidden="true" />
         <h1 className="heroTitle">{tr(loc, "entry_title")}</h1>
         <p className="heroSub">{sentLines(tr(loc, state.plan === "pro" ? "entry_sub_pro" : "entry_sub"))}</p>
+        <div className="heroGlow">
+        <div className="aurora" aria-hidden="true" />
         <div className={`composer ${state.inputErr ? "err" : ""}${state.dragging ? " dragging" : ""}`}
           onDragOver={(e) => { e.preventDefault(); if (!state.dragging) merge({ dragging: true }); }}
           onDragLeave={(e) => { e.preventDefault(); merge({ dragging: false }); }}
@@ -464,8 +464,8 @@ function Entry({ state, merge, submitEntry, chip, openHistory, acceptFile, attac
         {state.showCond && <input className="field condField" aria-label={tr(loc, "cond_aria")} placeholder={tr(loc, "cond_ph")} value={state.cond} onChange={(e) => merge({ cond: e.target.value })} />}
         <div className="suggest">
           {picks.map((c, i) => <button key={c} className="sg" style={{ animationDelay: `${(i % 5) * 0.8}s` }} onClick={() => chip(c)}>{c}</button>)}
+          <button className="shuffle" onClick={() => merge({ chipSeed: state.chipSeed + 1 })} aria-label={tr(loc, "shuffle")} title={tr(loc, "shuffle")}><RefreshIcon /></button>
         </div>
-        <button className="shuffle" onClick={() => merge({ chipSeed: state.chipSeed + 1 })} aria-label={tr(loc, "shuffle")} title={tr(loc, "shuffle")}><RefreshIcon /></button>
         </div>
         {state.history.length > 0 && (
           <div className="history">
