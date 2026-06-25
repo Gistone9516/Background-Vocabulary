@@ -16,7 +16,7 @@
 | `배경어휘-사이드탭-기획-구체화.md` | 메인 기획(v1.5). 설계·결정 단일 출처(§11 서비스화) |
 | `배경어휘-사이드탭-구현계획.md` | "어떻게 짓는가"(v1.2 — 스택·아키텍처·게이트) |
 | `배경어휘-사이드탭-이관.md` | 진행 핸드오프 |
-| `.env` | API 키 4종(DeepSeek/Tavily/Upstash) — **커밋 금지** |
+| `sidetab/.env` | 스크립트(e2e·g4g7 등)용 API 키 4종(DeepSeek/Tavily/Upstash). 워커는 `sidetab/packages/adapters/workers/.dev.vars` 사용. **둘 다 커밋 금지** |
 | `_archive/` | 과거 산출물(기획·검증·정확도·비용·하니스·구 프로토타입). git 제외, 로컬 참조용 |
 
 ---

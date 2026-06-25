@@ -431,6 +431,7 @@ function Narrow({ state, merge, toggleSel, nextStep, undoStep, jumpToTerms }: { 
       <div className={`progress${proPhase ? " pro" : ""}`} style={{ marginBottom: 16 }}>
         <div className="track"><i style={{ width: pct + "%" }} /></div>
         {proPhase && <span className="prophase">pro 심화 탐색</span>}
+        {state.plan !== "pro" && <span className="prolock" title="3턴 이후 더 깊은 탐색은 pro에서 열려요">🔒 pro</span>}
       </div>
       <h2>{sentLines(cur?.question ?? "")}</h2>
       <p className="lead" style={{ margin: "6px 0 16px" }}>해당하는 걸 모두 고르세요 · 여러 개 가능</p>
