@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "배경지식 사이드탭",
+  "name": "배경노트",
   "version": "0.1.0",
-  "description": "교차전공 빌더를 위한 핵심 어휘 추천 크롬 확장",
+  "description": "배경노트(Vock note) — 교차전공 빌더를 위한 핵심 배경 어휘 추천 크롬 확장",
   "permissions": [
     "sidePanel",
     "storage"
@@ -20,7 +20,7 @@
     "default_path": "sidepanel.html"
   },
   "action": {
-    "default_title": "배경지식 사이드탭 열기",
+    "default_title": "배경노트 열기",
     "default_icon": {
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png"

@@ -81,6 +81,11 @@ function sentLines(t: string): ReactNode[] {
   return out;
 }
 const INTENT_LABEL = "이 분야를 이해하고 활용";
+// 첫 문장만 남긴다. 추천 이유처럼 한 문장만 보여줄 때 두 번째 문장 이후를 잘라 깔끔하게 한다.
+function firstSentence(t: string): string {
+  const m = t.match(/[\s\S]*?[.!?](?=\s|$)/);
+  return (m ? m[0] : t).trim();
+}
 // 받침 유무로 을/를 조사를 고른다(한글 음절만, 그 외는 를).
 function eul(w: string): "을" | "를" {
   const c = w.charCodeAt(w.length - 1);
@@ -268,7 +273,7 @@ export function App() {
     else L.push("(어휘 화면에서 담은 어휘가 여기 정리돼요)");
     if (ctxObj) L.push(`(참고 맥락: ${ctxObj})`);
     L.push(""); L.push("이 개념들을 내 상황에 어떻게 적용하는지, 우선순위와 함께 구체적 예시로 알려줘.");
-    L.push("— 배경어휘 사이드탭에서 정리함 (AI 생성 보조 어휘)");
+    L.push("— 배경노트에서 정리함 (AI 생성 보조 어휘)");
     return L.join("\n");
   };
   const onCopy = () => {
@@ -319,7 +324,7 @@ export function App() {
 
   const live = state.screen === "narrow";
   return (
-    <div id="app" className={live ? "live" : ""} role="application" aria-label="배경어휘 사이드탭">
+    <div id="app" className={live ? "live" : ""} role="application" aria-label="배경노트">
       {state.pending && <div className="bar" role="status" aria-label="불러오는 중이에요"><i /></div>}
       <Header state={state} openPaywall={openPaywall} goHome={goHome} />
       {state.screen === "entry" && <Entry state={state} merge={merge} submitEntry={submitEntry} chip={chip} openHistory={openHistory} />}
@@ -341,7 +346,7 @@ function Header({ state, openPaywall, goHome }: { state: State; openPaywall: () 
     <header>
       <button className="brand" onClick={goHome} aria-label="홈으로">
         <span className="logo"><i /><i /></span>
-        <span><b>배경어휘</b><span>SIDE TAB</span></span>
+        <span><b>배경노트</b><span>Vock note</span></span>
       </button>
       <div className="htools">
         <button className={`plan ${warn ? "warn" : ""}`} onClick={openPaywall} aria-label="요금제">
@@ -410,6 +415,8 @@ function Narrow({ state, merge, toggleSel, nextStep, undoStep, jumpToTerms }: { 
   const cur = state.questions[idx] ?? state.questions[state.questions.length - 1];
   // 진행은 confidence와 진행 위치(목표 3턴) 중 큰 값으로 부드럽게 채운다(점 팝 없음).
   const pct = Math.round(Math.max(state.confidence, Math.min(idx, 3) / 3) * 100);
+  // 4번째 질문부터는 pro 전용 심화 구간(무료는 3턴에서 종료되므로 자연히 pro만 도달).
+  const proPhase = idx >= 3;
   return (
     <main className="scroll"><div className="pad" style={{ display: "flex", flexDirection: "column" }}>
       <div className="aiwrap">
@@ -417,7 +424,10 @@ function Narrow({ state, merge, toggleSel, nextStep, undoStep, jumpToTerms }: { 
         <span className="aimeta"><b>AI</b>가 좁히는 중 · {idx + 1}번째{state.confidence >= 0.75 ? " · 거의 다 좁혔어요" : ""}</span>
         {state.answers.length > 0 && <button className="link" style={{ marginLeft: "auto" }} onClick={undoStep}>↩ 되돌리기</button>}
       </div>
-      <div className="progress" style={{ marginBottom: 16 }}><div className="track"><i style={{ width: pct + "%" }} /></div></div>
+      <div className={`progress${proPhase ? " pro" : ""}`} style={{ marginBottom: 16 }}>
+        <div className="track"><i style={{ width: pct + "%" }} /></div>
+        {proPhase && <span className="prophase">pro 심화 탐색</span>}
+      </div>
       <h2>{sentLines(cur?.question ?? "")}</h2>
       <p className="lead" style={{ margin: "6px 0 16px" }}>해당하는 걸 모두 고르세요 · 여러 개 가능</p>
       {(cur?.choices ?? []).map((o) => {
@@ -477,7 +487,7 @@ function Card({ t, i, state, toggleKeep, toggleDetail, jumpRelated, doDeepen }: 
             {t.kept && <span className="badge-ok">담음 ✓</span>}
           </div>
           <div className="oneline">{sentLines(t.one_line)}</div>
-          <div className="why"><b>추천 이유</b><span>{sentLines(t.why)}</span></div>
+          <div className="why"><b>추천 이유</b><span>{firstSentence(t.why)}</span></div>
         </div>
         <span className="chev"><Chev /></span>
       </div>
