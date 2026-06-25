@@ -11,7 +11,8 @@ const ko: Dict = {
   plan_free_left: "무료 {n}/7",
 
   entry_title: "무슨 일 때문에 왔나요?",
-  entry_sub: "그 분야 핵심 어휘를 옆에 사전처럼 띄워둘게요. 막힌 용어나 문서를 붙여넣어도 돼요.",
+  entry_sub: "그 분야 핵심 어휘를 옆에 사전처럼 띄워둘게요. 막힌 용어를 적어도 돼요.",
+  entry_sub_pro: "그 분야 핵심 어휘를 옆에 사전처럼 띄워둘게요. 막힌 용어나 문서를 붙여넣어도 돼요.",
   entry_input_ph: "무엇을 하려는지 한 줄로 적어주세요",
   entry_input_aria: "무슨 일 때문에 왔는지 상황 입력",
   cond_add: "+ 조건",
@@ -36,7 +37,7 @@ const ko: Dict = {
   narrow_jump: "지금 충분해요 · 어휘 보기 →",
   thinking: "AI가 답을 읽고\n다음 질문을 고르는 중…",
   prophase: "pro 심화 탐색",
-  prolock: "🔒 pro",
+  prolock: "pro",
   prolock_title: "3턴 이후 더 깊은 탐색은 pro에서 열려요",
 
   terms_domain_fallback: "분야",
@@ -126,7 +127,7 @@ const ko: Dict = {
   attach_texterr: "텍스트 파일만 첨부할 수 있어요.",
   attach_truncated: "문서가 길어 앞부분만 담았어요.",
 
-  shuffle: "🔄 다른 예시",
+  shuffle: "다른 예시",
   help: "사용 안내",
   tut_title: "이렇게 쓰면 돼요",
   tut_step1: "하려는 일을 한 줄로 적어요.",
@@ -141,7 +142,8 @@ const en: Dict = {
   plan_free_left: "Free {n}/7",
 
   entry_title: "What brings you here?",
-  entry_sub: "I'll keep the field's key terms beside you like a dictionary. You can paste a term or document you're stuck on.",
+  entry_sub: "I'll keep the field's key terms beside you like a dictionary. You can type a term you're stuck on.",
+  entry_sub_pro: "I'll keep the field's key terms beside you like a dictionary. You can paste a term or document you're stuck on.",
   entry_input_ph: "Tell me in one line what you're trying to do",
   entry_input_aria: "Describe what brings you here",
   cond_add: "+ Condition",
@@ -166,7 +168,7 @@ const en: Dict = {
   narrow_jump: "That's enough · see terms →",
   thinking: "AI is reading your answers\nand choosing the next question…",
   prophase: "pro deep exploration",
-  prolock: "🔒 pro",
+  prolock: "pro",
   prolock_title: "Deeper exploration past 3 steps opens with pro",
 
   terms_domain_fallback: "Field",
@@ -256,7 +258,7 @@ const en: Dict = {
   attach_texterr: "Only text files can be attached.",
   attach_truncated: "The document was long, so only the beginning was kept.",
 
-  shuffle: "🔄 Other examples",
+  shuffle: "Other examples",
   help: "How to use",
   tut_title: "Here's how it works",
   tut_step1: "Write what you're trying to do in one line.",
@@ -271,7 +273,8 @@ const ja: Dict = {
   plan_free_left: "無料 {n}/7",
 
   entry_title: "今日はどんな用件ですか？",
-  entry_sub: "その分野の重要な用語を辞書のように横に表示します。詰まった用語や文書を貼り付けてもOKです。",
+  entry_sub: "その分野の重要な用語を辞書のように横に表示します。詰まった用語を書いてもOKです。",
+  entry_sub_pro: "その分野の重要な用語を辞書のように横に表示します。詰まった用語や文書を貼り付けてもOKです。",
   entry_input_ph: "やりたいことを一行で書いてください",
   entry_input_aria: "用件の入力",
   cond_add: "+ 条件",
@@ -296,7 +299,7 @@ const ja: Dict = {
   narrow_jump: "もう十分 · 用語を見る →",
   thinking: "AIが回答を読んで\n次の質問を選んでいます…",
   prophase: "pro 深掘り探索",
-  prolock: "🔒 pro",
+  prolock: "pro",
   prolock_title: "3回以降の深い探索はproで開きます",
 
   terms_domain_fallback: "分野",
@@ -386,7 +389,7 @@ const ja: Dict = {
   attach_texterr: "テキストファイルのみ添付できます。",
   attach_truncated: "文書が長いため先頭部分のみ取り込みました。",
 
-  shuffle: "🔄 別の例",
+  shuffle: "別の例",
   help: "使い方",
   tut_title: "使い方はこちら",
   tut_step1: "やりたいことを一行で書きます。",
@@ -401,7 +404,8 @@ const zh: Dict = {
   plan_free_left: "免费 {n}/7",
 
   entry_title: "今天想做什么？",
-  entry_sub: "我会把该领域的核心术语像词典一样放在你旁边。也可以粘贴你卡住的术语或文档。",
+  entry_sub: "我会把该领域的核心术语像词典一样放在你旁边。也可以写下你卡住的术语。",
+  entry_sub_pro: "我会把该领域的核心术语像词典一样放在你旁边。也可以粘贴你卡住的术语或文档。",
   entry_input_ph: "用一句话写下你想做的事",
   entry_input_aria: "输入你的来意",
   cond_add: "+ 条件",
@@ -426,7 +430,7 @@ const zh: Dict = {
   narrow_jump: "够了 · 查看术语 →",
   thinking: "AI 正在阅读你的回答\n并挑选下一个问题…",
   prophase: "pro 深度探索",
-  prolock: "🔒 pro",
+  prolock: "pro",
   prolock_title: "第 3 轮之后的深度探索由 pro 开启",
 
   terms_domain_fallback: "领域",
@@ -516,7 +520,7 @@ const zh: Dict = {
   attach_texterr: "只能附加文本文件。",
   attach_truncated: "文档较长，仅保留了开头部分。",
 
-  shuffle: "🔄 换一批",
+  shuffle: "换一批",
   help: "使用说明",
   tut_title: "这样使用",
   tut_step1: "用一句话写下你想做的事。",

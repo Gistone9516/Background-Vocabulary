@@ -10,6 +10,7 @@
   --glow:0 1px 7px oklch(0.66 0.10 75 / 0.22), 0 0 4px oklch(0.70 0.10 78 / 0.13); --glow-ring:0 0 0 3px oklch(0.72 0.09 78 / 0.18);
   --shadow:0 1px 2px rgba(25,22,12,.05); --shadow-lg:0 8px 24px rgba(25,22,12,.09);
   --warn-ink:oklch(0.52 0.12 40); --warn-soft:oklch(0.96 0.05 60); --warn-border:oklch(0.83 0.09 55);
+  --aurora1:oklch(0.80 0.10 235); --aurora2:oklch(0.83 0.08 198);
 }
 @media (prefers-color-scheme: dark){
   :root{
@@ -22,6 +23,7 @@
     --glow:0 1px 8px oklch(0.66 0.10 78 / 0.24), 0 0 5px oklch(0.72 0.09 80 / 0.14); --glow-ring:0 0 0 3px oklch(0.66 0.09 80 / 0.2);
     --shadow:0 1px 2px rgba(0,0,0,.35); --shadow-lg:0 10px 28px rgba(0,0,0,.5);
     --warn-ink:oklch(0.80 0.10 60); --warn-soft:oklch(0.30 0.06 50); --warn-border:oklch(0.46 0.09 50);
+    --aurora1:oklch(0.72 0.11 235); --aurora2:oklch(0.75 0.09 198);
   }
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -132,12 +134,21 @@ textarea.field{line-height:1.55}
 .filechip button{flex:0 0 auto;width:18px;height:18px;border-radius:99px;background:var(--surface);color:var(--muted);font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center}
 .condField{margin-top:10px}
 .suggest{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-top:18px}
-.sg{font-size:13px;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:7px 12px;line-height:1.3;transition:border-color .12s,color .12s,background .12s;animation:chipFloat 3s ease-in-out infinite}
+.sg{font-size:13px;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:7px 12px;line-height:1.3;transition:border-color .12s,color .12s,background .12s;animation:chipFloat 5.5s ease-in-out infinite}
 .sg:hover{border-color:var(--accent);color:var(--text);background:var(--accent-soft)}
-.sg.shuffle{color:var(--faint);animation:none}
-/* 예시 칩이 둥둥 떠다니는 은은한 호흡. 칩마다 animation-delay로 위상차를 둔다(인라인). */
-@keyframes chipFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+/* 예시 칩이 둥둥 떠다니는 은은한 호흡. 칩마다 animation-delay로 위상차를 둔다(인라인). 느리게·좁게. */
+@keyframes chipFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 @media (prefers-reduced-motion: reduce){.sg{animation:none}}
+/* 진입 오로라 하이라이트 — 제목~예시칩 영역만(하단 history 제외). 하단에서 하늘빛이 위로 비추고 톤이 살짝 변하며 약하게 웨이브. */
+.heroGlow{position:relative;z-index:0}
+.aurora{position:absolute;inset:0;z-index:-1;pointer-events:none;overflow:hidden;opacity:.5;background:radial-gradient(72% 56% at 36% 116%,var(--aurora1),transparent 62%),radial-gradient(64% 50% at 70% 120%,var(--aurora2),transparent 60%);background-size:170% 170%,170% 170%;animation:auroraWave 14s ease-in-out infinite}
+@keyframes auroraWave{0%,100%{background-position:34% 100%,70% 100%;filter:hue-rotate(0deg)}50%{background-position:56% 100%,44% 100%;filter:hue-rotate(-12deg)}}
+@media (prefers-reduced-motion: reduce){.aurora{animation:none}}
+/* 예시 다시 뽑기 — 칩 패널 우측 하단에 작게, 평소 30%(호버 시 진해짐) */
+.shuffle{position:absolute;right:0;bottom:0;width:22px;height:22px;display:flex;align-items:center;justify-content:center;color:var(--muted);opacity:.3;transition:opacity .15s}
+.shuffle:hover{opacity:.7}
+.shuffle svg{width:16px;height:16px}
+.prolock svg{width:11px;height:11px}
 .entryNote{margin-top:18px;text-align:center}
 
 /* narrow */

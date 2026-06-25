@@ -112,6 +112,8 @@ const Spark = () => (<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2
 const Chev = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M6 9l6 6 6-6" /></svg>);
 const SearchIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>);
 const LinkIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M7 17L17 7M9 7h8v8" /></svg>);
+const RefreshIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 11a8 8 0 1 0-.9 4.5" /><path d="M20 4v6h-6" /></svg>);
+const LockIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>);
 
 export function App() {
   const [state, dispatch] = useReducer(reducer, undefined, initial);
@@ -434,8 +436,10 @@ function Entry({ state, merge, submitEntry, chip, openHistory, acceptFile, attac
   return (
     <main className="scroll entryMain">
       <div className="hero">
+        <div className="heroGlow">
+        <div className="aurora" aria-hidden="true" />
         <h1 className="heroTitle">{tr(loc, "entry_title")}</h1>
-        <p className="heroSub">{sentLines(tr(loc, "entry_sub"))}</p>
+        <p className="heroSub">{sentLines(tr(loc, state.plan === "pro" ? "entry_sub_pro" : "entry_sub"))}</p>
         <div className={`composer ${state.inputErr ? "err" : ""}${state.dragging ? " dragging" : ""}`}
           onDragOver={(e) => { e.preventDefault(); if (!state.dragging) merge({ dragging: true }); }}
           onDragLeave={(e) => { e.preventDefault(); merge({ dragging: false }); }}
@@ -459,8 +463,9 @@ function Entry({ state, merge, submitEntry, chip, openHistory, acceptFile, attac
         {state.inputErr && <div className="errmsg" style={{ textAlign: "center" }}>{tr(loc, "entry_err")}</div>}
         {state.showCond && <input className="field condField" aria-label={tr(loc, "cond_aria")} placeholder={tr(loc, "cond_ph")} value={state.cond} onChange={(e) => merge({ cond: e.target.value })} />}
         <div className="suggest">
-          {picks.map((c, i) => <button key={c} className="sg" style={{ animationDelay: `${(i % 5) * 0.5}s` }} onClick={() => chip(c)}>{c}</button>)}
-          <button className="sg shuffle" onClick={() => merge({ chipSeed: state.chipSeed + 1 })}>{tr(loc, "shuffle")}</button>
+          {picks.map((c, i) => <button key={c} className="sg" style={{ animationDelay: `${(i % 5) * 0.8}s` }} onClick={() => chip(c)}>{c}</button>)}
+        </div>
+        <button className="shuffle" onClick={() => merge({ chipSeed: state.chipSeed + 1 })} aria-label={tr(loc, "shuffle")} title={tr(loc, "shuffle")}><RefreshIcon /></button>
         </div>
         {state.history.length > 0 && (
           <div className="history">
@@ -507,7 +512,7 @@ function Narrow({ state, merge, toggleSel, nextStep, undoStep, jumpToTerms }: { 
       <div className={`progress${proPhase ? " pro" : ""}`} style={{ marginBottom: 16 }}>
         <div className="track"><i style={{ width: pct + "%" }} /></div>
         {proPhase && <span className="prophase">{tr(loc, "prophase")}</span>}
-        {state.plan !== "pro" && <span className="prolock" title={tr(loc, "prolock_title")}>{tr(loc, "prolock")}</span>}
+        {state.plan !== "pro" && <span className="prolock" title={tr(loc, "prolock_title")}><LockIcon />{tr(loc, "prolock")}</span>}
       </div>
       <h2>{sentLines(cur?.question ?? "")}</h2>
       <p className="lead" style={{ margin: "6px 0 16px" }}>{tr(loc, "narrow_lead")}</p>
