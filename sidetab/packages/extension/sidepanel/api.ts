@@ -3,10 +3,24 @@
 import type {
   Prompt1In, Prompt1Out, Prompt2In, Prompt2Out,
   Prompt4In, Prompt4Out, Prompt5In, Prompt5Out,
-  RecommendInput, StreamEvent, ClientLimits,
+  RecommendInput, StreamEvent, ClientLimits, OutputLocale,
 } from "@sidetab/shared";
-import { DEFAULT_LIMITS } from "@sidetab/shared";
+import { DEFAULT_LIMITS, OUTPUT_LOCALES } from "@sidetab/shared";
 import * as mock from "./mock.js";
+
+// 출력 콘텐츠 언어. 브라우저/OS 언어에서 감지하거나 사용자가 드롭다운으로 바꾼다.
+// 모든 API 호출에 x-locale 헤더로 실어 보내 워커가 LLM 출력 언어를 정한다.
+let currentLocale: OutputLocale = "ko";
+export function setLocale(l: OutputLocale): void { currentLocale = l; }
+export function getLocale(): OutputLocale { return currentLocale; }
+
+// navigator.language(예: "ja-JP")를 OutputLocale로 매핑한다. 미지원 언어는 영어로 폴백.
+export function detectLocale(): OutputLocale {
+  const raw = (navigator.language || "").toLowerCase();
+  const two = raw.slice(0, 2);
+  if ((OUTPUT_LOCALES as string[]).includes(two)) return two as OutputLocale;
+  return "en";
+}
 
 // 워커 /config 미응답(오프라인·mock·실패) 시 쓰는 클라이언트 기본 한도.
 export const DEFAULT_CLIENT_LIMITS: ClientLimits = {
@@ -41,7 +55,7 @@ export async function getUserId(): Promise<string> {
 }
 
 async function headers(tier: Tier): Promise<Record<string, string>> {
-  return { "Content-Type": "application/json", "x-user-id": await getUserId(), "x-tier": tier };
+  return { "Content-Type": "application/json", "x-user-id": await getUserId(), "x-tier": tier, "x-locale": currentLocale };
 }
 
 async function postJson<I, O>(path: string, body: I, tier: Tier): Promise<O> {

@@ -22,6 +22,7 @@ import type {
   CreatePipeline,
   RecommendInput,
   Tier,
+  OutputLocale,
 } from "@sidetab/shared";
 import { DEFAULT_LIMITS } from "@sidetab/shared";
 
@@ -48,8 +49,8 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
   const limits = deps.limits ?? DEFAULT_LIMITS;
   return {
     // 프롬프트1: 자유 문장에서 도메인과 작업유형을 분류하고 첫 분기를 만든다.
-    async classify(input: Prompt1In): Promise<Prompt1Out> {
-      const messages = prompts.buildPrompt1(input.raw_input, input.context_object);
+    async classify(input: Prompt1In, outputLocale: OutputLocale): Promise<Prompt1Out> {
+      const messages = prompts.buildPrompt1(input.raw_input, outputLocale, input.context_object);
       return deps.llm.complete<Prompt1Out>({
         model: MODEL_FLASH,
         messages,
@@ -58,8 +59,8 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
     },
 
     // 프롬프트2: 누적 선택에서 다음 분기를 만든다.
-    async nextBranch(input: Prompt2In): Promise<Prompt2Out> {
-      const messages = prompts.buildPrompt2(input);
+    async nextBranch(input: Prompt2In, outputLocale: OutputLocale): Promise<Prompt2Out> {
+      const messages = prompts.buildPrompt2({ ...input, outputLocale });
       return deps.llm.complete<Prompt2Out>({
         model: MODEL_FLASH,
         messages,
@@ -70,7 +71,7 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
     // 프롬프트3: RAG를 먼저 실행한 뒤 term 단위 스트리밍으로 추천 어휘를 내보낸다.
     // 고위험 도메인은 LLM을 호출하지 않고 즉시 error 이벤트로 스트림을 닫는다.
     // hard_domain이 true이면 flash 사용자라도 pro 모델을 쓴다(구현계획 6장 모델 라우팅).
-    recommendStream(input: RecommendInput, tier: Tier, signal?: AbortSignal): ReadableStream<StreamEvent> {
+    recommendStream(input: RecommendInput, tier: Tier, outputLocale: OutputLocale, signal?: AbortSignal): ReadableStream<StreamEvent> {
       // ReadableStream을 동기로 반환하되 내부 비동기 흐름을 start 안에서 처리한다.
       return new ReadableStream<StreamEvent>({
         async start(controller) {
@@ -121,6 +122,7 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
             };
             const prompt3Input = {
               ...prompt3Base,
+              outputLocale,
               count: limits.termCount[tier], // 티어별 어휘 개수
               ...(input.user_condition !== undefined && { user_condition: input.user_condition }),
               ...(input.context_object !== undefined && { context_object: input.context_object }),
@@ -168,8 +170,8 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
     },
 
     // 프롬프트4: 태깅 결과를 받아 메인 AI에 넘길 정리 텍스트를 만든다.
-    async summarize(input: Prompt4In): Promise<Prompt4Out> {
-      const messages = prompts.buildPrompt4(input);
+    async summarize(input: Prompt4In, outputLocale: OutputLocale): Promise<Prompt4Out> {
+      const messages = prompts.buildPrompt4({ ...input, outputLocale });
       return deps.llm.complete<Prompt4Out>({
         model: MODEL_FLASH,
         messages,
@@ -179,7 +181,7 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
 
     // 프롬프트5: 단어 상세. 자세히 클릭 시에만 호출한다(on-demand, lazy).
     // 출처(D2): 이 어휘로 경량 검색해 candidateSources를 만든다(en만; ko는 throw되어 빈 출처 폴백).
-    async detail(input: Prompt5In, tier: Tier): Promise<Prompt5Out> {
+    async detail(input: Prompt5In, tier: Tier, outputLocale: OutputLocale): Promise<Prompt5Out> {
       let grounding = "";
       let candidateSources: { title: string; url: string }[] = [];
       try {
@@ -206,6 +208,7 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
         job_type: input.job_type,
         grounding,
         candidateSources,
+        outputLocale,
         ...(input.deepen !== undefined && { deepen: input.deepen }),
       });
 

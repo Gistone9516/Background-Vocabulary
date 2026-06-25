@@ -2,7 +2,7 @@
 // 디자인/구조는 panel.html을 따른다(theme.css = panel.html style verbatim). mock↔실API는 api.ts가 스위치.
 import { useReducer, useRef, useEffect, useCallback, type ReactNode } from "react";
 import type {
-  Prompt1Out, Choice, Term, Prompt5Out, Tag, RecommendInput, ClientLimits,
+  Prompt1Out, Choice, Term, Prompt5Out, Tag, RecommendInput, ClientLimits, OutputLocale,
 } from "@sidetab/shared";
 import * as api from "./api.js";
 import { DEFAULT_CLIENT_LIMITS } from "./api.js";
@@ -34,7 +34,7 @@ interface State {
   plan: "flash" | "pro"; remaining: number; prevScreen: Screen; limitHit: boolean;
   errorMsg: string;
   sessionId: string; history: SessionRec[]; histView: boolean;
-  limits: ClientLimits;
+  limits: ClientLimits; locale: OutputLocale;
 }
 const MIN_Q = 3;
 const HIGHRISK = /(의료|진단|병원|처방|법률|소송|변호|판결|고소|세무신고|증상|치료)/;
@@ -52,7 +52,7 @@ function initial(): State {
     moreLoading: false, moreLoaded: false, streaming: false,
     ctxInput: "", copied: false, copyFailed: false, shareNote: false, aiSummary: "", aiSummaryLoading: false,
     plan: "flash", remaining: 5, prevScreen: "entry", limitHit: false, errorMsg: "",
-    sessionId: "", history: [], histView: false, limits: DEFAULT_CLIENT_LIMITS,
+    sessionId: "", history: [], histView: false, limits: DEFAULT_CLIENT_LIMITS, locale: "ko",
   };
 }
 
@@ -325,6 +325,8 @@ export function App() {
   useEffect(() => { if (state.screen === "entry") void loadSessions().then((list) => merge({ history: list })); }, [state.screen, merge]);
   // 워커 운영 한도(좁히기 턴·상세 횟수 등)를 한 번 읽어 게이팅에 쓴다. 실패 시 기본값 유지.
   useEffect(() => { void api.getConfig().then((l) => merge({ limits: l })); }, [merge]);
+  // 출력 언어를 브라우저/OS에서 감지해 api와 상태에 반영한다(이후 드롭다운으로 수동 변경 가능).
+  useEffect(() => { const l = api.detectLocale(); api.setLocale(l); merge({ locale: l }); }, [merge]);
 
   const live = state.screen === "narrow";
   return (

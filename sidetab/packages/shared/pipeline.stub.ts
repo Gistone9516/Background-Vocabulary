@@ -17,6 +17,7 @@ import type {
   DomainRisk,
   Tier,
   Limits,
+  OutputLocale,
 } from "./types.js";
 import type { LlmClient, SearchProvider, CacheStore } from "./interfaces.js";
 
@@ -37,16 +38,17 @@ export interface RecommendInput extends Prompt3In {
   exclude?: string[]; // 이미 보여준 term명. 다음 우선순위 배치(D4 더보기).
 }
 
+// 모든 메서드는 outputLocale를 받아 사용자에게 보일 텍스트를 그 언어로 출력한다(RAG 검색 언어와 별개).
 export interface Pipeline {
-  classify(input: Prompt1In): Promise<Prompt1Out>;
-  nextBranch(input: Prompt2In): Promise<Prompt2Out>;
+  classify(input: Prompt1In, outputLocale: OutputLocale): Promise<Prompt1Out>;
+  nextBranch(input: Prompt2In, outputLocale: OutputLocale): Promise<Prompt2Out>;
   // 프롬프트3. RAG(검색→캐시→주입)를 내부에서 처리하고 term 단위로 StreamEvent를 흘린다.
   // 검색 실패는 캐시 폴백 후 근거 제한으로 진행하거나 고위험이면 거부한다(구현계획 6장).
   // tier에 따라 어휘 개수와 출력 토큰 상한이 갈린다(free는 적게, paid는 많이).
-  recommendStream(input: RecommendInput, tier: Tier, signal?: AbortSignal): ReadableStream<StreamEvent>;
-  summarize(input: Prompt4In): Promise<Prompt4Out>;
+  recommendStream(input: RecommendInput, tier: Tier, outputLocale: OutputLocale, signal?: AbortSignal): ReadableStream<StreamEvent>;
+  summarize(input: Prompt4In, outputLocale: OutputLocale): Promise<Prompt4Out>;
   // tier에 따라 출력 토큰 상한이 갈린다. 출처 RAG는 양 티어 동일.
-  detail(input: Prompt5In, tier: Tier): Promise<Prompt5Out>;
+  detail(input: Prompt5In, tier: Tier, outputLocale: OutputLocale): Promise<Prompt5Out>;
 }
 
 // 팩토리 시그니처. core/pipeline.ts가 구현한다.

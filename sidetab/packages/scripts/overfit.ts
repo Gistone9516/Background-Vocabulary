@@ -41,13 +41,13 @@ const CASES = [
 const out: any[] = [];
 for (const c of CASES) {
   try {
-    const p1 = await pipeline.classify({ raw_input: c.raw });
+    const p1 = await pipeline.classify({ raw_input: c.raw }, "ko");
     const input: RecommendInput = {
       area: p1.domain, domain: "other", topic: c.raw,
       locale: p1.search_locale, job_type: p1.job_type, domain_risk: p1.domain_risk,
     };
     if (p1.domain_risk === "high") { out.push({ label: c.label, area: p1.domain, refused: true }); console.log(`\n[${c.label}] 고위험 거부됨`); continue; }
-    const r = await drain(pipeline.recommendStream(input, "paid"));
+    const r = await drain(pipeline.recommendStream(input, "paid", "ko"));
     const names: string[] = r.terms.map((t: any) => t.term);
     const contam = names.filter((n) => CONTAM.some((x) => norm(n).includes(norm(x))));
     out.push({

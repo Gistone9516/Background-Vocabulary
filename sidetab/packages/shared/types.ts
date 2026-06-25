@@ -69,6 +69,11 @@ export interface ClientLimits {
 // 검색 언어. 진입 분류에서 검색 전에 한 번 결정한다.
 export type Locale = "en" | "ko";
 
+// 출력(사용자에게 보일 콘텐츠) 언어. RAG 검색 언어(Locale)와 별개다.
+// 사용자 OS/브라우저 언어 또는 수동 선택에서 온다. 카드·상세·질문 등 모든 LLM 출력 텍스트의 언어.
+export type OutputLocale = "ko" | "en" | "ja" | "zh";
+export const OUTPUT_LOCALES: OutputLocale[] = ["ko", "en", "ja", "zh"];
+
 // 도메인 위험도. high는 고위험 도메인으로 거부 라우팅 대상이다.
 export type DomainRisk = "low" | "high";
 

@@ -72,7 +72,7 @@ const out: any = { g4: [], g7: [] };
 let g4ok = 0, g4koAsEn = 0, g4high = 0, g4highTotal = 0;
 for (const c of G4) {
   try {
-    const { parsed } = await callJson(buildPrompt1(c.input));
+    const { parsed } = await callJson(buildPrompt1(c.input, "ko"));
     const loc = parsed?.search_locale;
     const risk = parsed?.domain_risk;
     const ok = loc === c.expect_locale;
@@ -97,7 +97,7 @@ C(`[G4] accuracy=${g4acc}% (${g4ok}/${G4.length})  ko->en misclassified=${g4koAs
 for (const c of G7) {
   try {
     const grounding = await tavily(c.en_query);
-    const { parsed } = await callJson(buildPrompt3({ area: c.area, job_type: c.job_type, gap_type: c.gap_type, grounding }));
+    const { parsed } = await callJson(buildPrompt3({ area: c.area, job_type: c.job_type, gap_type: c.gap_type, grounding, outputLocale: "ko" }));
     const terms = parsed?.terms ?? [];
     const fieldHit: Record<string, number> = {};
     for (const f of c.expect_fields) fieldHit[f] = terms.filter((t: any) => t[f] != null && (Array.isArray(t[f]) ? t[f].length : String(t[f]).length) > 0).length;

@@ -24,8 +24,8 @@ import type {
   Prompt5In,
   StreamEvent,
 } from "@sidetab/shared";
-import type { RecommendInput, Tier, Limits, ClientLimits } from "@sidetab/shared";
-import { DEFAULT_LIMITS } from "@sidetab/shared";
+import type { RecommendInput, Tier, Limits, ClientLimits, OutputLocale } from "@sidetab/shared";
+import { DEFAULT_LIMITS, OUTPUT_LOCALES } from "@sidetab/shared";
 import { UpstashUsageCounter, UpstashGlobalDailyCap } from "./usage-counter.js";
 
 // Workers env 바인딩 타입. wrangler.toml의 [vars]와 secrets에 대응한다.
@@ -74,6 +74,12 @@ function readTier(c: { req: { header(name: string): string | undefined } }): Tie
   return (c.req.header("x-tier") ?? "").toLowerCase() === "paid" ? "paid" : "free";
 }
 
+// x-locale 헤더를 OutputLocale로 좁힌다(허용 목록 외/미지정이면 ko). 출력 콘텐츠 언어.
+function readLocale(c: { req: { header(name: string): string | undefined } }): OutputLocale {
+  const v = (c.req.header("x-locale") ?? "").toLowerCase();
+  return (OUTPUT_LOCALES as string[]).includes(v) ? (v as OutputLocale) : "ko";
+}
+
 // 전역 일일 캡 검사 겸 증가. cap은 buildLimits에서 온다. 비싼 호출(recommend·detail·summarize) 앞에 둔다.
 // 캡 초과면 over=true. Upstash 오류 시 통과(서비스 우선, 보수적 접근).
 async function bumpGlobalCap(env: Env, cap: number): Promise<{ over: boolean; count: number; cap: number }> {
@@ -115,7 +121,7 @@ app.use(
       return null;
     },
     allowMethods: ["GET", "POST", "OPTIONS"],
-    allowHeaders: ["Content-Type", "x-user-id", "x-tier"],
+    allowHeaders: ["Content-Type", "x-user-id", "x-tier", "x-locale"],
     maxAge: 86400,
   })
 );
@@ -133,7 +139,7 @@ app.get("/config", (c) => {
 app.post("/classify", async (c) => {
   const body = await c.req.json<Prompt1In>();
   const pipeline = buildPipeline(c.env);
-  const result = await pipeline.classify(body);
+  const result = await pipeline.classify(body, readLocale(c));
   return c.json(result);
 });
 
@@ -142,7 +148,7 @@ app.post("/classify", async (c) => {
 app.post("/next", async (c) => {
   const body = await c.req.json<Prompt2In>();
   const pipeline = buildPipeline(c.env);
-  const result = await pipeline.nextBranch(body);
+  const result = await pipeline.nextBranch(body, readLocale(c));
   return c.json(result);
 });
 
@@ -203,7 +209,7 @@ app.post("/recommend", async (c) => {
 
   // pipeline.recommendStream은 ReadableStream<StreamEvent>를 반환한다.
   // 클라이언트 연결 끊김(c.req.raw.signal)을 업스트림 DeepSeek까지 전파한다(구현계획 §5 취소 체인).
-  const eventStream: ReadableStream<StreamEvent> = pipeline.recommendStream(body, tier, c.req.raw.signal);
+  const eventStream: ReadableStream<StreamEvent> = pipeline.recommendStream(body, tier, readLocale(c), c.req.raw.signal);
 
   // StreamEvent를 SSE 바이트로 직렬화하는 TransformStream을 만든다.
   const { readable, writable } = new TransformStream<StreamEvent, Uint8Array>({
@@ -257,7 +263,7 @@ app.post("/summarize", async (c) => {
   }
   const body = await c.req.json<Prompt4In>();
   const pipeline = buildPipeline(c.env);
-  const result = await pipeline.summarize(body);
+  const result = await pipeline.summarize(body, readLocale(c));
   return c.json(result);
 });
 
@@ -274,7 +280,7 @@ app.post("/detail", async (c) => {
   }
   const body = await c.req.json<Prompt5In>();
   const pipeline = buildPipeline(c.env);
-  const result = await pipeline.detail(body, tier);
+  const result = await pipeline.detail(body, tier, readLocale(c));
   return c.json(result);
 });
 
