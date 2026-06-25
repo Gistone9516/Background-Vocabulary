@@ -132,9 +132,12 @@ textarea.field{line-height:1.55}
 .filechip button{flex:0 0 auto;width:18px;height:18px;border-radius:99px;background:var(--surface);color:var(--muted);font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center}
 .condField{margin-top:10px}
 .suggest{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-top:18px}
-.sg{font-size:13px;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:7px 12px;line-height:1.3;transition:.12s}
+.sg{font-size:13px;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:7px 12px;line-height:1.3;transition:border-color .12s,color .12s,background .12s;animation:chipFloat 3s ease-in-out infinite}
 .sg:hover{border-color:var(--accent);color:var(--text);background:var(--accent-soft)}
-.sg.more{color:var(--faint)}
+.sg.shuffle{color:var(--faint);animation:none}
+/* 예시 칩이 둥둥 떠다니는 은은한 호흡. 칩마다 animation-delay로 위상차를 둔다(인라인). */
+@keyframes chipFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@media (prefers-reduced-motion: reduce){.sg{animation:none}}
 .entryNote{margin-top:18px;text-align:center}
 
 /* narrow */
@@ -274,6 +277,19 @@ textarea.field{line-height:1.55}
 /* 언어 선택 드롭다운(헤더 구석). 작고 차분하게. */
 .langsel{font-size:12px;font-weight:600;color:var(--muted);background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:5px 6px;cursor:pointer;max-width:92px}
 .langsel:hover{border-color:var(--muted)}
+/* 헤더 도움말(?) 버튼 — 튜토리얼 재열람 */
+.help{width:24px;height:24px;border-radius:99px;font-size:13px;font-weight:700;color:var(--muted);background:var(--surface-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center}
+.help:hover{border-color:var(--accent);color:var(--accent-ink)}
+/* 튜토리얼 팝업(오버레이 + 가운데 카드) */
+.modalBackdrop{position:fixed;inset:0;z-index:40;background:rgba(40,30,12,.34);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;padding:24px;animation:fadeIn .18s ease both}
+.modalCard{width:100%;max-width:330px;background:var(--surface);border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow);padding:22px 20px;text-align:center;animation:cardIn .28s ease both}
+.modalCard h2{font-size:19px;font-weight:700;margin:10px 0 14px}
+.tutIcon{width:40px;height:40px;border-radius:12px;margin:0 auto;background:var(--accent-soft);color:var(--accent-ink);display:flex;align-items:center;justify-content:center}
+.tutIcon svg{width:22px;height:22px}
+.tutSteps{list-style:none;text-align:left;display:flex;flex-direction:column;gap:11px;margin:0 0 18px}
+.tutSteps li{display:flex;align-items:flex-start;gap:10px;font-size:13.5px;line-height:1.5;color:var(--text)}
+.tutSteps b{flex:0 0 auto;width:21px;height:21px;border-radius:99px;font-size:12px;font-weight:700;color:var(--on-primary);background:var(--primary);display:flex;align-items:center;justify-content:center;margin-top:1px}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
 
 /* summary + paywall */
 .callout{background:var(--accent-soft);border-radius:11px;padding:11px 12px;margin-bottom:14px}

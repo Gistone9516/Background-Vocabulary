@@ -29,6 +29,7 @@
 - **보안 하드닝(인증 없는 anti-abuse):** IP당 분/일 요청 레이트리밋(`RATE_PER_MIN`·`RATE_PER_DAY`, Upstash, x-tier·x-user-id 스푸핑 무관) · 입력 텍스트 길이 상한(`MAX_INPUT_CHARS`, 토큰 비용·인젝션 방어, 413) · 프롬프트 인젝션 가드(사용자 입력=데이터, 지시 무시) · CORS 확장 origin 잠금(`ALLOWED_EXT_ORIGIN`, 프로덕션). 전역 일일 캡과 함께 다층 방어. 진짜 엔타이틀먼트(서버 검증 paid)는 인증/결제 인프라 생길 때(Tier3).
 - **운영 한도 = 전부 워커 env로 튜닝(코드 무수정):** 어휘 개수·`max_tokens`·주간 한도·전역 캡·좁히기 턴·상세 횟수가 `shared`의 `DEFAULT_LIMITS` 기본값 위에서 env로 덮어쓰기 가능(`.dev.vars`/wrangler `[vars]`). 클라이언트 관련 값(좁히기 턴·상세 횟수·주간 한도)은 워커 `GET /config`로 확장이 런타임 fetch → **재빌드 없이 반영**.
 - **★ 이식성 불변(1순위 제약):** Cloudflare Workers 지금 / AWS Lambda 나중을 **어댑터 추가만으로**. `core/`·`shared/`는 런타임 전역 0건(웹표준 + 인터페이스 DI), 런타임 특수성은 `adapters/`에만. `npm run guard`가 위반 시 빌드 실패.
+- **진입 화면 UX:** 첫 방문 1회 튜토리얼 팝업(3스텝, 헤더 ? 버튼 재열람, localStorage 기억) · 예시 칩은 4언어 각 ~50개 풀(`examples.ts`)에서 랜덤 5개 + "다른 예시" 새로고침 + 은은한 플로팅 · pro 전용 파일 첨부("+ 파일", 붙여넣은 문서=context_object).
 - **권위 규칙:** 제품 동작·UX·필드 = `panel.html`(최신 기획). 인프라(로케일·RAG·안전 게이트) = 백엔드.
 
 ## 아키텍처 (`sidetab/`)

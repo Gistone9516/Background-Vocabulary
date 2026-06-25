@@ -14,7 +14,7 @@ const ko: Dict = {
   entry_sub: "그 분야 핵심 어휘를 옆에 사전처럼 띄워둘게요. 막힌 용어나 문서를 붙여넣어도 돼요.",
   entry_input_ph: "무엇을 하려는지 한 줄로 적어주세요",
   entry_input_aria: "무슨 일 때문에 왔는지 상황 입력",
-  cond_add: "+ 조건 추가",
+  cond_add: "+ 조건",
   cond_close: "– 조건 접기",
   cond_ph: "좁혀줄 조건 · 분야, 도구, 마감 등",
   cond_aria: "좁혀줄 조건",
@@ -121,9 +121,18 @@ const ko: Dict = {
   sum_footer: "— 배경노트에서 정리함 (AI 생성 보조 어휘)",
 
   attach: "파일 첨부 (pro)",
+  attach_short: "+ 파일",
   attach_remove: "첨부 제거",
   attach_texterr: "텍스트 파일만 첨부할 수 있어요.",
   attach_truncated: "문서가 길어 앞부분만 담았어요.",
+
+  shuffle: "🔄 다른 예시",
+  help: "사용 안내",
+  tut_title: "이렇게 쓰면 돼요",
+  tut_step1: "하려는 일을 한 줄로 적어요.",
+  tut_step2: "AI가 분야를 좁혀 핵심 어휘를 골라줘요.",
+  tut_step3: "어휘를 펼쳐 보고, 쓸 만한 건 담아둬요.",
+  tut_start: "시작하기",
 };
 
 const en: Dict = {
@@ -135,7 +144,7 @@ const en: Dict = {
   entry_sub: "I'll keep the field's key terms beside you like a dictionary. You can paste a term or document you're stuck on.",
   entry_input_ph: "Tell me in one line what you're trying to do",
   entry_input_aria: "Describe what brings you here",
-  cond_add: "+ Add condition",
+  cond_add: "+ Condition",
   cond_close: "– Hide condition",
   cond_ph: "A narrowing condition · field, tool, deadline, etc.",
   cond_aria: "Narrowing condition",
@@ -242,9 +251,18 @@ const en: Dict = {
   sum_footer: "— Organized in Vock note (AI-generated helper terms)",
 
   attach: "Attach file (pro)",
+  attach_short: "+ File",
   attach_remove: "Remove attachment",
   attach_texterr: "Only text files can be attached.",
   attach_truncated: "The document was long, so only the beginning was kept.",
+
+  shuffle: "🔄 Other examples",
+  help: "How to use",
+  tut_title: "Here's how it works",
+  tut_step1: "Write what you're trying to do in one line.",
+  tut_step2: "The AI narrows the field and picks the key terms.",
+  tut_step3: "Expand a term to read it, and keep the useful ones.",
+  tut_start: "Get started",
 };
 
 const ja: Dict = {
@@ -256,7 +274,7 @@ const ja: Dict = {
   entry_sub: "その分野の重要な用語を辞書のように横に表示します。詰まった用語や文書を貼り付けてもOKです。",
   entry_input_ph: "やりたいことを一行で書いてください",
   entry_input_aria: "用件の入力",
-  cond_add: "+ 条件を追加",
+  cond_add: "+ 条件",
   cond_close: "– 条件を閉じる",
   cond_ph: "絞り込む条件 · 分野、ツール、締め切りなど",
   cond_aria: "絞り込む条件",
@@ -363,9 +381,18 @@ const ja: Dict = {
   sum_footer: "— Vock note で整理（AI生成の補助用語）",
 
   attach: "ファイルを添付 (pro)",
+  attach_short: "+ ファイル",
   attach_remove: "添付を削除",
   attach_texterr: "テキストファイルのみ添付できます。",
   attach_truncated: "文書が長いため先頭部分のみ取り込みました。",
+
+  shuffle: "🔄 別の例",
+  help: "使い方",
+  tut_title: "使い方はこちら",
+  tut_step1: "やりたいことを一行で書きます。",
+  tut_step2: "AIが分野を絞り、重要な用語を選びます。",
+  tut_step3: "用語を開いて読み、使えそうなものを保存します。",
+  tut_start: "はじめる",
 };
 
 const zh: Dict = {
@@ -377,7 +404,7 @@ const zh: Dict = {
   entry_sub: "我会把该领域的核心术语像词典一样放在你旁边。也可以粘贴你卡住的术语或文档。",
   entry_input_ph: "用一句话写下你想做的事",
   entry_input_aria: "输入你的来意",
-  cond_add: "+ 添加条件",
+  cond_add: "+ 条件",
   cond_close: "– 收起条件",
   cond_ph: "缩小范围的条件 · 领域、工具、截止日期等",
   cond_aria: "缩小范围的条件",
@@ -484,9 +511,18 @@ const zh: Dict = {
   sum_footer: "— 由 Vock note 整理（AI 生成的辅助术语）",
 
   attach: "附加文件 (pro)",
+  attach_short: "+ 文件",
   attach_remove: "移除附件",
   attach_texterr: "只能附加文本文件。",
   attach_truncated: "文档较长，仅保留了开头部分。",
+
+  shuffle: "🔄 换一批",
+  help: "使用说明",
+  tut_title: "这样使用",
+  tut_step1: "用一句话写下你想做的事。",
+  tut_step2: "AI 会缩小领域并挑选关键术语。",
+  tut_step3: "展开术语阅读，把有用的保存下来。",
+  tut_start: "开始",
 };
 
 const STRINGS: Record<OutputLocale, Dict> = { ko, en, ja, zh };
@@ -504,24 +540,4 @@ export const LOCALE_LABELS: Record<OutputLocale, string> = {
   en: "English",
   ja: "日本語",
   zh: "中文",
-};
-
-// 진입 화면 예시 칩(로케일별). 처음 4개가 기본 노출, 나머지는 "더 보기".
-export const CHIPS: Record<OutputLocale, string[]> = {
-  ko: [
-    "졸업작품 모델이 자꾸 틀려요", "앱에 결제를 붙여야 해요", "추천 기능을 넣고 싶어요", "캐주얼 게임을 만들고 싶어요",
-    "API를 연동해야 하는데 막막해요", "마케팅 데이터를 분석해야 해요", "계약서 조항을 모르겠어요", "투자 피칭 자료를 써야 해요",
-  ],
-  en: [
-    "My capstone model keeps getting it wrong", "I need to add payments to my app", "I want to build a recommendation feature", "I want to make a casual game",
-    "I have to integrate an API but I'm lost", "I need to analyze marketing data", "I don't understand the contract clauses", "I have to write an investor pitch deck",
-  ],
-  ja: [
-    "卒業制作のモデルがよく外れます", "アプリに決済を組み込みたい", "レコメンド機能を入れたい", "カジュアルゲームを作りたい",
-    "APIを連携したいけど手探りです", "マーケティングデータを分析したい", "契約書の条項が分かりません", "投資ピッチ資料を書きたい",
-  ],
-  zh: [
-    "毕业设计模型总是出错", "需要给应用接入支付", "想加入推荐功能", "想做一款休闲游戏",
-    "要对接 API 但无从下手", "需要分析营销数据", "看不懂合同条款", "要写投资路演材料",
-  ],
 };

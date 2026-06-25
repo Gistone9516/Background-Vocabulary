@@ -1,13 +1,14 @@
 // 배경노트(Vock note) 사이드패널 — panel.html(UI 정본) 화면을 React로 이식하고 실 API에 배선.
 // UI 문자열은 i18n.ts의 t()(여기선 tr)로 가져온다. LLM 콘텐츠는 워커가 출력 언어로 만든다(별개).
-import { useReducer, useRef, useEffect, useCallback, type ReactNode, type DragEvent } from "react";
+import { useReducer, useRef, useEffect, useCallback, useMemo, type ReactNode, type DragEvent } from "react";
 import type {
   Prompt1Out, Choice, Term, Prompt5Out, Tag, RecommendInput, ClientLimits, OutputLocale,
 } from "@sidetab/shared";
 import * as api from "./api.js";
 import { DEFAULT_CLIENT_LIMITS } from "./api.js";
 import { loadSessions, saveSession, type SessionRec, type KeptTerm } from "./history.js";
-import { t as tr, LOCALE_LABELS, CHIPS } from "./i18n.js";
+import { t as tr, LOCALE_LABELS } from "./i18n.js";
+import { EXAMPLES, pickRandom } from "./examples.js";
 
 // ---------- 타입 ----------
 type Screen = "entry" | "narrow" | "terms" | "kept" | "paywall" | "refusal";
@@ -22,8 +23,9 @@ interface UITerm extends Term {
 interface Q { question: string; choices: Choice[] }
 interface State {
   screen: Screen;
-  input: string; cond: string; showCond: boolean; allChips: boolean; inputErr: boolean;
+  input: string; cond: string; showCond: boolean; inputErr: boolean;
   attachedFile: { name: string; text: string } | null; dragging: boolean; attachNote: string;
+  chipSeed: number; tutorialOpen: boolean;
   classifyOut: Prompt1Out | null;
   questions: Q[]; answers: string[][]; sel: string[];
   confidence: number; pending: boolean;
@@ -44,8 +46,9 @@ const LOCALE_TAG: Record<OutputLocale, string> = { ko: "ko-KR", en: "en-US", ja:
 
 function initial(): State {
   return {
-    screen: "entry", input: "", cond: "", showCond: false, allChips: false, inputErr: false,
+    screen: "entry", input: "", cond: "", showCond: false, inputErr: false,
     attachedFile: null, dragging: false, attachNote: "",
+    chipSeed: 0, tutorialOpen: false,
     classifyOut: null, questions: [], answers: [], sel: [], confidence: 0, pending: false, customText: "", customOpen: false,
     terms: [], visibleCount: 0, openId: null, opening: null, query: "", groupView: false, detailCount: 0,
     moreLoading: false, moreLoaded: false, streaming: false,
@@ -348,6 +351,11 @@ export function App() {
     try { localStorage.setItem("sidetab:locale", l); } catch { /* 무시 */ }
     merge({ locale: l });
   };
+  // 튜토리얼 닫기: 닫고 '봤음'을 기억한다(이후 자동으로 안 뜸, 헤더 ?로만 재열람).
+  const closeTutorial = () => {
+    merge({ tutorialOpen: false });
+    try { localStorage.setItem("sidetab:tutorial-seen", "true"); } catch { /* 무시 */ }
+  };
 
   useEffect(() => () => abortRef.current?.abort(), []);
   // 진입 화면에 들어설 때마다 저장된 이전 탐색을 다시 읽어 리스트를 채운다(reset 후에도 갱신).
@@ -360,18 +368,23 @@ export function App() {
     try { const st = localStorage.getItem("sidetab:locale"); if (st && (["ko", "en", "ja", "zh"] as string[]).includes(st)) l = st as OutputLocale; } catch { /* 무시 */ }
     api.setLocale(l); merge({ locale: l });
   }, [merge]);
+  // 첫 방문이면 튜토리얼 팝업을 자동으로 띄운다(localStorage로 1회만).
+  useEffect(() => {
+    try { if (localStorage.getItem("sidetab:tutorial-seen") !== "true") merge({ tutorialOpen: true }); } catch { /* 무시 */ }
+  }, [merge]);
 
   const live = state.screen === "narrow";
   return (
     <div id="app" className={live ? "live" : ""} role="application" aria-label="Vock note">
       {state.pending && <div className="bar" role="status"><i /></div>}
-      <Header state={state} openPaywall={openPaywall} goHome={goHome} changeLocale={changeLocale} />
+      <Header state={state} openPaywall={openPaywall} goHome={goHome} changeLocale={changeLocale} openTutorial={() => merge({ tutorialOpen: true })} />
       {state.screen === "entry" && <Entry state={state} merge={merge} submitEntry={submitEntry} chip={chip} openHistory={openHistory} acceptFile={acceptFile} attachPaywall={attachPaywall} removeAttached={removeAttached} />}
       {state.screen === "narrow" && <Narrow state={state} merge={merge} toggleSel={toggleSel} nextStep={nextStep} undoStep={undoStep} jumpToTerms={jumpToTerms} />}
       {state.screen === "terms" && <Terms state={state} merge={merge} loadMore={loadMore} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} doDeepen={doDeepen} go={go} />}
       {state.screen === "kept" && <Kept state={state} merge={merge} go={go} goHome={goHome} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} doDeepen={doDeepen} buildSummary={buildSummary} onCopy={onCopy} onShare={onShare} aiRefine={aiRefine} />}
       {state.screen === "paywall" && <Paywall state={state} closePaywall={closePaywall} onUpgrade={onUpgrade} />}
       {state.screen === "refusal" && <Refusal state={state} goHome={goHome} />}
+      {state.tutorialOpen && <Tutorial state={state} onClose={closeTutorial} />}
     </div>
   );
 }
@@ -379,7 +392,7 @@ export function App() {
 function msg(e: unknown): string { return e instanceof Error ? e.message : String(e); }
 
 // ---------- 화면 컴포넌트 ----------
-function Header({ state, openPaywall, goHome, changeLocale }: { state: State; openPaywall: () => void; goHome: () => void; changeLocale: (l: OutputLocale) => void }) {
+function Header({ state, openPaywall, goHome, changeLocale, openTutorial }: { state: State; openPaywall: () => void; goHome: () => void; changeLocale: (l: OutputLocale) => void; openTutorial: () => void }) {
   const warn = state.plan !== "pro" && state.remaining <= 2;
   const brandName = state.locale === "ko" ? "배경노트" : "Vock note";
   const brandSub = state.locale === "ko" ? "Vock note" : "Voca·back·note";
@@ -390,6 +403,7 @@ function Header({ state, openPaywall, goHome, changeLocale }: { state: State; op
         <span><b>{brandName}</b><span>{brandSub}</span></span>
       </button>
       <div className="htools">
+        <button className="help" onClick={openTutorial} aria-label={tr(state.locale, "help")} title={tr(state.locale, "help")}>?</button>
         <select className="langsel" aria-label={tr(state.locale, "lang_label")} value={state.locale} onChange={(e) => changeLocale(e.target.value as OutputLocale)}>
           {(Object.keys(LOCALE_LABELS) as OutputLocale[]).map((l) => <option key={l} value={l}>{LOCALE_LABELS[l]}</option>)}
         </select>
@@ -407,8 +421,8 @@ function Entry({ state, merge, submitEntry, chip, openHistory, acceptFile, attac
   const fileRef = useRef<HTMLInputElement>(null);
   const grow = () => { const el = taRef.current; if (el) { el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight, 160) + "px"; } };
   useEffect(grow, []);
-  const all = CHIPS[loc] ?? CHIPS.ko;
-  const list = state.allChips ? all : all.slice(0, 4);
+  // 예시 칩: ~50개 풀에서 랜덤 5개. loc/chipSeed가 바뀔 때만 재추첨(타이핑 중엔 고정, 홈 복귀·새로고침 시 새로).
+  const picks = useMemo(() => pickRandom(EXAMPLES[loc] ?? EXAMPLES.ko, 5), [loc, state.chipSeed]);
   // 드롭: 무료는 pro 안내(페이월), pro는 파일을 읽어 첨부.
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault(); merge({ dragging: false });
@@ -434,7 +448,7 @@ function Entry({ state, merge, submitEntry, chip, openHistory, acceptFile, attac
             {state.plan === "pro" && <>
               <input ref={fileRef} type="file" accept={FILE_ACCEPT} style={{ display: "none" }}
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) acceptFile(f); e.target.value = ""; }} />
-              <button className="attach" onClick={() => fileRef.current?.click()} aria-label={tr(loc, "attach")} title={tr(loc, "attach")}>📎</button>
+              <button className="attach" onClick={() => fileRef.current?.click()} aria-label={tr(loc, "attach")} title={tr(loc, "attach")}>{tr(loc, "attach_short")}</button>
             </>}
             <button className="condToggle" onClick={() => merge({ showCond: !state.showCond })}>{state.showCond ? tr(loc, "cond_close") : tr(loc, "cond_add")}</button>
             <button className="send" onClick={submitEntry} aria-label={tr(loc, "next")}>→</button>
@@ -445,8 +459,8 @@ function Entry({ state, merge, submitEntry, chip, openHistory, acceptFile, attac
         {state.inputErr && <div className="errmsg" style={{ textAlign: "center" }}>{tr(loc, "entry_err")}</div>}
         {state.showCond && <input className="field condField" aria-label={tr(loc, "cond_aria")} placeholder={tr(loc, "cond_ph")} value={state.cond} onChange={(e) => merge({ cond: e.target.value })} />}
         <div className="suggest">
-          {list.map((c) => <button key={c} className="sg" onClick={() => chip(c)}>{c}</button>)}
-          {!state.allChips && <button className="sg more" onClick={() => merge({ allChips: true })}>{tr(loc, "more")}</button>}
+          {picks.map((c, i) => <button key={c} className="sg" style={{ animationDelay: `${(i % 5) * 0.5}s` }} onClick={() => chip(c)}>{c}</button>)}
+          <button className="sg shuffle" onClick={() => merge({ chipSeed: state.chipSeed + 1 })}>{tr(loc, "shuffle")}</button>
         </div>
         {state.history.length > 0 && (
           <div className="history">
@@ -660,6 +674,25 @@ function Refusal({ state, goHome }: { state: State; goHome: () => void }) {
       <h2>{tr(loc, "refusal_title")}</h2>
       <p className="lead" style={{ margin: 0 }}>{sentLines(tr(loc, "refusal_lead"))}</p>
       <button className="btn btn-ghost" style={{ width: "auto", padding: "11px 18px" }} onClick={goHome}>{tr(loc, "refusal_retry")}</button>
+    </div>
+  );
+}
+
+// 첫 방문 안내 팝업. 메인 화면에서 뭘 하면 되는지만 짧게(3스텝). 백드롭/시작하기로 닫는다.
+function Tutorial({ state, onClose }: { state: State; onClose: () => void }) {
+  const loc = state.locale;
+  return (
+    <div className="modalBackdrop" onClick={onClose}>
+      <div className="modalCard" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+        <div className="tutIcon"><Spark /></div>
+        <h2>{tr(loc, "tut_title")}</h2>
+        <ol className="tutSteps">
+          <li><b>1</b><span>{tr(loc, "tut_step1")}</span></li>
+          <li><b>2</b><span>{tr(loc, "tut_step2")}</span></li>
+          <li><b>3</b><span>{tr(loc, "tut_step3")}</span></li>
+        </ol>
+        <button className="btn btn-primary" onClick={onClose}>{tr(loc, "tut_start")}</button>
+      </div>
     </div>
   );
 }
