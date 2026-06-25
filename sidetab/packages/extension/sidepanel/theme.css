@@ -51,10 +51,8 @@ a{color:inherit}
 
 header{display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--surface);border-bottom:1px solid var(--border);flex:0 0 auto;z-index:5}
 .brand{display:flex;align-items:center;gap:8px}
-.logo{width:24px;height:24px;border-radius:7px;background:var(--primary);display:flex;align-items:center;justify-content:center;gap:2px}
-.logo i{display:block;width:3px;border-radius:9px;background:var(--on-primary)}
-.logo i:nth-child(1){height:12px;opacity:.95}
-.logo i:nth-child(2){height:8px;opacity:.5}
+.logo{width:24px;height:24px;border-radius:7px;overflow:hidden;display:block;flex:0 0 auto}
+.logo img{width:100%;height:100%;display:block;object-fit:cover}
 .brand b{font-size:15px;font-weight:700;letter-spacing:-.01em}
 .brand span{font-size:10.5px;color:var(--faint);letter-spacing:.12em;display:block;margin-top:-1px}
 .htools{margin-left:auto;display:flex;align-items:center;gap:4px}

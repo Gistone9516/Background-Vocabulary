@@ -353,7 +353,7 @@ function Header({ state, openPaywall, goHome, changeLocale }: { state: State; op
   return (
     <header>
       <button className="brand" onClick={goHome}>
-        <span className="logo"><i /><i /></span>
+        <span className="logo"><img src="icons/icon-32.png" alt="" width={24} height={24} /></span>
         <span><b>{brandName}</b><span>{brandSub}</span></span>
       </button>
       <div className="htools">
