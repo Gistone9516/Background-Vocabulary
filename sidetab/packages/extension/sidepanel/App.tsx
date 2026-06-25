@@ -5,14 +5,13 @@ import type {
   Prompt1Out, Choice, Term, Prompt5Out, Tag, RecommendInput,
 } from "@sidetab/shared";
 import * as api from "./api.js";
+import { loadSessions, saveSession, type SessionRec, type KeptTerm } from "./history.js";
 
 // ---------- 타입 ----------
-type Screen = "entry" | "narrow" | "terms" | "summary" | "paywall" | "refusal";
-type UITag = "know" | "dontknow" | "partial" | "unconfirmed";
+type Screen = "entry" | "narrow" | "terms" | "kept" | "paywall" | "refusal";
 interface UITerm extends Term {
   id: string;
-  uiTag: UITag;
-  understood: boolean;
+  kept: boolean;
   deepened: boolean;
   _new: boolean;
   detail?: Prompt5Out;
@@ -27,12 +26,13 @@ interface State {
   confidence: number; pending: boolean;
   customText: string; customOpen: boolean; // 아키네이터 직접 입력
   terms: UITerm[]; visibleCount: number; openId: string | null; opening: string | null;
-  query: string; groupView: boolean; trayOpen: boolean;
-  moreLoading: boolean; moreLoaded: boolean; tagHintSeen: boolean; streaming: boolean;
+  query: string; groupView: boolean;
+  moreLoading: boolean; moreLoaded: boolean; streaming: boolean;
   ctxInput: string; copied: boolean; copyFailed: boolean; shareNote: boolean;
   aiSummary: string; aiSummaryLoading: boolean;
   plan: "flash" | "pro"; remaining: number; prevScreen: Screen; limitHit: boolean;
   errorMsg: string;
+  sessionId: string; history: SessionRec[]; histView: boolean;
 }
 const MIN_Q = 3, MAX_Q = 8;
 const HIGHRISK = /(의료|진단|병원|처방|법률|소송|변호|판결|고소|세무신고|증상|치료)/;
@@ -46,10 +46,11 @@ function initial(): State {
   return {
     screen: "entry", input: "", cond: "", showCond: false, allChips: false, inputErr: false,
     classifyOut: null, questions: [], answers: [], sel: [], confidence: 0, pending: false, customText: "", customOpen: false,
-    terms: [], visibleCount: 0, openId: null, opening: null, query: "", groupView: false, trayOpen: false,
-    moreLoading: false, moreLoaded: false, tagHintSeen: false, streaming: false,
+    terms: [], visibleCount: 0, openId: null, opening: null, query: "", groupView: false,
+    moreLoading: false, moreLoaded: false, streaming: false,
     ctxInput: "", copied: false, copyFailed: false, shareNote: false, aiSummary: "", aiSummaryLoading: false,
     plan: "flash", remaining: 5, prevScreen: "entry", limitHit: false, errorMsg: "",
+    sessionId: "", history: [], histView: false,
   };
 }
 
@@ -79,13 +80,17 @@ function sentLines(t: string): ReactNode[] {
   if (buf) out.push(buf);
   return out;
 }
-const UI_TO_TAG: Record<Exclude<UITag, "unconfirmed">, Tag> = { know: "알아", dontknow: "몰라", partial: "적용모름" };
 const INTENT_LABEL = "이 분야를 이해하고 활용";
 // 받침 유무로 을/를 조사를 고른다(한글 음절만, 그 외는 를).
 function eul(w: string): "을" | "를" {
   const c = w.charCodeAt(w.length - 1);
   if (c < 0xac00 || c > 0xd7a3) return "를";
   return (c - 0xac00) % 28 !== 0 ? "을" : "를";
+}
+// 이전 탐색 항목의 날짜 표기(월 일).
+function fmtDate(ms: number): string {
+  const d = new Date(ms);
+  return `${d.getMonth() + 1}월 ${d.getDate()}일`;
 }
 
 // SVG 아이콘(panel.html과 동일).
@@ -164,11 +169,11 @@ export function App() {
     if (s.remaining <= 0) { merge({ prevScreen: s.screen, screen: "paywall", limitHit: true }); return; }
     abortRef.current?.abort();
     const ctrl = new AbortController(); abortRef.current = ctrl;
-    merge({ screen: "terms", terms: [], visibleCount: 0, openId: null, streaming: true, errorMsg: "", moreLoaded: false, query: "", remaining: Math.max(0, s.remaining - 1) });
+    merge({ screen: "terms", terms: [], visibleCount: 0, openId: null, streaming: true, errorMsg: "", moreLoaded: false, query: "", remaining: Math.max(0, s.remaining - 1), sessionId: crypto.randomUUID(), histView: false });
     await api.streamRecommend(buildRecInput(), s.plan === "pro" ? "paid" : "free", (ev) => {
       if (ev.type === "term") {
         const id = "t" + sref.current.terms.length;
-        dispatch({ type: "addTerm", term: { ...ev.term, id, uiTag: "unconfirmed", understood: false, deepened: false, _new: true } });
+        dispatch({ type: "addTerm", term: { ...ev.term, id, kept: false, deepened: false, _new: true } });
         later(() => dispatch({ type: "updateTerm", id, patch: { _new: false } }), 780);
       } else if (ev.type === "done") merge({ streaming: false });
       else if (ev.type === "error") merge({ streaming: false, errorMsg: ev.message, ...(ev.code === "HIGH_RISK_REFUSED" ? { screen: "refusal" } : {}) });
@@ -186,21 +191,38 @@ export function App() {
       if (ev.type === "term") {
         // 카드 번호는 기존 개수에 이어서 매긴다(더보기 시 1부터 재시작 버그 수정).
         got++; const n = sref.current.terms.length; const id = "m" + n;
-        dispatch({ type: "addTerm", term: { ...ev.term, priority: n + 1, id, uiTag: "unconfirmed", understood: false, deepened: false, _new: true } });
+        dispatch({ type: "addTerm", term: { ...ev.term, priority: n + 1, id, kept: false, deepened: false, _new: true } });
         later(() => dispatch({ type: "updateTerm", id, patch: { _new: false } }), 780);
       }
     }, ctrl.signal).catch(() => {});
     merge({ moreLoading: false, moreLoaded: got === 0 });
   }, [merge]);
 
-  // ----- 태깅/상세 -----
-  const setTag = (id: string, tag: UITag) => {
-    const t = sref.current.terms.find((x) => x.id === id); if (!t) return;
-    dispatch({ type: "updateTerm", id, patch: { uiTag: t.uiTag === tag ? "unconfirmed" : tag } });
-    if (!sref.current.tagHintSeen) merge({ tagHintSeen: true });
+  // ----- Keep(담기)/상세 -----
+  // 현재 세션의 담은 어휘를 chrome.storage.local에 upsert하고 history 상태를 갱신한다.
+  const persist = useCallback(async (terms: UITerm[]) => {
+    const s = sref.current;
+    const id = s.sessionId || s.input;
+    const keptTerms: KeptTerm[] = terms.filter((t) => t.kept).map((t) => ({
+      term: t.term, kind: t.kind, one_line: t.one_line, why: t.why, priority: t.priority,
+      ...(t.group ? { group: t.group } : {}), ...(t.detail ? { detail: t.detail } : {}),
+    }));
+    const existing = s.history.find((h) => h.id === id);
+    const rec: SessionRec = {
+      id, topic: s.input, area: s.classifyOut?.domain ?? "",
+      locale: s.classifyOut?.search_locale ?? "en",
+      createdAt: existing?.createdAt ?? Date.now(), terms: keptTerms,
+    };
+    const list = await saveSession(rec);
+    merge({ history: list });
+  }, [merge]);
+  const toggleKeep = (id: string) => {
+    const cur = sref.current.terms;
+    const t = cur.find((x) => x.id === id); if (!t) return;
+    const next = cur.map((x) => (x.id === id ? { ...x, kept: !x.kept } : x));
+    dispatch({ type: "updateTerm", id, patch: { kept: !t.kept } });
+    void persist(next);
   };
-  const markUnderstood = (id: string) => dispatch({ type: "updateTerm", id, patch: { understood: true, uiTag: "unconfirmed" } });
-  const restore = (id: string) => dispatch({ type: "updateTerm", id, patch: { uiTag: "unconfirmed" } });
   const toggleDetail = useCallback(async (id: string) => {
     const s = sref.current;
     if (s.openId === id) { merge({ openId: null }); return; }
@@ -212,6 +234,8 @@ export function App() {
       try {
         const d = await api.detail({ term: t.term, kind: t.kind, area: s.classifyOut?.domain ?? "", job_type: s.classifyOut?.job_type ?? [], domain: s.classifyOut?.domain ?? "other", topic: s.input, locale: s.classifyOut?.search_locale ?? "en" });
         dispatch({ type: "updateTerm", id, patch: { detail: d, detailLoading: false } });
+        const withDetail = sref.current.terms.map((x) => (x.id === id ? { ...x, detail: d } : x));
+        if (withDetail.find((x) => x.id === id)?.kept) void persist(withDetail);
       } catch { dispatch({ type: "updateTerm", id, patch: { detailLoading: false } }); }
     }
   }, [merge]);
@@ -220,19 +244,13 @@ export function App() {
 
   // ----- 요약 -----
   const buildSummary = (s: State): string => {
-    const rv = s.terms.slice(0, s.visibleCount);
-    const dont = rv.filter((t) => t.uiTag !== "know" && !t.understood && t.uiTag !== "partial").map((t) => t.term);
-    const part = rv.filter((t) => t.uiTag === "partial" && !t.understood).map((t) => t.term);
-    const und = rv.filter((t) => t.understood).map((t) => t.term);
-    const all = rv.map((t) => t.term);
+    const names = s.terms.filter((t) => t.kept).map((t) => t.term);
     const cond = (s.ctxInput || s.cond || "").trim(); const ctxObj = s.input.trim();
     const area = s.classifyOut?.domain ?? "이 분야";
     const L = [`나는 ${area} 영역에서 ${INTENT_LABEL}${eul(INTENT_LABEL)} 하려 한다.`];
     if (cond) L.push(`(내 상황: ${cond})`);
-    if (all.length) { let line = "핵심어 " + all.join("·"); line += dont.length ? ` 중 ${dont.join("·")}는 아직 잘 모른다.` : "를 짚었다."; L.push(line); }
-    else L.push("(어휘 화면에서 모르는 것을 남겨두면 여기 정리돼요)");
-    if (part.length) L.push(part.join("·") + "는 뜻은 알지만 적용이 막막하다.");
-    if (und.length) L.push(und.join("·") + "는 이해했다.");
+    if (names.length) L.push("담아둔 핵심어 " + names.join("·") + eul(names[names.length - 1]!) + " 짚었다.");
+    else L.push("(어휘 화면에서 담은 어휘가 여기 정리돼요)");
     if (ctxObj) L.push(`(참고 맥락: ${ctxObj})`);
     L.push(""); L.push("이 개념들을 내 상황에 어떻게 적용하는지, 우선순위와 함께 구체적 예시로 알려줘.");
     L.push("— 배경어휘 사이드탭에서 정리함 (AI 생성 보조 어휘)");
@@ -252,30 +270,47 @@ export function App() {
   };
   const aiRefine = useCallback(async () => {
     const s = sref.current;
-    if (s.plan !== "pro") { merge({ prevScreen: "summary", screen: "paywall", limitHit: false }); return; }
+    if (s.plan !== "pro") { merge({ prevScreen: "kept", screen: "paywall", limitHit: false }); return; }
     merge({ aiSummaryLoading: true });
-    const vocab = s.terms.slice(0, s.visibleCount).map((t) => ({ term: t.term, tag: t.uiTag === "unconfirmed" ? ("몰라" as Tag) : UI_TO_TAG[t.uiTag] }));
+    // Keep 전환 후 태그가 무의미해져 계약 유지용으로 전부 "몰라" 고정 전송(인터페이스계약 §1·§5 summary 보류).
+    const vocab = s.terms.filter((t) => t.kept).map((t) => ({ term: t.term, tag: "몰라" as Tag }));
     try {
       const r = await api.summarize({ area: s.classifyOut?.domain ?? "", job_type: s.classifyOut?.job_type ?? [], vocab, ...(s.ctxInput ? { user_condition: s.ctxInput } : {}) }, "paid");
       merge({ aiSummary: r.paste_text, aiSummaryLoading: false });
     } catch (e) { merge({ aiSummaryLoading: false, errorMsg: msg(e) }); }
   }, [merge]);
 
+  // ----- 히스토리(이전 탐색) -----
+  const openHistory = (rec: SessionRec) => {
+    const terms: UITerm[] = rec.terms.map((k, i) => ({
+      term: k.term, kind: k.kind, priority: k.priority, why: k.why, one_line: k.one_line, tag: "몰라",
+      ...(k.group ? { group: k.group } : {}),
+      id: "h" + i, kept: true, deepened: false, _new: false, ...(k.detail ? { detail: k.detail } : {}),
+    }));
+    merge({
+      screen: "kept", histView: true, terms, visibleCount: terms.length, openId: null,
+      sessionId: rec.id, input: rec.topic, ctxInput: "", aiSummary: "",
+      classifyOut: { domain: rec.area, job_type: [], condition_required: false, question: "", choices: [], search_locale: rec.locale === "ko" ? "ko" : "en", domain_risk: "low" },
+    });
+  };
+
   const openPaywall = () => merge({ prevScreen: sref.current.screen, screen: "paywall", limitHit: false });
   const closePaywall = () => merge({ screen: sref.current.prevScreen === "paywall" ? "entry" : sref.current.prevScreen });
   const onUpgrade = () => { merge({ plan: "pro", remaining: 99 }); later(closePaywall, 350); };
 
   useEffect(() => () => abortRef.current?.abort(), []);
+  // 진입 화면에 들어설 때마다 저장된 이전 탐색을 다시 읽어 리스트를 채운다(reset 후에도 갱신).
+  useEffect(() => { if (state.screen === "entry") void loadSessions().then((list) => merge({ history: list })); }, [state.screen, merge]);
 
   const live = state.screen === "narrow";
   return (
     <div id="app" className={live ? "live" : ""} role="application" aria-label="배경어휘 사이드탭">
       {state.pending && <div className="bar" role="status" aria-label="불러오는 중이에요"><i /></div>}
       <Header state={state} openPaywall={openPaywall} goHome={goHome} />
-      {state.screen === "entry" && <Entry state={state} merge={merge} submitEntry={submitEntry} chip={chip} />}
+      {state.screen === "entry" && <Entry state={state} merge={merge} submitEntry={submitEntry} chip={chip} openHistory={openHistory} />}
       {state.screen === "narrow" && <Narrow state={state} merge={merge} toggleSel={toggleSel} nextStep={nextStep} undoStep={undoStep} jumpToTerms={jumpToTerms} />}
-      {state.screen === "terms" && <Terms state={state} merge={merge} loadMore={loadMore} setTag={setTag} markUnderstood={markUnderstood} restore={restore} toggleDetail={toggleDetail} jumpRelated={jumpRelated} doDeepen={doDeepen} go={go} />}
-      {state.screen === "summary" && <Summary state={state} merge={merge} go={go} goHome={goHome} buildSummary={buildSummary} onCopy={onCopy} onShare={onShare} aiRefine={aiRefine} />}
+      {state.screen === "terms" && <Terms state={state} merge={merge} loadMore={loadMore} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} doDeepen={doDeepen} go={go} />}
+      {state.screen === "kept" && <Kept state={state} merge={merge} go={go} goHome={goHome} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} doDeepen={doDeepen} buildSummary={buildSummary} onCopy={onCopy} onShare={onShare} aiRefine={aiRefine} />}
       {state.screen === "paywall" && <Paywall state={state} closePaywall={closePaywall} onUpgrade={onUpgrade} />}
       {state.screen === "refusal" && <Refusal goHome={goHome} />}
     </div>
@@ -302,7 +337,7 @@ function Header({ state, openPaywall, goHome }: { state: State; openPaywall: () 
   );
 }
 
-function Entry({ state, merge, submitEntry, chip }: { state: State; merge: (p: Partial<State>) => void; submitEntry: () => void; chip: (t: string) => void }) {
+function Entry({ state, merge, submitEntry, chip, openHistory }: { state: State; merge: (p: Partial<State>) => void; submitEntry: () => void; chip: (t: string) => void; openHistory: (rec: SessionRec) => void }) {
   const taRef = useRef<HTMLTextAreaElement>(null);
   const grow = () => { const el = taRef.current; if (el) { el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight, 160) + "px"; } };
   useEffect(grow, []);
@@ -328,6 +363,17 @@ function Entry({ state, merge, submitEntry, chip }: { state: State; merge: (p: P
           {list.map((c) => <button key={c} className="sg" onClick={() => chip(c)}>{c}</button>)}
           {!state.allChips && <button className="sg more" onClick={() => merge({ allChips: true })}>더 보기</button>}
         </div>
+        {state.history.length > 0 && (
+          <div className="history">
+            <div className="histhead">이전 탐색 · 담은 어휘</div>
+            {state.history.slice(0, 8).map((h) => (
+              <button key={h.id} className="histitem" onClick={() => openHistory(h)}>
+                <span className="histtopic">{h.topic || "(제목 없음)"}</span>
+                <span className="histmeta">{h.terms.length}개 · {fmtDate(h.createdAt)}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
       <p className="note entryNote">AI가 만든 결과예요 · 의료, 법률처럼 개인 판단이 필요한 고위험 분야는 다루지 않아요</p>
     </main>
@@ -375,7 +421,7 @@ function Narrow({ state, merge, toggleSel, nextStep, undoStep, jumpToTerms }: { 
   );
 }
 
-function Detail({ t, opening, jumpRelated, doDeepen, markUnderstood }: { t: UITerm; opening: boolean; jumpRelated: (n: string) => void; doDeepen: (id: string) => void; markUnderstood: (id: string) => void }) {
+function Detail({ t, opening, jumpRelated, doDeepen, toggleKeep }: { t: UITerm; opening: boolean; jumpRelated: (n: string) => void; doDeepen: (id: string) => void; toggleKeep: (id: string) => void }) {
   if (t.detailLoading || !t.detail) return <div className="detail"><div className="dbody"><p style={{ color: "var(--muted)" }}>개념을 불러오는 중…</p></div></div>;
   const d = t.detail;
   const how = t.deepened ? d.how + " (예: 졸작이라면 이 값을 먼저 점검하세요.)" : d.how;
@@ -395,17 +441,16 @@ function Detail({ t, opening, jumpRelated, doDeepen, markUnderstood }: { t: UITe
         ? d.sources.map((s, i) => <a key={i} className="src" href={s.url} target="_blank" rel="noopener noreferrer"><span style={{ color: "var(--faint)", flex: "0 0 auto" }}><LinkIcon /></span><span style={{ flex: 1, minWidth: 0 }}><b>{s.title}</b><small>{s.site}</small></span></a>)
         : <div className="nosrc">확인된 출처 없음 · 일반 지식 기반 설명이에요. 중요한 판단은 메인 AI나 1차 자료로 한 번 더 확인하세요.</div>}
       <button className="deepen" onClick={() => doDeepen(t.id)}>＋ 더 깊이 (예시·비유 추가)</button>
-      {!t.understood && <button className="understood" onClick={() => markUnderstood(t.id)}>읽었어요 · 이제 알겠다</button>}
+      <button className={`keepbtn big ${t.kept ? "on" : ""}`} onClick={() => toggleKeep(t.id)}>{t.kept ? "담음 ✓ · 모음에서 빼기" : "＋ 이 어휘 담기"}</button>
     </div>
   );
 }
 
-function Card({ t, i, state, setTag, markUnderstood, toggleDetail, jumpRelated, doDeepen }: { t: UITerm; i: number; state: State; setTag: (id: string, tag: UITag) => void; markUnderstood: (id: string) => void; toggleDetail: (id: string) => void; jumpRelated: (n: string) => void; doDeepen: (id: string) => void }) {
+function Card({ t, i, state, toggleKeep, toggleDetail, jumpRelated, doDeepen }: { t: UITerm; i: number; state: State; toggleKeep: (id: string) => void; toggleDetail: (id: string) => void; jumpRelated: (n: string) => void; doDeepen: (id: string) => void }) {
   const open = state.openId === t.id;
-  const tagCls = (k: UITag) => "tagbtn" + (t.uiTag === k ? (k === "know" ? " on-know" : k === "dontknow" ? " on-dont" : " on-part") : "");
   const animStyle = t._new ? { animation: `cardIn .42s ease both`, animationDelay: `${i * 55}ms` } : undefined;
   return (
-    <div className={`card ${open ? "open" : ""}`} style={animStyle}>
+    <div className={`card ${open ? "open" : ""}${t.kept ? " kept" : ""}`} style={animStyle}>
       <div className="crow" onClick={() => toggleDetail(t.id)} role="button" aria-expanded={open} tabIndex={0}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleDetail(t.id); } }}>
         <span className="pri">{t.priority}</span>
@@ -414,35 +459,30 @@ function Card({ t, i, state, setTag, markUnderstood, toggleDetail, jumpRelated, 
             <span className="term">{t.term}</span>
             <span className="kind" style={{ background: "var(--surface-2)", color: "var(--muted)" }}>{t.kind}</span>
             {state.groupView && t.group && <span className="gchip">{t.group}</span>}
-            {t.understood && <span className="badge-ok">이해함 ✓</span>}
+            {t.kept && <span className="badge-ok">담음 ✓</span>}
           </div>
           <div className="oneline">{t.one_line}</div>
           <div className="why"><b>추천 이유</b><span>{t.why}</span></div>
         </div>
         <span className="chev"><Chev /></span>
       </div>
-      {t.uiTag === "dontknow" && !t.understood && <div className="dontknow"><span>카드를 펼쳐 개념을 읽고, 이해되면 표시해 주세요.</span><button onClick={() => markUnderstood(t.id)}>이제 알겠다</button></div>}
-      {open && <Detail t={t} opening={state.opening === t.id} jumpRelated={jumpRelated} doDeepen={doDeepen} markUnderstood={markUnderstood} />}
-      <div className="tags">
-        <button className={tagCls("know")} onClick={() => setTag(t.id, "know")}>알아</button>
-        <button className={tagCls("dontknow")} onClick={() => setTag(t.id, "dontknow")}>몰라</button>
-        <button className={tagCls("partial")} onClick={() => setTag(t.id, "partial")}>적용 모름</button>
+      {open && <Detail t={t} opening={state.opening === t.id} jumpRelated={jumpRelated} doDeepen={doDeepen} toggleKeep={toggleKeep} />}
+      <div className="keeprow">
+        <button className={`keepbtn ${t.kept ? "on" : ""}`} onClick={() => toggleKeep(t.id)}>{t.kept ? "담음 ✓" : "＋ 담기"}</button>
       </div>
     </div>
   );
 }
 
-function Terms({ state, merge, loadMore, setTag, markUnderstood, restore, toggleDetail, jumpRelated, doDeepen, go }: { state: State; merge: (p: Partial<State>) => void; loadMore: () => void; setTag: (id: string, tag: UITag) => void; markUnderstood: (id: string) => void; restore: (id: string) => void; toggleDetail: (id: string) => void; jumpRelated: (n: string) => void; doDeepen: (id: string) => void; go: (s: Screen) => void }) {
+function Terms({ state, merge, loadMore, toggleKeep, toggleDetail, jumpRelated, doDeepen, go }: { state: State; merge: (p: Partial<State>) => void; loadMore: () => void; toggleKeep: (id: string) => void; toggleDetail: (id: string) => void; jumpRelated: (n: string) => void; doDeepen: (id: string) => void; go: (s: Screen) => void }) {
   const revealed = state.terms.slice(0, state.visibleCount);
-  const known = revealed.filter((t) => t.uiTag === "know");
-  let active = revealed.filter((t) => t.uiTag !== "know");
+  let active = [...revealed];
   const q = state.query.trim().toLowerCase();
   if (q) active = active.filter((t) => (t.term + " " + t.one_line).toLowerCase().includes(q));
   if (state.groupView) active = [...active].sort((a, b) => (a.group ?? "").localeCompare(b.group ?? "") || a.priority - b.priority);
   const total = state.terms.length || 6;
   const pct = Math.round((state.visibleCount / Math.max(1, total)) * 100);
-  const keep = active.filter((t) => !t.understood).length;
-  const und = revealed.filter((t) => t.understood).length;
+  const keptCount = revealed.filter((t) => t.kept).length;
   let lastG: string | undefined;
   return (
     <>
@@ -450,45 +490,48 @@ function Terms({ state, merge, loadMore, setTag, markUnderstood, restore, toggle
         <div className="tagrow"><span className="minitag">{state.classifyOut?.domain ?? "분야"}</span><small>추론된 분야</small></div>
         <div className="searchwrap"><SearchIcon /><input className="search" aria-label="이 분야 어휘 검색" placeholder="이 분야 어휘 검색" value={state.query} onChange={(e) => merge({ query: e.target.value })} /></div>
         <div className="progress"><div className="track"><i style={{ width: pct + "%" }} /></div><small>{state.visibleCount}/{total}</small></div>
-        <div className="toolrow"><span className="hint"><i />눌러서 개념을 직접 읽어보세요</span><button className={`toggle ${state.groupView ? "on" : ""}`} onClick={() => merge({ groupView: !state.groupView })}>{state.groupView ? "우선순위로" : "그룹으로 보기"}</button></div>
-        {!state.tagHintSeen && state.visibleCount > 0 && <div className="taghint"><span><b>알아</b>는 숨김 · <b>몰라</b>는 강조 · <b>적용 모름</b>은 뜻은 알지만 쓸 줄 모를 때</span><button onClick={() => merge({ tagHintSeen: true })}>확인</button></div>}
+        <div className="toolrow"><span className="hint"><i />눌러서 개념을 읽고, 쓸 만하면 담아두세요</span><button className={`toggle ${state.groupView ? "on" : ""}`} onClick={() => merge({ groupView: !state.groupView })}>{state.groupView ? "우선순위로" : "그룹으로 보기"}</button></div>
         {state.errorMsg && <div className="taghint" style={{ color: "var(--warn-ink)" }}><span>{state.errorMsg}</span></div>}
         {active.length > 0 ? active.map((t, i) => {
           const head = state.groupView && t.group !== lastG ? <div key={"g" + t.id} className="grouphead"><b>{t.group}</b><i /></div> : null;
           lastG = t.group;
-          return <div key={t.id}>{head}<Card t={t} i={i} state={state} setTag={setTag} markUnderstood={markUnderstood} toggleDetail={toggleDetail} jumpRelated={jumpRelated} doDeepen={doDeepen} /></div>;
+          return <div key={t.id}>{head}<Card t={t} i={i} state={state} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} doDeepen={doDeepen} /></div>;
         }) : <p className="note" style={{ margin: "24px 0" }}>{state.streaming ? "어휘를 가져오는 중…" : "검색과 일치하는 어휘가 없어요."}</p>}
-        {known.length > 0 && <><button className="tray" onClick={() => merge({ trayOpen: !state.trayOpen })}>아는 어휘 {known.length}개 접음 <span style={{ opacity: .7 }}>{state.trayOpen ? "▴" : "▾"}</span></button>{state.trayOpen && <div className="traychips">{known.map((t) => <button key={t.id} className="traychip" onClick={() => restore(t.id)}><s>{t.term}</s> ↺</button>)}</div>}</>}
         {state.moreLoaded
           ? <button className="more done">우선순위 어휘를 모두 봤어요</button>
           : <button className="more" onClick={loadMore}>{state.moreLoading ? "어휘 더 불러오는 중…" : "＋ 어휘 더 보기 (다음 우선순위)"}</button>}
         <p className="note" style={{ marginTop: 13 }}>여기까지가 말그릇 준비예요. 실제 계산, 비교, 시뮬레이션은 메인 AI에서 이어가세요.</p>
       </div></main>
       <div className="foot">
-        <div style={{ flex: 1, fontSize: 12.5, color: "var(--muted)" }}>담은 어휘 <b style={{ color: "var(--text)" }}>{keep}</b> · 이해 <b style={{ color: "var(--text)" }}>{und}</b></div>
-        <button className="btn-ghost" style={{ width: "auto", padding: "9px 15px", borderRadius: 10, fontSize: 14.5, fontWeight: 600 }} onClick={() => go("summary")}>정리 보기</button>
+        <div style={{ flex: 1, fontSize: 12.5, color: "var(--muted)" }}>담은 어휘 <b style={{ color: "var(--text)" }}>{keptCount}</b></div>
+        <button className="btn-ghost" style={{ width: "auto", padding: "9px 15px", borderRadius: 10, fontSize: 14.5, fontWeight: 600 }} onClick={() => go("kept")} disabled={keptCount === 0}>담은 어휘 보기</button>
       </div>
     </>
   );
 }
 
-function Summary({ state, merge, go, goHome, buildSummary, onCopy, onShare, aiRefine }: { state: State; merge: (p: Partial<State>) => void; go: (s: Screen) => void; goHome: () => void; buildSummary: (s: State) => string; onCopy: () => void; onShare: () => void; aiRefine: () => void }) {
-  const copyLabel = state.copyFailed ? "복사 실패 · 아래 글을 직접 선택해 복사하세요" : state.copied ? "복사됐어요" : "복사하기";
+function Kept({ state, merge, go, goHome, toggleKeep, toggleDetail, jumpRelated, doDeepen, buildSummary, onCopy, onShare, aiRefine }: { state: State; merge: (p: Partial<State>) => void; go: (s: Screen) => void; goHome: () => void; toggleKeep: (id: string) => void; toggleDetail: (id: string) => void; jumpRelated: (n: string) => void; doDeepen: (id: string) => void; buildSummary: (s: State) => string; onCopy: () => void; onShare: () => void; aiRefine: () => void }) {
+  const copyLabel = state.copyFailed ? "복사 실패 · 아래 글을 직접 선택해 복사하세요" : state.copied ? "복사됐어요" : "메인 AI용으로 복사";
+  const kept = state.terms.filter((t) => t.kept);
   return (
     <main className="scroll"><div className="pad" style={{ display: "flex", flexDirection: "column" }}>
-      <button className="link" style={{ alignSelf: "flex-start", color: "var(--muted)", marginBottom: 13 }} onClick={() => go("terms")}>← 어휘로 돌아가기</button>
-      <h2>오늘의 어휘 정리</h2>
-      <div className="callout" style={{ marginTop: 10 }}><b>이미 개념을 쥐었다면 직접 물어보셔도 돼요.</b><p>원하면 아래 정리를 가져가 쓰시는 AI 챗봇에 붙여넣어도 돼요. (선택)</p></div>
-      <div className="label">내 상황 한 줄 (선택)</div>
-      <input className="field" aria-label="내 상황 한 줄" placeholder="예: 졸업작품 이미지 분류 모델, 검증 점수가 낮아요" value={state.ctxInput} onChange={(e) => merge({ ctxInput: e.target.value })} />
-      <div className="summary" style={{ marginTop: 13 }}>{buildSummary(state)}</div>
-      {state.aiSummary && <><div className="dsec" style={{ marginTop: 14 }}>AI 추가 정리</div><div className="summary" style={{ marginTop: 6 }}>{state.aiSummary}</div></>}
-      <div className="row2">
-        <button className="btn btn-ghost" style={{ flex: 2 }} onClick={onCopy}>{copyLabel}</button>
-        <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onShare}>{state.shareNote ? "링크 복사됨" : "공유"}</button>
-      </div>
-      <button className="btn btn-ghost" style={{ marginTop: 10 }} onClick={aiRefine}>{state.aiSummaryLoading ? "AI가 정리하는 중…" : state.plan === "pro" ? "AI로 더 정리" : "AI로 더 정리 (pro 전용 🔒)"}</button>
-      <button className="link" style={{ alignSelf: "center", color: "var(--muted)", marginTop: 10 }} onClick={goHome}>새로 시작</button>
+      <button className="link" style={{ alignSelf: "flex-start", color: "var(--muted)", marginBottom: 13 }} onClick={() => (state.histView ? goHome() : go("terms"))}>{state.histView ? "← 처음으로" : "← 어휘로 돌아가기"}</button>
+      <h2>담은 어휘{state.input ? ` · ${state.input}` : ""}</h2>
+      <p className="lead" style={{ margin: "4px 0 14px" }}>{kept.length ? `${kept.length}개를 담아뒀어요. 펼쳐 보거나 빼낼 수 있어요.` : "아직 담은 어휘가 없어요. 어휘 화면에서 쓸 만한 카드를 담아보세요."}</p>
+      {kept.map((t, i) => <Card key={t.id} t={t} i={i} state={state} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} doDeepen={doDeepen} />)}
+      {kept.length > 0 && <>
+        <div className="dsec" style={{ marginTop: 16 }}>메인 AI에 붙여넣기 (선택)</div>
+        <div className="label" style={{ marginTop: 8 }}>내 상황 한 줄 (선택)</div>
+        <input className="field" aria-label="내 상황 한 줄" placeholder="예: 졸업작품 이미지 분류 모델, 검증 점수가 낮아요" value={state.ctxInput} onChange={(e) => merge({ ctxInput: e.target.value })} />
+        <div className="summary" style={{ marginTop: 13 }}>{buildSummary(state)}</div>
+        {state.aiSummary && <><div className="dsec" style={{ marginTop: 14 }}>AI 추가 정리</div><div className="summary" style={{ marginTop: 6 }}>{state.aiSummary}</div></>}
+        <div className="row2">
+          <button className="btn btn-ghost" style={{ flex: 2 }} onClick={onCopy}>{copyLabel}</button>
+          <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onShare}>{state.shareNote ? "링크 복사됨" : "공유"}</button>
+        </div>
+        <button className="btn btn-ghost" style={{ marginTop: 10 }} onClick={aiRefine}>{state.aiSummaryLoading ? "AI가 정리하는 중…" : state.plan === "pro" ? "AI로 더 정리" : "AI로 더 정리 (pro 전용 🔒)"}</button>
+      </>}
+      <button className="link" style={{ alignSelf: "center", color: "var(--muted)", marginTop: 14 }} onClick={goHome}>새로 시작</button>
       <p className="note">AI가 정리한 보조 어휘예요 · 사실 확인은 메인 AI에서</p>
     </div></main>
   );
