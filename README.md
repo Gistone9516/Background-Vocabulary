@@ -2,7 +2,7 @@
 
 > **한 줄 정체:** AI에게 말 걸기 전, 그 분야의 말그릇(핵심 어휘)을 클릭만으로 쥐여주는 **크롬 확장(MV3)**. 이름은 한국어 '배경노트', 영어 'Vock note'(Voca + back + note). — 자기 전공 밖으로 무언가 만들려는 "교차전공 빌더(탑다운)"를 위한 어휘 준비 도구. 영어 웹 RAG로 근거를 잡아 한국어 말그릇으로 변환한다.
 
-**현재 단계:** buildflow 구현 진행 중 — **태그→Keep · 로컬 라이브 통합 · 비용/티어 차등 · 이름(배경노트/Vock note) · 다국어(ko·en·ja·zh) · 보안 하드닝까지 완료·검증**. 다음 = 프로덕션 배포(`배경어휘-사이드탭-배포-가이드.md`).
+**현재 단계:** buildflow 구현 진행 중 — **태그→Keep · 로컬 라이브 통합 · 비용/티어 차등 · 이름(배경노트/Vock note) · 다국어(ko·en·ja·zh) · 보안 하드닝까지 완료·검증**. 다음 = 프로덕션 배포(`docs/배경어휘-사이드탭-배포-가이드.md`). **기획·계획 문서는 전부 `docs/`로 이동됨.**
 
 ---
 
@@ -12,10 +12,13 @@
 |---|---|
 | `sidetab/` | **실제 코드(npm workspaces 모노레포).** 백엔드(Workers+Hono) + 크롬 확장. 상세=`sidetab/README.md` |
 | `panel.html` | **UI 정본 프로토타입**(단일 HTML, 5화면 전체 흐름·문구류 테마). 프론트 이식의 기준이자 최신 기획 |
-| `배경어휘-사이드탭-인터페이스계약.md` | **빌드 SoT** — 프론트↔백엔드 단일 계약(이식성 불변 §0-1 포함). 충돌 시 이 문서가 권위 |
-| `배경어휘-사이드탭-기획-구체화.md` | 메인 기획(v1.5). 설계·결정 단일 출처(§11 서비스화) |
-| `배경어휘-사이드탭-구현계획.md` | "어떻게 짓는가"(v1.2 — 스택·아키텍처·게이트) |
-| `배경어휘-사이드탭-이관.md` | 진행 핸드오프 |
+| `docs/` | **기획·계획 문서 모음**(아래 6종). 활성 문서는 전부 여기 |
+| `docs/배경어휘-사이드탭-인터페이스계약.md` | **빌드 SoT** — 프론트↔백엔드 단일 계약(이식성 불변 §0-1 포함). 충돌 시 이 문서가 권위 |
+| `docs/배경어휘-사이드탭-기획-구체화.md` | 메인 기획(v1.5). 설계·결정 단일 출처(§11 서비스화) |
+| `docs/배경어휘-사이드탭-구현계획.md` | "어떻게 짓는가"(v1.2 — 스택·아키텍처·게이트) |
+| `docs/배경어휘-사이드탭-배포-가이드.md` | 프로덕션 배포 런북(wrangler login → secret → deploy → 배선) |
+| `docs/배경어휘-사이드탭-사용자판단대기.md` | 파킹·백로그 결정 대기 항목 |
+| `docs/배경어휘-사이드탭-이관.md` | 진행 핸드오프 |
 | `sidetab/.env` | 스크립트(e2e·g4g7 등)용 API 키 4종(DeepSeek/Tavily/Upstash). 워커는 `sidetab/packages/adapters/workers/.dev.vars` 사용. **둘 다 커밋 금지** |
 | `_archive/` | 과거 산출물(기획·검증·정확도·비용·하니스·구 프로토타입). git 제외, 로컬 참조용 |
 
@@ -59,5 +62,5 @@ npm -w @sidetab/extension run build                       # 확장 빌드(dist/)
 - **태그→Keep 전환 완료(C1·C2·C3):** 어휘 카드 태그 {알아/몰라/적용모름}을 **단일 Keep 토글**로 교체(C1). Summary 화면 제거 후 **담은 어휘(kept) 뷰**에 복사·공유·AI정리 흡수(C2). 진입 입력 텍스트를 키로 한 **이전 탐색 히스토리**를 `chrome.storage.local`에 저장하고 entry에서 재열람·복원(C3). 백엔드·계약 변경 0건(클라이언트 전용, 저장은 `sidepanel/history.ts`). 실브라우저(vite mock) end-to-end 검증: entry→narrow→terms(Keep)→kept→히스토리 복원, 앱 콘솔 에러 0.
 - **로컬 라이브 통합 완료·검증:** 로컬 실 워커(`npm -w @sidetab/workers run dev`, `.dev.vars` 실 키)에 확장 dev(`VITE_WORKER_BASE=http://127.0.0.1:8787`)를 붙여 실 DeepSeek+Tavily로 end-to-end 검증. `/classify`(실 분류·선택지)·`/recommend`(실 어휘 스트리밍)·`/detail`(실 3단 개념·관련어) 동작, Keep·히스토리·상세캐시 영속까지 확인, 앱 콘솔 에러 0. `manifest.json` host_permissions에 로컬 워커 주소 추가됨.
 - **비용 최적화/티어 차등 + 문장 줄바꿈 완료·검증:** 전 LLM 호출에 `max_tokens` 안전 상한(폭주 가드, free<paid) · 무료 4어휘/좁히기 3턴/상세 3회·세션/더보기·더깊이·요약 페이월 · 전역 일일 캡(`GLOBAL_DAILY_CAP`, recommend·detail·summarize) · anonymous 우회를 전역 캡으로 차단. 계약(SoT) 변경 2건: `LlmRequest.maxTokens`, `Pipeline.recommendStream/detail`에 `tier` 인자(`buildPrompt3` count). 출처 RAG는 양 티어 동일. 문장 끝 줄바꿈(`sentLines`)을 카드 one_line·why·좁히기 질문·hero 부제·거부·페이월 안내로 확대. **부드러운 거부(고위험 게이트)·페이월 톤 보존.** 실 API 무료 흐름 end-to-end 검증(4어휘·3턴·페이월 3종·출처 포함·줄바꿈), 검증 중 발견한 상세 `max_tokens` 과소(500 truncation) 버그 수정.
-- **다음 — 프로덕션 배포(Cloudflare 로그인 필요, 사람 1회):** `배경어휘-사이드탭-배포-가이드.md` 참조. `wrangler login` → `wrangler secret put` ×4 → `npm -w @sidetab/workers run deploy` → 배포 URL을 빌드 `VITE_WORKER_BASE`와 manifest host_permissions에 반영.
-- **별개 백로그:** detail 출처 영어화(한국어 분야는 "확인된 출처 없음"으로 나옴) · Pretendard self-host(MV3 CSP) · userId 익명 게이팅(Tier3). 상세는 `배경어휘-사이드탭-사용자판단대기.md`.
+- **다음 — 프로덕션 배포(Cloudflare 로그인 필요, 사람 1회):** `docs/배경어휘-사이드탭-배포-가이드.md` 참조. `wrangler login` → `wrangler secret put` ×4 → `npm -w @sidetab/workers run deploy` → 배포 URL을 빌드 `VITE_WORKER_BASE`와 manifest host_permissions에 반영.
+- **별개 백로그:** detail 출처 영어화(한국어 분야는 "확인된 출처 없음"으로 나옴) · Pretendard self-host(MV3 CSP) · userId 익명 게이팅(Tier3). 상세는 `docs/배경어휘-사이드탭-사용자판단대기.md`.
