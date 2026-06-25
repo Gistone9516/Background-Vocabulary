@@ -109,6 +109,7 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
               area: input.area,
               job_type: input.job_type,
               grounding: groundingText,
+              topic: input.topic, // 앵커(사용자 입력 용어) 식별용
             };
             const prompt3Input = {
               ...prompt3Base,

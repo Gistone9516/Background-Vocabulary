@@ -8,9 +8,10 @@ import type {
 import * as mock from "./mock.js";
 
 // 배포 후 실제 워커 도메인으로 교체. manifest host_permissions와 일치해야 CORS가 열린다.
-const WORKER_BASE = "https://sidetab-api.example.workers.dev";
-// DEV(vite dev)에서는 mock을 쓴다. 빌드(프로덕션)에서는 실제 워커로 fetch.
-const USE_MOCK = import.meta.env.DEV;
+// VITE_WORKER_BASE를 주면(예: 로컬 wrangler dev) 그 주소를 쓰고 실 API로 붙는다.
+const WORKER_BASE = (import.meta.env.VITE_WORKER_BASE as string | undefined) ?? "https://sidetab-api.example.workers.dev";
+// DEV(vite dev)에서는 기본 mock. 단 VITE_WORKER_BASE가 주어지면 dev라도 실 워커로 fetch.
+const USE_MOCK = import.meta.env.DEV && !import.meta.env.VITE_WORKER_BASE;
 
 export type Tier = "free" | "paid";
 

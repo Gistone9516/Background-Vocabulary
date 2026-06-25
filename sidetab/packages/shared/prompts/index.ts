@@ -9,7 +9,7 @@ const JOB_LIST = JOB_TYPES.join("·");
 
 // 모든 출력에 공통으로 거는 눈높이 규칙(기획 P15).
 const EYE_LEVEL =
-  "모든 출력(선택지, 추천, why, 상세)은 비전공자 기본 가정으로 쓴다. 배경이 확인될 때만 상향한다.";
+  "모든 출력(선택지, 추천, why, 상세)은 비전공자가 처음 듣는다고 가정하고 쓴다. 짧고 명확하게, 주저리 금지. 한자어·전문용어·중첩 수식을 피하고 쉬운 말로 푼다. 한 항목은 1~2문장.";
 
 // 프롬프트1. 진입 자유문장에서 분야와 작업유형을 이중 추론하고 첫 분기를 만든다.
 // 구현계획 6장 라우팅을 위해 search_locale와 domain_risk도 함께 출력한다.
@@ -48,7 +48,7 @@ export function buildPrompt2(input: {
     "action이 '더깊이'면 직전 갈래의 하위 또는 파생 선택지를 만든다(의중 분포는 갱신하지 않는다).",
     "context_object나 user_condition이 있으면 그 맥락에 맞춰 선택지를 좁힌다.",
     EYE_LEVEL,
-    "이력이 의중을 충분히 좁혔는지 판단해 enough(불리언)와 confidence(0~1)를 함께 낸다. 핵심 의중이 특정되면 enough=true, 아직 갈리면 false. 프론트가 최소 3·최대 8 질문 범위에서 이 신호를 참고한다(D1).",
+    "이력이 의중을 충분히 좁혔는지 판단해 enough(불리언)와 confidence(0~1)를 낸다. 목표는 3턴 안에 마무리다 — 3턴쯤 답을 모으면 대개 enough=true로 끝낸다. 의중이 정말 크게 갈릴 때만 추가 질문(최대 8). 질문을 채우려고 늘리지 않는다(D1).",
     'JSON 하나만 출력한다. 형식: {"question","choices":[{"label","domain_tag"}],"enough":bool,"confidence":0~1}. 반드시 유효한 json.',
   ].join("\n");
   const user = JSON.stringify(input);
@@ -68,11 +68,12 @@ export function buildPrompt3(input: {
   gap_type?: GapType[];
   grounding: string; // 영어 웹 검색 근거
   exclude?: string[]; // 이미 제시한 어휘(더보기 시 제외)
+  topic?: string; // 사용자 원래 요청(앵커 식별용)
 }): Msg[] {
   const sys = [
     "너는 비전공자가 그 분야로 무언가 만들기 전에 알아야 할 핵심 어휘(말그릇)를 골라주는 도우미다.",
-    "모든 출력은 한국어로, 비전공자 눈높이로 쓴다(기획 P15).",
-    "커버리지 규칙(기획 P31): 입력과 근거와 분야명에 명시된 핵심 용어는 반드시 terms에 포함한다(누락 금지). 표층 동의어로 슬롯을 낭비하지 말고 그 분야 must-know와 자주 혼동되는 핵심으로 5개에서 8개 슬롯을 채운다. 정의는 정밀하게 한다(메커니즘과 프로토콜, 비율과 기준, 기본과 파생을 구분).",
+    "모든 출력은 한국어로, 비전공자가 처음 듣는다 가정하고 짧고 쉽게 쓴다(P15). one_line은 한 문장, why도 한 줄. 한자어·장황 금지.",
+    "선정 원칙(P31 개정): 사용자가 입력에 직접 쓴 용어(앵커)는 이미 아는 것으로 보고 terms에서 제외한다(되돌려주지 않는다). 목적은 사용자가 AI에게 제대로 부탁하고 이 작업을 실제로 굴리는 데 필요한 '실용 어휘'를 쥐여주는 것 — 특히 방법론·기법·핵심 개념 위주다. 앵커의 아래·옆·심화로 들어가 비전공자가 실전에서 막히는 어휘 5개에서 8개를 고른다. 표층 동의어나 사용자가 이미 쓴 말의 재진술로 슬롯을 낭비하지 않는다.",
     "근거는 영어 자료다. 영어 자료를 읽고 한국어 말그릇으로 변환한다(영어 용어는 한국어 정착어로, 없으면 한국어와 괄호 원어 병기).",
     "필드 켜기 규칙(기획 P30): direction은 gap_type c d e 또는 job_type 의사결정 진단판단 협상설득준비에서 켠다. use_example은 글쓰기 작업 또는 gap_type c에서 켠다. context_note는 gap_type d e에서 켠다. relates_to와 order는 gap_type b에서 켠다.",
     "group은 어휘를 묶는 상위 분류명(예: 일반화, 학습 설정)이다. 같은 성격끼리 같은 group 문자열을 부여한다(그룹뷰용).",
@@ -82,6 +83,7 @@ export function buildPrompt3(input: {
   ].join("\n");
   const user = [
     `area(분야): ${input.area}`,
+    input.topic ? `사용자 원래 요청(이 안에 등장하는 용어는 앵커이므로 출력에서 제외): ${input.topic}` : "",
     `job_type(허용값 ${JOB_LIST}): ${input.job_type.join(", ")}`,
     input.gap_type?.length ? `gap_type(막힘 유형): ${input.gap_type.join(", ")}` : "",
     input.user_condition ? `사용자 조건: ${input.user_condition}` : "",
@@ -132,8 +134,9 @@ export function buildPrompt5(input: {
   candidateSources?: { title: string; url: string }[]; // 근거 문서 목록. 이 중에서만 고른다.
 }): Msg[] {
   const sys = [
-    "사용자가 연 어휘 카드 하나의 상세를 한국어로 비전공자 눈높이로 설명한다.",
+    "사용자가 연 어휘 카드 하나의 상세를 한국어로, 처음 듣는 비전공자에게 말하듯 설명한다.",
     "본문은 3단으로 쓴다: what(개념, 이게 뭐냐) · whymine(내 맥락, 왜 나에게 중요) · how(활용, 어떻게 쓰냐). 보조 한 줄이 있으면 misc.",
+    "각 단은 1~2문장으로 짧고 쉽게. 주저리·장황 금지. 한자어·전문용어는 풀어쓰고 비유는 한 줄.",
     "related는 상세 열람용 일반 관련어다(프롬프트3의 relates_to와 다른 개념).",
     "sources는 제공된 candidateSources 중 이 어휘를 실제로 뒷받침하는 것만 고른다(정밀 우선). 확신이 없으면 빈 배열로 둔다. 목록에 없는 출처를 지어내지 않는다(site는 비워도 된다. 코드가 URL에서 채운다).",
     input.deepen ? "deepen이 켜졌으니 how에 구체 예시나 비유를 한 가지 더한다." : "",

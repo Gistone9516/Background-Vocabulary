@@ -181,8 +181,9 @@ export function App() {
     const ctrl = new AbortController();
     await api.streamRecommend(buildRecInput(exclude), s.plan === "pro" ? "paid" : "free", (ev) => {
       if (ev.type === "term") {
-        got++; const id = "m" + sref.current.terms.length;
-        dispatch({ type: "addTerm", term: { ...ev.term, id, uiTag: "unconfirmed", understood: false, deepened: false, _new: true } });
+        // 카드 번호는 기존 개수에 이어서 매긴다(더보기 시 1부터 재시작 버그 수정).
+        got++; const n = sref.current.terms.length; const id = "m" + n;
+        dispatch({ type: "addTerm", term: { ...ev.term, priority: n + 1, id, uiTag: "unconfirmed", understood: false, deepened: false, _new: true } });
         later(() => dispatch({ type: "updateTerm", id, patch: { _new: false } }), 780);
       }
     }, ctrl.signal).catch(() => {});
@@ -340,7 +341,8 @@ function Narrow({ state, toggleSel, nextStep, undoStep, jumpToTerms }: { state: 
   }
   const idx = state.answers.length;
   const cur = state.questions[idx] ?? state.questions[state.questions.length - 1];
-  const shown = Math.max(state.questions.length, MIN_Q);
+  // 진행은 confidence와 진행 위치(목표 3턴) 중 큰 값으로 부드럽게 채운다(점 팝 없음).
+  const pct = Math.round(Math.max(state.confidence, Math.min(idx, 3) / 3) * 100);
   return (
     <main className="scroll"><div className="pad" style={{ display: "flex", flexDirection: "column" }}>
       <div className="aiwrap">
@@ -348,7 +350,7 @@ function Narrow({ state, toggleSel, nextStep, undoStep, jumpToTerms }: { state: 
         <span className="aimeta"><b>AI</b>가 좁히는 중 · {idx + 1}번째{state.confidence >= 0.75 ? " · 거의 다 좁혔어요" : ""}</span>
         {state.answers.length > 0 && <button className="link" style={{ marginLeft: "auto" }} onClick={undoStep}>↩ 되돌리기</button>}
       </div>
-      <div className="steps">{Array.from({ length: shown }).map((_, i) => <span key={i} className={`dot ${i <= idx ? "on" : ""}`} />)}</div>
+      <div className="progress" style={{ marginBottom: 16 }}><div className="track"><i style={{ width: pct + "%" }} /></div></div>
       <h2>{cur?.question ?? ""}</h2>
       <p className="lead" style={{ margin: "6px 0 16px" }}>가까운 걸 고르세요 · 두 개까지 가능</p>
       {(cur?.choices ?? []).map((o) => {

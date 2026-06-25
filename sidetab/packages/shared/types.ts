@@ -122,6 +122,7 @@ export interface Prompt3In {
   user_condition?: string;
   context_object?: string;
   gap_type?: GapType[]; // 프롬프트1과 2가 추론한 세션 기본값. 복합이면 배열.
+  topic?: string; // 사용자 원래 요청. 앵커(이미 아는 용어) 식별용. 추천에서 제외(P31 개정).
 }
 export interface Prompt3Out {
   terms: Term[]; // priority 오름차순
