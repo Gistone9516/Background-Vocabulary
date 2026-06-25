@@ -28,3 +28,10 @@ UPSTASH_REDIS_REST_TOKEN=your_upstash_rest_token_here
 # NARROW_MAX_FREE=3
 # NARROW_MAX_PAID=8
 # DETAIL_LIMIT_FREE=3
+# ── 보안 하드닝(Phase 4) ──
+# 단일 입력 텍스트 길이 상한(문자) / IP당 분당·일일 요청 상한
+# MAX_INPUT_CHARS=4000
+# RATE_PER_MIN=20
+# RATE_PER_DAY=200
+# 프로덕션에서 이 확장 origin만 허용(잠금). 미설정이면 모든 chrome-extension 허용(개발).
+# ALLOWED_EXT_ORIGIN=chrome-extension://<배포된_확장_ID>

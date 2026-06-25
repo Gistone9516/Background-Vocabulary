@@ -42,6 +42,10 @@ export interface Limits {
   globalDailyCap: number; // 전역 일일 캡(빌드 폭주 방지)
   narrowMax: { free: number; paid: number }; // 좁히기 최대 턴
   detailLimitFree: number; // 무료 세션당 상세 열람 횟수
+  // 보안 하드닝(Phase 4). 인증 없는 anti-abuse 한도.
+  maxInputChars: number; // 단일 사용자 입력 텍스트 필드 길이 상한(토큰 비용·인젝션 방어)
+  ratePerMin: number; // IP당 분당 요청 상한
+  ratePerDay: number; // IP당 일일 요청 상한
 }
 
 export const DEFAULT_LIMITS: Limits = {
@@ -57,6 +61,9 @@ export const DEFAULT_LIMITS: Limits = {
   globalDailyCap: 300,
   narrowMax: { free: 3, paid: 8 },
   detailLimitFree: 3,
+  maxInputChars: 4000,
+  ratePerMin: 20,
+  ratePerDay: 200,
 };
 
 // 클라이언트(확장)가 게이팅에 쓰는 한도 부분집합. /config 응답 형태.

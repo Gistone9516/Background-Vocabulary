@@ -8,6 +8,33 @@ export const FREE_WEEKLY_LIMIT = 7;
 const WEEK_TTL_SEC = 7 * 24 * 60 * 60;
 const DAY_TTL_SEC = 24 * 60 * 60;
 
+// 범용 카운터(레이트리밋·IP 키 등). 주어진 키를 1 올리고 첫 호출에 TTL을 건다.
+// 보안 하드닝(Phase 4)에서 IP당 분/일 요청 제한에 쓴다.
+export class UpstashCounter {
+  private readonly url: string;
+  private readonly token: string;
+  constructor(opts: { url: string; token: string }) {
+    this.url = opts.url.replace(/\/$/, "");
+    this.token = opts.token;
+  }
+  async hit(key: string, ttlSec: number): Promise<number> {
+    const incrRes = await fetch(`${this.url}/incr/${encodeURIComponent(key)}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${this.token}`, "Content-Type": "application/json" },
+    });
+    if (!incrRes.ok) throw new Error(`Upstash INCR 실패: ${incrRes.status}`);
+    const body = (await incrRes.json()) as { result: number };
+    const count = body.result;
+    if (count === 1) {
+      await fetch(`${this.url}/expire/${encodeURIComponent(key)}/${ttlSec}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${this.token}`, "Content-Type": "application/json" },
+      }).catch(() => {});
+    }
+    return count;
+  }
+}
+
 // 빌드 단계 비용 폭주를 막는 전역 일일 캡. 티어·사용자 무관하게 비싼 호출(recommend·detail·summarize)을
 // 하루 단위로 합산해 상한을 넘으면 차단한다. anonymous 우회도 이 캡이 덮는다.
 // GLOBAL_DAILY_CAP env(문자열)로 조정, 미설정이면 기본값.

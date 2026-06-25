@@ -26,7 +26,7 @@ import type {
 } from "@sidetab/shared";
 import type { RecommendInput, Tier, Limits, ClientLimits, OutputLocale } from "@sidetab/shared";
 import { DEFAULT_LIMITS, OUTPUT_LOCALES } from "@sidetab/shared";
-import { UpstashUsageCounter, UpstashGlobalDailyCap } from "./usage-counter.js";
+import { UpstashUsageCounter, UpstashGlobalDailyCap, UpstashCounter } from "./usage-counter.js";
 
 // Workers env 바인딩 타입. wrangler.toml의 [vars]와 secrets에 대응한다.
 // 운영 한도는 전부 env로 튜닝한다(미설정이면 DEFAULT_LIMITS). 값은 양의 정수 문자열.
@@ -42,6 +42,9 @@ export interface Env {
   FREE_WEEKLY_LIMIT?: string; GLOBAL_DAILY_CAP?: string;
   NARROW_MAX_FREE?: string; NARROW_MAX_PAID?: string;
   DETAIL_LIMIT_FREE?: string;
+  MAX_INPUT_CHARS?: string; RATE_PER_MIN?: string; RATE_PER_DAY?: string;
+  // 설정 시 이 chrome-extension origin만 허용(프로덕션 확장 ID 잠금). 미설정이면 모든 확장 허용(개발).
+  ALLOWED_EXT_ORIGIN?: string;
 }
 
 // 양의 정수 문자열을 파싱한다. 비거나 잘못되면 기본값.
@@ -66,7 +69,50 @@ function buildLimits(env: Env): Limits {
     globalDailyCap: num(env.GLOBAL_DAILY_CAP, D.globalDailyCap),
     narrowMax: { free: num(env.NARROW_MAX_FREE, D.narrowMax.free), paid: num(env.NARROW_MAX_PAID, D.narrowMax.paid) },
     detailLimitFree: num(env.DETAIL_LIMIT_FREE, D.detailLimitFree),
+    maxInputChars: num(env.MAX_INPUT_CHARS, D.maxInputChars),
+    ratePerMin: num(env.RATE_PER_MIN, D.ratePerMin),
+    ratePerDay: num(env.RATE_PER_DAY, D.ratePerDay),
   };
+}
+
+// 클라이언트 IP를 읽는다. Cloudflare는 CF-Connecting-IP를 신뢰 헤더로 채운다.
+// 로컬(wrangler dev)엔 없을 수 있어 폴백한다. 레이트리밋 키로만 쓴다(스푸핑 방어는 CF가 담당).
+function readIp(c: { req: { header(name: string): string | undefined } }): string {
+  return c.req.header("cf-connecting-ip") || (c.req.header("x-forwarded-for") || "").split(",")[0]?.trim() || "unknown";
+}
+
+// IP당 분/일 요청 레이트리밋. 한도 초과면 true. Upstash 오류 시 통과(서비스 우선).
+// x-tier·x-user-id를 스푸핑해도 IP 기준이라 우회 불가 — 인증 없는 anti-abuse의 핵심.
+async function rateLimited(env: Env, ip: string, limits: Limits): Promise<boolean> {
+  try {
+    const counter = new UpstashCounter({ url: env.UPSTASH_REDIS_REST_URL, token: env.UPSTASH_REDIS_REST_TOKEN });
+    const minBucket = Math.floor(Date.now() / 60000);
+    const day = new Date().toISOString().slice(0, 10);
+    const [m, d] = await Promise.all([
+      counter.hit(`rl:m:${ip}:${minBucket}`, 120),
+      counter.hit(`rl:d:${ip}:${day}`, 24 * 60 * 60),
+    ]);
+    return m > limits.ratePerMin || d > limits.ratePerDay;
+  } catch (err) {
+    console.error("레이트리밋 카운터 오류:", err);
+    return false;
+  }
+}
+
+// 파싱된 요청 바디에서 사용자 입력 텍스트가 상한을 넘는지 재귀로 검사한다(토큰 비용·인젝션 방어).
+function oversizedField(v: unknown, max: number): boolean {
+  if (typeof v === "string") return v.length > max;
+  if (Array.isArray(v)) return v.some((x) => oversizedField(x, max));
+  if (v && typeof v === "object") return Object.values(v).some((x) => oversizedField(x, max));
+  return false;
+}
+
+// 보안 사전 게이트(레이트리밋). 바디 파싱 전에 호출. 차단되면 Response, 통과면 null.
+async function securityBlock(c: { req: { header(name: string): string | undefined }; json(o: unknown, s?: number): Response }, env: Env, limits: Limits): Promise<Response | null> {
+  if (await rateLimited(env, readIp(c), limits)) {
+    return c.json({ error: "RATE_LIMITED", message: "요청이 너무 잦아요. 잠시 후 다시 시도해 주세요." }, 429);
+  }
+  return null;
 }
 
 // x-tier 헤더를 Tier로 좁힌다. "paid"가 아니면 모두 free로 본다.
@@ -111,10 +157,15 @@ const app = new Hono<{ Bindings: Env }>();
 app.use(
   "/*",
   cors({
-    origin: (origin) => {
-      // chrome-extension 페이지, 로컬 개발 서버를 모두 허용한다.
+    origin: (origin, c) => {
+      // chrome-extension 페이지, 로컬 개발 서버를 허용한다.
       if (!origin) return "*";
-      if (origin.startsWith("chrome-extension://")) return origin;
+      if (origin.startsWith("chrome-extension://")) {
+        const allowed = (c.env as Env).ALLOWED_EXT_ORIGIN;
+        // 프로덕션에서 ALLOWED_EXT_ORIGIN을 지정하면 그 확장만 허용한다(잠금). 미설정이면 모든 확장 허용.
+        if (allowed && origin !== allowed) return null;
+        return origin;
+      }
       if (origin.startsWith("http://localhost")) return origin;
       if (origin.startsWith("http://127.0.0.1")) return origin;
       // 그 외는 null 반환으로 차단한다(CORS 헤더 미포함).
@@ -137,7 +188,10 @@ app.get("/config", (c) => {
 // POST /classify
 // Prompt1In -> pipeline.classify -> JSON
 app.post("/classify", async (c) => {
+  const limits = buildLimits(c.env);
+  const blocked = await securityBlock(c, c.env, limits); if (blocked) return blocked;
   const body = await c.req.json<Prompt1In>();
+  if (oversizedField(body, limits.maxInputChars)) return c.json({ error: "INPUT_TOO_LARGE", message: "입력이 너무 길어요. 줄여서 다시 시도해 주세요." }, 413);
   const pipeline = buildPipeline(c.env);
   const result = await pipeline.classify(body, readLocale(c));
   return c.json(result);
@@ -146,7 +200,10 @@ app.post("/classify", async (c) => {
 // POST /next
 // Prompt2In -> pipeline.nextBranch -> JSON
 app.post("/next", async (c) => {
+  const limits = buildLimits(c.env);
+  const blocked = await securityBlock(c, c.env, limits); if (blocked) return blocked;
   const body = await c.req.json<Prompt2In>();
+  if (oversizedField(body, limits.maxInputChars)) return c.json({ error: "INPUT_TOO_LARGE", message: "입력이 너무 길어요. 줄여서 다시 시도해 주세요." }, 413);
   const pipeline = buildPipeline(c.env);
   const result = await pipeline.nextBranch(body, readLocale(c));
   return c.json(result);
@@ -161,6 +218,9 @@ app.post("/recommend", async (c) => {
   const tier = readTier(c);
   const userId = c.req.header("x-user-id") ?? "anonymous";
   const limits = buildLimits(c.env);
+
+  // 보안 게이트(IP 레이트리밋). x-tier·x-user-id 스푸핑과 무관하게 IP 기준으로 남용을 막는다.
+  const blocked = await securityBlock(c, c.env, limits); if (blocked) return blocked;
 
   // 전역 일일 캡(빌드 단계 비용 차단). 티어·사용자 무관. anonymous 우회도 여기서 덮는다.
   const cap = await bumpGlobalCap(c.env, limits.globalDailyCap);
@@ -201,6 +261,7 @@ app.post("/recommend", async (c) => {
   }
 
   const body = await c.req.json<RecommendInput>();
+  if (oversizedField(body, limits.maxInputChars)) return c.json({ error: "INPUT_TOO_LARGE", message: "입력이 너무 길어요. 줄여서 다시 시도해 주세요." }, 413);
   const pipeline = buildPipeline(c.env);
 
   // AbortController로 업스트림 취소 체인을 구성한다.
@@ -248,13 +309,15 @@ app.post("/recommend", async (c) => {
 // /summarize는 "AI로 더 정리"(유료 전용, D3). free 티어는 클라이언트 템플릿만 쓰므로 여기로 오면 거부.
 app.post("/summarize", async (c) => {
   const tier = readTier(c);
+  const limits = buildLimits(c.env);
+  const blocked = await securityBlock(c, c.env, limits); if (blocked) return blocked;
   if (tier !== "paid") {
     return c.json(
       { error: "PAID_ONLY", message: "AI 추가 정리는 유료(pro) 플랜 전용입니다. 무료는 기본 정리문을 그대로 쓰세요." },
       402
     );
   }
-  const cap = await bumpGlobalCap(c.env, buildLimits(c.env).globalDailyCap);
+  const cap = await bumpGlobalCap(c.env, limits.globalDailyCap);
   if (cap.over) {
     return c.json(
       { error: "GLOBAL_DAILY_CAP", message: "오늘 전체 이용량이 많아 잠시 멈췄어요. 내일 다시 시도해 주세요.", count: cap.count, cap: cap.cap },
@@ -262,6 +325,7 @@ app.post("/summarize", async (c) => {
     );
   }
   const body = await c.req.json<Prompt4In>();
+  if (oversizedField(body, limits.maxInputChars)) return c.json({ error: "INPUT_TOO_LARGE", message: "입력이 너무 길어요. 줄여서 다시 시도해 주세요." }, 413);
   const pipeline = buildPipeline(c.env);
   const result = await pipeline.summarize(body, readLocale(c));
   return c.json(result);
@@ -271,7 +335,9 @@ app.post("/summarize", async (c) => {
 // Prompt5In -> pipeline.detail -> JSON
 app.post("/detail", async (c) => {
   const tier = readTier(c);
-  const cap = await bumpGlobalCap(c.env, buildLimits(c.env).globalDailyCap);
+  const limits = buildLimits(c.env);
+  const blocked = await securityBlock(c, c.env, limits); if (blocked) return blocked;
+  const cap = await bumpGlobalCap(c.env, limits.globalDailyCap);
   if (cap.over) {
     return c.json(
       { error: "GLOBAL_DAILY_CAP", message: "오늘 전체 이용량이 많아 잠시 멈췄어요. 내일 다시 시도해 주세요.", count: cap.count, cap: cap.cap },
@@ -279,6 +345,7 @@ app.post("/detail", async (c) => {
     );
   }
   const body = await c.req.json<Prompt5In>();
+  if (oversizedField(body, limits.maxInputChars)) return c.json({ error: "INPUT_TOO_LARGE", message: "입력이 너무 길어요. 줄여서 다시 시도해 주세요." }, 413);
   const pipeline = buildPipeline(c.env);
   const result = await pipeline.detail(body, tier, readLocale(c));
   return c.json(result);
