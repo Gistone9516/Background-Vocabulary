@@ -25,6 +25,7 @@ interface State {
   classifyOut: Prompt1Out | null;
   questions: Q[]; answers: string[][]; sel: string[];
   confidence: number; pending: boolean;
+  customText: string; customOpen: boolean; // 아키네이터 직접 입력
   terms: UITerm[]; visibleCount: number; openId: string | null; opening: string | null;
   query: string; groupView: boolean; trayOpen: boolean;
   moreLoading: boolean; moreLoaded: boolean; tagHintSeen: boolean; streaming: boolean;
@@ -44,7 +45,7 @@ const SUGGEST = CHIPS.slice(0, 4);
 function initial(): State {
   return {
     screen: "entry", input: "", cond: "", showCond: false, allChips: false, inputErr: false,
-    classifyOut: null, questions: [], answers: [], sel: [], confidence: 0, pending: false,
+    classifyOut: null, questions: [], answers: [], sel: [], confidence: 0, pending: false, customText: "", customOpen: false,
     terms: [], visibleCount: 0, openId: null, opening: null, query: "", groupView: false, trayOpen: false,
     moreLoading: false, moreLoaded: false, tagHintSeen: false, streaming: false,
     ctxInput: "", copied: false, copyFailed: false, shareNote: false, aiSummary: "", aiSummaryLoading: false,
@@ -131,9 +132,11 @@ export function App() {
   };
   const nextStep = useCallback(async () => {
     const s = sref.current;
-    if (s.sel.length === 0) return;
-    const answers = [...s.answers, s.sel];
-    merge({ answers, sel: [], pending: true });
+    const custom = s.customText.trim();
+    const picked = custom ? [...s.sel, custom] : s.sel; // 칩 + 직접 입력 합산(ⓑ)
+    if (picked.length === 0) return;
+    const answers = [...s.answers, picked];
+    merge({ answers, sel: [], customText: "", customOpen: false, pending: true });
     const history = answers.flat().map((label) => ({ label, action: "선택" as const }));
     try {
       const p2 = await api.nextBranch({ domain: s.classifyOut?.domain ?? "", job_type: s.classifyOut?.job_type ?? [], history });
@@ -144,7 +147,7 @@ export function App() {
       merge({ pending: false, screen: "terms", errorMsg: msg(e) });
     }
   }, [merge]);
-  const undoStep = () => { const s = sref.current; if (s.answers.length) merge({ answers: s.answers.slice(0, -1), sel: [] }); };
+  const undoStep = () => { const s = sref.current; if (s.answers.length) merge({ answers: s.answers.slice(0, -1), sel: [], customText: "", customOpen: false }); };
   const jumpToTerms = () => void runRecommend();
 
   // ----- 추천(스트리밍) -----
@@ -270,7 +273,7 @@ export function App() {
       {state.pending && <div className="bar" role="status" aria-label="불러오는 중이에요"><i /></div>}
       <Header state={state} openPaywall={openPaywall} goHome={goHome} />
       {state.screen === "entry" && <Entry state={state} merge={merge} submitEntry={submitEntry} chip={chip} />}
-      {state.screen === "narrow" && <Narrow state={state} toggleSel={toggleSel} nextStep={nextStep} undoStep={undoStep} jumpToTerms={jumpToTerms} />}
+      {state.screen === "narrow" && <Narrow state={state} merge={merge} toggleSel={toggleSel} nextStep={nextStep} undoStep={undoStep} jumpToTerms={jumpToTerms} />}
       {state.screen === "terms" && <Terms state={state} merge={merge} loadMore={loadMore} setTag={setTag} markUnderstood={markUnderstood} restore={restore} toggleDetail={toggleDetail} jumpRelated={jumpRelated} doDeepen={doDeepen} go={go} />}
       {state.screen === "summary" && <Summary state={state} merge={merge} go={go} goHome={goHome} buildSummary={buildSummary} onCopy={onCopy} onShare={onShare} aiRefine={aiRefine} />}
       {state.screen === "paywall" && <Paywall state={state} closePaywall={closePaywall} onUpgrade={onUpgrade} />}
@@ -331,7 +334,10 @@ function Entry({ state, merge, submitEntry, chip }: { state: State; merge: (p: P
   );
 }
 
-function Narrow({ state, toggleSel, nextStep, undoStep, jumpToTerms }: { state: State; toggleSel: (o: string) => void; nextStep: () => void; undoStep: () => void; jumpToTerms: () => void }) {
+function Narrow({ state, merge, toggleSel, nextStep, undoStep, jumpToTerms }: { state: State; merge: (p: Partial<State>) => void; toggleSel: (o: string) => void; nextStep: () => void; undoStep: () => void; jumpToTerms: () => void }) {
+  const customRef = useRef<HTMLTextAreaElement>(null);
+  // 입력 길이에 따라 높이가 늘어나는 적응형 입력(최대 140px 후 내부 스크롤).
+  const growCustom = () => { const el = customRef.current; if (el) { el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight, 140) + "px"; } };
   if (state.pending) {
     return (<main className="scroll entryMain"><div className="thinking">
       <div className="aiav"><Spark /></div>
@@ -357,7 +363,12 @@ function Narrow({ state, toggleSel, nextStep, undoStep, jumpToTerms }: { state: 
         const on = state.sel.includes(o.label);
         return <button key={o.label} className={`opt ${on ? "sel" : ""}`} onClick={() => toggleSel(o.label)}><span>{o.label}</span><span className="tick">✓</span></button>;
       })}
-      <button className="btn btn-primary" style={{ marginTop: 18 }} onClick={nextStep} disabled={state.sel.length === 0}>다음 →</button>
+      {state.customOpen
+        ? <textarea ref={customRef} className="field" rows={1} autoFocus aria-label="직접 입력" placeholder="원하는 답을 직접 적어주세요" value={state.customText} style={{ marginTop: 9 }}
+            onChange={(e) => { merge({ customText: e.target.value }); growCustom(); }}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); nextStep(); } }} />
+        : <button className="dash" style={{ marginTop: 9 }} onClick={() => merge({ customOpen: true })}>＋ 직접 입력 · 원하는 답이 없어요</button>}
+      <button className="btn btn-primary" style={{ marginTop: 18 }} onClick={nextStep} disabled={state.sel.length === 0 && !state.customText.trim()}>다음 →</button>
       <p className="note" style={{ marginTop: 12 }}>AI가 충분히 좁혔다고 판단하면 자동으로 어휘를 정리해요.</p>
       <button className="link" style={{ marginTop: 8, alignSelf: "center" }} onClick={jumpToTerms}>지금 충분해요 · 어휘 보기 →</button>
     </div></main>
