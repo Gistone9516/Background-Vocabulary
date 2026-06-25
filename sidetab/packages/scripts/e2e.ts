@@ -104,6 +104,24 @@ try {
   C(`[exclude] ERROR ${String(e.message || e)}`);
 }
 
+// Test 7: 앵커 제외(P31 개정) — 사용자가 이미 쓴 상위어는 추천에서 빠지고 실용·방법론 어휘가 나오는지
+try {
+  const raw = "거시경제 데이터를 계량경제학과 머신러닝으로 교차 분석하려고 한다";
+  const c = await pipeline.classify({ raw_input: raw });
+  const input: RecommendInput = { area: c.domain, domain: "other", topic: raw, locale: c.search_locale, job_type: c.job_type, domain_risk: c.domain_risk };
+  const r = await drain(pipeline.recommendStream(input));
+  const names = r.terms.map((t: any) => t.term);
+  const anchors = ["계량경제학", "머신러닝", "econometrics", "machine learning", "거시경제"];
+  const norm = (s: string) => s.replace(/\s/g, "").toLowerCase();
+  const leaked = names.filter((n: string) => anchors.some((a) => norm(n).includes(norm(a))));
+  out.anchor = { area: c.domain, term_count: r.terms.length, anchors_leaked: leaked, terms: names, sample: r.terms.slice(0, 4).map((t: any) => ({ term: t.term, kind: t.kind, one_line: t.one_line })) };
+  C(`[anchor] area=${c.domain} terms=${r.terms.length} leaked=${JSON.stringify(leaked)}`);
+  C(`[anchor] terms: ${names.join(", ")}`);
+} catch (e: any) {
+  out.anchor = { error: String(e.message || e) };
+  C(`[anchor] ERROR ${String(e.message || e)}`);
+}
+
 const outPath = new URL("./e2e-result.json", import.meta.url);
 writeFileSync(outPath, JSON.stringify(out, null, 2), "utf-8");
 C(`\nWROTE ${outPath.pathname}`);

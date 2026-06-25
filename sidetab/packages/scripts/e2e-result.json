@@ -1,91 +1,107 @@
 {
   "classify": {
-    "domain": "로봇 팔 PID 제어",
+    "domain": "로봇 팔 PID 제어 튜닝",
     "job_type": [
       "문제해결"
     ],
     "search_locale": "en",
     "domain_risk": "low",
     "condition_required": false,
-    "choices": 4
+    "choices": 3
   },
   "recommend": {
-    "term_count": 7,
-    "firstTermMs": 2828,
+    "term_count": 8,
+    "firstTermMs": 3177,
     "done": true,
     "error": null,
     "terms": [
       {
-        "term": "PID 제어기",
-        "kind": "개념",
-        "group": "제어 구조",
+        "term": "Ziegler-Nichols 방법",
+        "kind": "기법",
+        "group": "튜닝 방법",
         "priority": 1,
-        "why": "로봇 제어에서 가장 기본적인 피드백 제어 알고리즘으로, 문제해결 시 반드시 이해해야 함",
-        "one_line": "비례(P), 적분(I), 미분(D) 항을 결합하여 시스템 출력을 원하는 값으로 유지하는 피드백 제어기",
+        "why": "PID 튜닝의 고전적인 실험적 방법으로, 비전공자도 쉽게 따라 할 수 있으며 실제 로봇 제어에서 많이 사용됨.",
+        "one_line": "PID 게인을 최종 이득과 주기로 계산하는 경험적 튜닝법",
         "tag": "몰라",
-        "direction": "양방향",
-        "context_note": "PID는 모션 제어의 핵심 알고리즘으로, gap_type d에서는 정확한 동작 원리와 각 항의 역할을 알아야 디버깅 가능"
+        "direction": "튜닝 절차를 단계별로 안내",
+        "context_note": "문제 해결 시 시행착오를 줄이기 위해 먼저 이 방법을 시도해보세요."
       },
       {
-        "term": "Kp (비례 게인)",
-        "kind": "파라미터",
-        "group": "PID 게인",
-        "priority": 2,
-        "why": "PID 튜닝의 첫 단계로, 현재 오차에 비례하는 제어량을 결정하는 핵심 파라미터",
-        "one_line": "현재 오차 크기에 비례하여 제어 출력을 내는 게인으로, 응답 속도를 결정함",
-        "tag": "몰라",
-        "direction": "양방향"
-      },
-      {
-        "term": "Ki (적분 게인)",
-        "kind": "파라미터",
-        "group": "PID 게인",
-        "priority": 3,
-        "why": "정상 상태 오차를 없애기 위해 필요하며, 오차 누적을 보상하는 역할 이해가 중요",
-        "one_line": "과거 오차를 누적하여 정상 상태 오차를 제거하는 게인으로, 오차가 지속될 때 출력 증가",
-        "tag": "몰라",
-        "direction": "양방향"
-      },
-      {
-        "term": "Kd (미분 게인)",
-        "kind": "파라미터",
-        "group": "PID 게인",
-        "priority": 4,
-        "why": "오차 변화율을 이용해 진동과 오버슛을 억제하지만, 잡음에 민감하므로 주의 필요",
-        "one_line": "오차의 변화율에 비례하여 제동을 걸어 오버슛과 진동을 줄이는 게인",
-        "tag": "몰라",
-        "direction": "양방향"
-      },
-      {
-        "term": "PID 튜닝",
-        "kind": "방법",
-        "group": "튜닝 과정",
-        "priority": 5,
-        "why": "로봇 제어 문제해결에서 Kp, Ki, Kd 값을 실험적으로 조정하는 핵심 과정",
-        "one_line": "PID 게인을 조정하여 시스템의 응답 속도, 안정성, 정확도를 최적화하는 과정",
-        "tag": "몰라",
-        "direction": "양방향",
-        "context_note": "gap_type d에서는 튜닝 방법(Ziegler-Nichols, trial-and-error)과 오버슛/정상상태오차 관찰이 중요"
-      },
-      {
-        "term": "오버슛",
+        "term": "적분 와인드업",
         "kind": "현상",
-        "group": "성능 지표",
-        "priority": 6,
-        "why": "PID 튜닝 시 목표값을 초과하는 현상으로, Kd와 Kp의 균형이 중요함을 인식해야 함",
-        "one_line": "제어 응답이 목표값을 초과하여 진동하는 현상으로, 과도한 Kp나 부족한 Kd가 원인",
+        "group": "제어 문제",
+        "priority": 2,
+        "why": "적분기가 포화될 때 발생하는 문제로, PID 튜닝 시 흔히 마주치며 성능 저하의 원인.",
+        "one_line": "출력이 한계에 도달했는데도 적분 항이 계속 증가하는 현상",
         "tag": "몰라",
-        "direction": "양방향"
+        "direction": "발생 조건과 해결 방법 설명",
+        "context_note": "튜닝 중 출력이 포화되면 적분 와인드업을 의심하고, anti-windup 기법을 적용하세요."
+      },
+      {
+        "term": "오토튜닝",
+        "kind": "도구",
+        "group": "튜닝 방법",
+        "priority": 3,
+        "why": "최신 로봇 제어기에서 자주 지원하는 기능으로, 수동 튜닝이 어려운 비전공자에게 유용함.",
+        "one_line": "제어기가 시스템 응답을 분석해 자동으로 PID 게인을 설정하는 기능",
+        "tag": "몰라",
+        "direction": "도구 사용법과 한계 안내",
+        "context_note": "오토튜닝이 항상 최적은 아니므로, 결과를 검증하고 필요시 수동 조정이 필요합니다."
+      },
+      {
+        "term": "게인 마진",
+        "kind": "척도",
+        "group": "안정성",
+        "priority": 4,
+        "why": "시스템 안정성을 평가하는 핵심 지표로, 튜닝 후 안정성을 확인하는 데 필수.",
+        "one_line": "시스템이 불안정해지기 직전까지 허용되는 게인 증가량",
+        "tag": "몰라",
+        "direction": "안정성 확인과 튜닝 목표 설정",
+        "context_note": "게인 마진이 6dB 이상이면 일반적으로 안정적이라고 판단합니다."
+      },
+      {
+        "term": "위상 마진",
+        "kind": "척도",
+        "group": "안정성",
+        "priority": 5,
+        "why": "게인 마진과 함께 안정성을 평가하는 또 다른 중요한 지표.",
+        "one_line": "시스템이 불안정해지기까지의 위상 지연 여유",
+        "tag": "몰라",
+        "direction": "안정성 확인과 튜닝 목표 설정",
+        "context_note": "위상 마진 30~45도가 일반적인 목표 범위입니다."
+      },
+      {
+        "term": "오버슈트",
+        "kind": "특성",
+        "group": "응답 특성",
+        "priority": 6,
+        "why": "튜닝 성능을 평가하는 주요 메트릭으로, 과도한 오버슈트는 시스템에 해로움.",
+        "one_line": "목표값을 초과하여 올라간 정도를 백분율로 나타낸 값",
+        "tag": "몰라",
+        "direction": "튜닝 목표로 오버슈트 제한 설정",
+        "context_note": "로봇 제어에서는 보통 5% 이하의 오버슈트를 목표로 합니다."
       },
       {
         "term": "정상 상태 오차",
-        "kind": "현상",
-        "group": "성능 지표",
+        "kind": "특성",
+        "group": "응답 특성",
         "priority": 7,
-        "why": "Ki가 해결하는 핵심 문제로, PID 제어의 정확도를 평가하는 지표",
-        "one_line": "시간이 충분히 지난 후에도 목표값과 실제 출력 간에 남아있는 오차",
+        "why": "PID 제어의 정밀도를 나타내는 지표로, 적분 항의 영향을 직접 받음.",
+        "one_line": "시간이 충분히 지난 후에도 목표값과 실제값 사이에 남는 차이",
         "tag": "몰라",
-        "direction": "양방향"
+        "direction": "튜닝 시 줄여야 할 대상",
+        "context_note": "정상 상태 오차가 크면 Ki를 증가시키거나 시스템 마찰 등을 점검하세요."
+      },
+      {
+        "term": "시상수",
+        "kind": "척도",
+        "group": "응답 특성",
+        "priority": 8,
+        "why": "시스템의 반응 속도를 이해하는 기본 파라미터로, 튜닝 방향 결정에 도움.",
+        "one_line": "시스템이 목표값의 63.2%에 도달하는 데 걸리는 시간",
+        "tag": "몰라",
+        "direction": "튜닝 전 시스템 특성 파악",
+        "context_note": "시상수가 크면 Kp를 높여 응답을 빠르게 할 수 있지만, 오버슈트 주의."
       }
     ]
   },
@@ -98,8 +114,8 @@
     "term_count": 0
   },
   "next": {
-    "question": "정확도·품질을 높이기 위해 로봇이 수행해야 할 가장 중요한 작업은 무엇인가요?",
-    "choices": 4,
+    "question": "정확도·품질을 높이는 일 중에서 가장 관심 있는 분야를 골라 주세요.",
+    "choices": 3,
     "enough": false,
     "confidence": 0.3
   },
@@ -107,36 +123,73 @@
     "what": true,
     "whymine": true,
     "how": true,
-    "related": 4,
-    "sources": 2,
+    "related": 3,
+    "sources": 3,
     "sourcesSample": [
-      {
-        "title": "PID 제어기 - Enthusiasm - 티스토리",
-        "url": "https://soaring-dylan.tistory.com/24",
-        "site": "soaring-dylan.tistory.com"
-      },
       {
         "title": "[20] PID 제어 Anti windup - 네이버 블로그",
         "url": "https://m.blog.naver.com/lagrange0115/220622798380",
         "site": "m.blog.naver.com"
+      },
+      {
+        "title": "PID Controller 블록을 사용한 안티와인드업 제어",
+        "url": "https://kr.mathworks.com/help/simulink/slref/anti-windup-control-using-a-pid-controller.html",
+        "site": "kr.mathworks.com"
       }
     ]
   },
   "exclude": {
     "excluded": [
-      "PID 제어기",
-      "Kp (비례 게인)",
-      "Ki (적분 게인)"
+      "Ziegler-Nichols 방법",
+      "적분 와인드업",
+      "오토튜닝"
     ],
-    "term_count": 6,
+    "term_count": 8,
     "overlap_with_excluded": 0,
     "terms": [
-      "Kd (미분 게인)",
-      "오버슛 (Overshoot)",
-      "정상 상태 오차 (Steady-State Error)",
-      "튜닝 (Tuning)",
-      "피드백 루프 (Feedback Loop)",
-      "Ziegler-Nichols 방법"
+      "게인 여유(gain margin)",
+      "위상 여유(phase margin)",
+      "과도 응답 (transient response)",
+      "오버슈트 (overshoot)",
+      "정상 상태 오차 (steady-state error)",
+      "적분 게인(Ki) 한계",
+      "미분 게인(Kd) 필터",
+      "루프 레이트 (loop rate)"
+    ]
+  },
+  "anchor": {
+    "area": "거시경제 분석",
+    "term_count": 6,
+    "anchors_leaked": [],
+    "terms": [
+      "내생성",
+      "feature leakage (피처 누수)",
+      "정상성",
+      "도구변수",
+      "시계열 교차검증 (time series cross-validation)",
+      "nowcasting (나우캐스팅)"
+    ],
+    "sample": [
+      {
+        "term": "내생성",
+        "kind": "개념",
+        "one_line": "원인과 결과가 뒤섞여서 추정이 왜곡되는 문제."
+      },
+      {
+        "term": "feature leakage (피처 누수)",
+        "kind": "기법",
+        "one_line": "모델이 미래 정보를 몰래 보는 실수."
+      },
+      {
+        "term": "정상성",
+        "kind": "개념",
+        "one_line": "시계열의 평균과 분산이 시간에 따라 일정한 성질."
+      },
+      {
+        "term": "도구변수",
+        "kind": "기법",
+        "one_line": "내생 변수 대신 쓰는 다른 변수로 깨끗한 원인 효과를 추정하는 방법."
+      }
     ]
   }
 }
