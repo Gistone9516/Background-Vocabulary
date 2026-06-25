@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev --port 8787 --ip 127.0.0.1",
+    "deploy": "wrangler deploy"
+  },
   "dependencies": {
     "@sidetab/shared": "*",
     "@sidetab/core": "*",

@@ -2,7 +2,7 @@
 
 > **한 줄 정체:** AI에게 말 걸기 전, 그 분야의 말그릇(핵심 어휘)을 클릭만으로 쥐여주는 **크롬 확장(MV3)** — 자기 전공 밖으로 무언가 만들려는 "교차전공 빌더(탑다운)"를 위한 어휘 준비 도구. 영어 웹 RAG로 근거를 잡아 한국어 말그릇으로 변환한다.
 
-**현재 단계:** buildflow 구현 진행 중 — **cycle 1(백엔드 계약)·cycle 2(프론트 이식)·cycle 2.1/2.2(어휘 선정)·직접입력·복수선택·태그→Keep 전환까지 완료**. 다음 = 실 워커 배포 + 라이브 통합.
+**현재 단계:** buildflow 구현 진행 중 — **태그→Keep 전환 + 로컬 라이브 통합(실 API)까지 완료·검증**. 다음 = 프로덕션 배포(Cloudflare 로그인 필요, `배경어휘-사이드탭-배포-가이드.md`).
 
 ---
 
@@ -54,4 +54,6 @@ npm -w @sidetab/extension run build                       # 확장 빌드(dist/)
 - **cycle 2 완료·검증:** `panel.html` 5화면을 React 확장(`sidepanel/`)으로 이식(theme.css=panel.html verbatim) + 5엔드포인트 배선(DEV는 mock, 빌드는 실 워커). 헤드리스 렌더 검증 통과(entry→classify→narrow→recommend 스트리밍→terms→detail 출처→summary, 콘솔 에러 0). vite 빌드 PASS, dist에 아이콘 포함.
 - **cycle 2.1/2.2 + 직접입력 + 복수선택 완료:** 어휘 선정 철학 전환(개론 용어에서 실무 전문 용어·함정으로) · 아키네이터 직접 입력 버튼 + 적응형 입력 UI · 아키네이터 선택지 **무제한 복수 선택**(2개 cap 제거, buildPrompt1/2에 통합 보기 억제 문구).
 - **태그→Keep 전환 완료(C1·C2·C3):** 어휘 카드 태그 {알아/몰라/적용모름}을 **단일 Keep 토글**로 교체(C1). Summary 화면 제거 후 **담은 어휘(kept) 뷰**에 복사·공유·AI정리 흡수(C2). 진입 입력 텍스트를 키로 한 **이전 탐색 히스토리**를 `chrome.storage.local`에 저장하고 entry에서 재열람·복원(C3). 백엔드·계약 변경 0건(클라이언트 전용, 저장은 `sidepanel/history.ts`). 실브라우저(vite mock) end-to-end 검증: entry→narrow→terms(Keep)→kept→히스토리 복원, 앱 콘솔 에러 0.
-- **별개 백로그:** 워커 `wrangler dev` 로컬 기동 + 실 API로 확장 end-to-end(현재 빌드는 WORKER_BASE placeholder) · detail 출처 쿼리 영어화 튜닝 · Pretendard self-host(MV3 CSP) · 워커 배포 · userId 익명 게이팅(Tier3) · `manifest.json` host_permissions에 로컬 워커 추가. 상세는 `배경어휘-사이드탭-사용자판단대기.md`.
+- **로컬 라이브 통합 완료·검증:** 로컬 실 워커(`npm -w @sidetab/workers run dev`, `.dev.vars` 실 키)에 확장 dev(`VITE_WORKER_BASE=http://127.0.0.1:8787`)를 붙여 실 DeepSeek+Tavily로 end-to-end 검증. `/classify`(실 분류·선택지)·`/recommend`(실 어휘 스트리밍)·`/detail`(실 3단 개념·관련어) 동작, Keep·히스토리·상세캐시 영속까지 확인, 앱 콘솔 에러 0. `manifest.json` host_permissions에 로컬 워커 주소 추가됨.
+- **다음 — 프로덕션 배포(Cloudflare 로그인 필요, 사람 1회):** `배경어휘-사이드탭-배포-가이드.md` 참조. `wrangler login` → `wrangler secret put` ×4 → `npm -w @sidetab/workers run deploy` → 배포 URL을 빌드 `VITE_WORKER_BASE`와 manifest host_permissions에 반영.
+- **별개 백로그:** detail 출처 영어화(한국어 분야는 "확인된 출처 없음"으로 나옴) · Pretendard self-host(MV3 CSP) · userId 익명 게이팅(Tier3). 상세는 `배경어휘-사이드탭-사용자판단대기.md`.

@@ -8,7 +8,9 @@
     "storage"
   ],
   "host_permissions": [
-    "https://sidetab-api.example.workers.dev/*"
+    "https://sidetab-api.example.workers.dev/*",
+    "http://127.0.0.1:8787/*",
+    "http://localhost:8787/*"
   ],
   "background": {
     "service_worker": "sw.js",
