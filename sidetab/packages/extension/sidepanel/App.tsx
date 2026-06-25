@@ -1,6 +1,6 @@
 // 배경노트(Vock note) 사이드패널 — panel.html(UI 정본) 화면을 React로 이식하고 실 API에 배선.
 // UI 문자열은 i18n.ts의 t()(여기선 tr)로 가져온다. LLM 콘텐츠는 워커가 출력 언어로 만든다(별개).
-import { useReducer, useRef, useEffect, useCallback, type ReactNode } from "react";
+import { useReducer, useRef, useEffect, useCallback, type ReactNode, type DragEvent } from "react";
 import type {
   Prompt1Out, Choice, Term, Prompt5Out, Tag, RecommendInput, ClientLimits, OutputLocale,
 } from "@sidetab/shared";
@@ -23,6 +23,7 @@ interface Q { question: string; choices: Choice[] }
 interface State {
   screen: Screen;
   input: string; cond: string; showCond: boolean; allChips: boolean; inputErr: boolean;
+  attachedFile: { name: string; text: string } | null; dragging: boolean; attachNote: string;
   classifyOut: Prompt1Out | null;
   questions: Q[]; answers: string[][]; sel: string[];
   confidence: number; pending: boolean;
@@ -44,6 +45,7 @@ const LOCALE_TAG: Record<OutputLocale, string> = { ko: "ko-KR", en: "en-US", ja:
 function initial(): State {
   return {
     screen: "entry", input: "", cond: "", showCond: false, allChips: false, inputErr: false,
+    attachedFile: null, dragging: false, attachNote: "",
     classifyOut: null, questions: [], answers: [], sel: [], confidence: 0, pending: false, customText: "", customOpen: false,
     terms: [], visibleCount: 0, openId: null, opening: null, query: "", groupView: false, detailCount: 0,
     moreLoading: false, moreLoaded: false, streaming: false,
@@ -88,6 +90,19 @@ function firstSentence(t: string): string {
 function fmtDate(ms: number, locale: OutputLocale): string {
   return new Date(ms).toLocaleDateString(LOCALE_TAG[locale], { month: "short", day: "numeric" });
 }
+// 텍스트 파일만 허용(타입 또는 확장자). 바이너리(PDF·이미지 등)는 거부한다.
+function isTextFile(f: File): boolean {
+  if (f.type && (f.type.startsWith("text/") || f.type === "application/json" || f.type === "application/xml")) return true;
+  return /\.(txt|md|markdown|csv|json|ya?ml|xml|html?|css|js|ts|tsx|jsx|py|java|c|cpp|cs|go|rs|rb|php|sh|sql|log|tex)$/i.test(f.name);
+}
+function readTextFile(f: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result ?? ""));
+    r.onerror = () => reject(r.error);
+    r.readAsText(f);
+  });
+}
 
 // SVG 아이콘(panel.html과 동일).
 const Spark = () => (<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.7 5.1a3 3 0 0 0 1.9 1.9L21 11l-5.4 1.8a3 3 0 0 0-1.9 1.9L12 21l-1.7-5.3a3 3 0 0 0-1.9-1.9L3 11l5.4-1.8a3 3 0 0 0 1.9-1.9z" /></svg>);
@@ -109,7 +124,7 @@ export function App() {
   const startNarrow = useCallback(async (raw: string) => {
     merge({ pending: true, screen: "narrow", answers: [], sel: [], questions: [], input: raw });
     try {
-      const p1 = await api.classify({ raw_input: raw, ...(sref.current.cond ? { context_object: undefined } : {}) });
+      const p1 = await api.classify({ raw_input: raw, ...(sref.current.attachedFile ? { context_object: sref.current.attachedFile.text } : {}) });
       if (p1.domain_risk === "high") { merge({ pending: false, screen: "refusal" }); return; }
       merge({ pending: false, classifyOut: p1, questions: [{ question: p1.question, choices: p1.choices }] });
     } catch (e) {
@@ -124,6 +139,23 @@ export function App() {
     void startNarrow(v);
   };
   const chip = (t: string) => { if (HIGHRISK.test(t)) { merge({ input: t, screen: "refusal" }); return; } void startNarrow(t); };
+
+  // ----- 파일 첨부(pro 전용, 붙여넣은 문서 = context_object) -----
+  // 텍스트 파일을 읽어 context_object로 담는다. 길면 maxContextChars로 잘라 보낸다(노트로 알림).
+  const acceptFile = useCallback(async (file: File) => {
+    if (!isTextFile(file)) { merge({ attachNote: "attach_texterr", dragging: false }); later(() => merge({ attachNote: "" }), 3000); return; }
+    try {
+      let text = (await readTextFile(file)).trim();
+      const max = sref.current.limits.maxContextChars;
+      const truncated = text.length > max;
+      if (truncated) text = text.slice(0, max);
+      merge({ attachedFile: { name: file.name, text }, attachNote: truncated ? "attach_truncated" : "", dragging: false });
+      if (truncated) later(() => merge({ attachNote: "" }), 3500);
+    } catch { merge({ attachNote: "attach_texterr", dragging: false }); later(() => merge({ attachNote: "" }), 3000); }
+  }, [merge]);
+  const removeAttached = () => merge({ attachedFile: null, attachNote: "" });
+  // 무료가 파일을 드롭하면 pro 안내(페이월)로 보낸다.
+  const attachPaywall = () => merge({ prevScreen: "entry", screen: "paywall", limitHit: false, dragging: false });
 
   // ----- 좁히기 -----
   const toggleSel = (o: string) => {
@@ -140,7 +172,7 @@ export function App() {
     merge({ answers, sel: [], customText: "", customOpen: false, pending: true });
     const history = answers.flat().map((label) => ({ label, action: "선택" as const }));
     try {
-      const p2 = await api.nextBranch({ domain: s.classifyOut?.domain ?? "", job_type: s.classifyOut?.job_type ?? [], history });
+      const p2 = await api.nextBranch({ domain: s.classifyOut?.domain ?? "", job_type: s.classifyOut?.job_type ?? [], history, ...(s.attachedFile ? { context_object: s.attachedFile.text } : {}) });
       // 좁히기 최대 턴은 워커 한도(limits.narrowMax)에서 온다. free는 적게, paid는 의중이 갈릴 때만 더.
       const maxQ = s.plan === "pro" ? s.limits.narrowMax.paid : s.limits.narrowMax.free;
       const enough = (answers.length >= MIN_Q && p2.enough) || answers.length >= maxQ;
@@ -160,6 +192,7 @@ export function App() {
       area: c?.domain ?? "", domain: c?.domain ?? "other", topic: s.input,
       locale: c?.search_locale ?? "en", job_type: c?.job_type ?? [], domain_risk: c?.domain_risk ?? "low",
       ...(exclude && exclude.length ? { exclude } : {}),
+      ...(s.attachedFile ? { context_object: s.attachedFile.text } : {}),
     };
   };
   const runRecommend = useCallback(async () => {
@@ -333,7 +366,7 @@ export function App() {
     <div id="app" className={live ? "live" : ""} role="application" aria-label="Vock note">
       {state.pending && <div className="bar" role="status"><i /></div>}
       <Header state={state} openPaywall={openPaywall} goHome={goHome} changeLocale={changeLocale} />
-      {state.screen === "entry" && <Entry state={state} merge={merge} submitEntry={submitEntry} chip={chip} openHistory={openHistory} />}
+      {state.screen === "entry" && <Entry state={state} merge={merge} submitEntry={submitEntry} chip={chip} openHistory={openHistory} acceptFile={acceptFile} attachPaywall={attachPaywall} removeAttached={removeAttached} />}
       {state.screen === "narrow" && <Narrow state={state} merge={merge} toggleSel={toggleSel} nextStep={nextStep} undoStep={undoStep} jumpToTerms={jumpToTerms} />}
       {state.screen === "terms" && <Terms state={state} merge={merge} loadMore={loadMore} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} doDeepen={doDeepen} go={go} />}
       {state.screen === "kept" && <Kept state={state} merge={merge} go={go} goHome={goHome} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} doDeepen={doDeepen} buildSummary={buildSummary} onCopy={onCopy} onShare={onShare} aiRefine={aiRefine} />}
@@ -368,28 +401,47 @@ function Header({ state, openPaywall, goHome, changeLocale }: { state: State; op
   );
 }
 
-function Entry({ state, merge, submitEntry, chip, openHistory }: { state: State; merge: (p: Partial<State>) => void; submitEntry: () => void; chip: (t: string) => void; openHistory: (rec: SessionRec) => void }) {
+function Entry({ state, merge, submitEntry, chip, openHistory, acceptFile, attachPaywall, removeAttached }: { state: State; merge: (p: Partial<State>) => void; submitEntry: () => void; chip: (t: string) => void; openHistory: (rec: SessionRec) => void; acceptFile: (f: File) => void; attachPaywall: () => void; removeAttached: () => void }) {
   const loc = state.locale;
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const grow = () => { const el = taRef.current; if (el) { el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight, 160) + "px"; } };
   useEffect(grow, []);
   const all = CHIPS[loc] ?? CHIPS.ko;
   const list = state.allChips ? all : all.slice(0, 4);
+  // 드롭: 무료는 pro 안내(페이월), pro는 파일을 읽어 첨부.
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault(); merge({ dragging: false });
+    const f = e.dataTransfer.files?.[0]; if (!f) return;
+    if (state.plan !== "pro") { attachPaywall(); return; }
+    acceptFile(f);
+  };
+  const FILE_ACCEPT = "text/*,.txt,.md,.markdown,.csv,.json,.yml,.yaml,.xml,.html,.log,.tex";
   return (
     <main className="scroll entryMain">
       <div className="hero">
         <h1 className="heroTitle">{tr(loc, "entry_title")}</h1>
         <p className="heroSub">{sentLines(tr(loc, "entry_sub"))}</p>
-        <div className={`composer ${state.inputErr ? "err" : ""}`}>
+        <div className={`composer ${state.inputErr ? "err" : ""}${state.dragging ? " dragging" : ""}`}
+          onDragOver={(e) => { e.preventDefault(); if (!state.dragging) merge({ dragging: true }); }}
+          onDragLeave={(e) => { e.preventDefault(); merge({ dragging: false }); }}
+          onDrop={onDrop}>
           <textarea ref={taRef} className="composerInput" rows={1} aria-label={tr(loc, "entry_input_aria")}
             placeholder={tr(loc, "entry_input_ph")} value={state.input}
             onChange={(e) => { merge({ input: e.target.value }); grow(); }}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitEntry(); } }} />
           <div className="composerBar">
+            {state.plan === "pro" && <>
+              <input ref={fileRef} type="file" accept={FILE_ACCEPT} style={{ display: "none" }}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) acceptFile(f); e.target.value = ""; }} />
+              <button className="attach" onClick={() => fileRef.current?.click()} aria-label={tr(loc, "attach")} title={tr(loc, "attach")}>📎</button>
+            </>}
             <button className="condToggle" onClick={() => merge({ showCond: !state.showCond })}>{state.showCond ? tr(loc, "cond_close") : tr(loc, "cond_add")}</button>
             <button className="send" onClick={submitEntry} aria-label={tr(loc, "next")}>→</button>
           </div>
         </div>
+        {state.attachedFile && <div className="filechip"><span className="fn">📄 {state.attachedFile.name}</span><button onClick={removeAttached} aria-label={tr(loc, "attach_remove")}>×</button></div>}
+        {state.attachNote && <div className="errmsg" style={{ textAlign: "center" }}>{tr(loc, state.attachNote)}</div>}
         {state.inputErr && <div className="errmsg" style={{ textAlign: "center" }}>{tr(loc, "entry_err")}</div>}
         {state.showCond && <input className="field condField" aria-label={tr(loc, "cond_aria")} placeholder={tr(loc, "cond_ph")} value={state.cond} onChange={(e) => merge({ cond: e.target.value })} />}
         <div className="suggest">

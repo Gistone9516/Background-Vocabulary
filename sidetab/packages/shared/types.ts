@@ -46,6 +46,8 @@ export interface Limits {
   maxInputChars: number; // 단일 사용자 입력 텍스트 필드 길이 상한(토큰 비용·인젝션 방어)
   ratePerMin: number; // IP당 분당 요청 상한
   ratePerDay: number; // IP당 일일 요청 상한
+  // 붙여넣은 문서(context_object) 전용 큰 상한. 일반 입력(maxInputChars)보다 길게 허용한다(pro 파일 첨부).
+  maxContextChars: number;
 }
 
 export const DEFAULT_LIMITS: Limits = {
@@ -64,6 +66,7 @@ export const DEFAULT_LIMITS: Limits = {
   maxInputChars: 4000,
   ratePerMin: 20,
   ratePerDay: 200,
+  maxContextChars: 12000,
 };
 
 // 클라이언트(확장)가 게이팅에 쓰는 한도 부분집합. /config 응답 형태.
@@ -71,6 +74,7 @@ export interface ClientLimits {
   narrowMax: { free: number; paid: number };
   detailLimitFree: number;
   freeWeeklyLimit: number;
+  maxContextChars: number; // 첨부 문서 텍스트를 클라가 이 길이로 잘라 보낸다.
 }
 
 // 검색 언어. 진입 분류에서 검색 전에 한 번 결정한다.

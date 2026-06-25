@@ -33,5 +33,7 @@ UPSTASH_REDIS_REST_TOKEN=your_upstash_rest_token_here
 # MAX_INPUT_CHARS=4000
 # RATE_PER_MIN=20
 # RATE_PER_DAY=200
+# 붙여넣은 문서(context_object) 전용 큰 상한(pro 파일 첨부). 일반 입력보다 길게 허용.
+# MAX_CONTEXT_CHARS=12000
 # 프로덕션에서 이 확장 origin만 허용(잠금). 미설정이면 모든 chrome-extension 허용(개발).
 # ALLOWED_EXT_ORIGIN=chrome-extension://<배포된_확장_ID>

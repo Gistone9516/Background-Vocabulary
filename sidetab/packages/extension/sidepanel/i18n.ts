@@ -119,6 +119,11 @@ const ko: Dict = {
   sum_ctx: "(참고 맥락: {ctx})",
   sum_ask: "이 개념들을 내 상황에 어떻게 적용하는지, 우선순위와 함께 구체적 예시로 알려줘.",
   sum_footer: "— 배경노트에서 정리함 (AI 생성 보조 어휘)",
+
+  attach: "파일 첨부 (pro)",
+  attach_remove: "첨부 제거",
+  attach_texterr: "텍스트 파일만 첨부할 수 있어요.",
+  attach_truncated: "문서가 길어 앞부분만 담았어요.",
 };
 
 const en: Dict = {
@@ -235,6 +240,11 @@ const en: Dict = {
   sum_ctx: "(Reference context: {ctx})",
   sum_ask: "Tell me how to apply these concepts to my situation, with priorities and concrete examples.",
   sum_footer: "— Organized in Vock note (AI-generated helper terms)",
+
+  attach: "Attach file (pro)",
+  attach_remove: "Remove attachment",
+  attach_texterr: "Only text files can be attached.",
+  attach_truncated: "The document was long, so only the beginning was kept.",
 };
 
 const ja: Dict = {
@@ -351,6 +361,11 @@ const ja: Dict = {
   sum_ctx: "(参考文脈：{ctx})",
   sum_ask: "これらの概念を私の状況にどう応用するか、優先順位と具体例とともに教えてください。",
   sum_footer: "— Vock note で整理（AI生成の補助用語）",
+
+  attach: "ファイルを添付 (pro)",
+  attach_remove: "添付を削除",
+  attach_texterr: "テキストファイルのみ添付できます。",
+  attach_truncated: "文書が長いため先頭部分のみ取り込みました。",
 };
 
 const zh: Dict = {
@@ -467,6 +482,11 @@ const zh: Dict = {
   sum_ctx: "(参考情境：{ctx})",
   sum_ask: "请告诉我如何把这些概念应用到我的情况，并给出优先级和具体示例。",
   sum_footer: "— 由 Vock note 整理（AI 生成的辅助术语）",
+
+  attach: "附加文件 (pro)",
+  attach_remove: "移除附件",
+  attach_texterr: "只能附加文本文件。",
+  attach_truncated: "文档较长，仅保留了开头部分。",
 };
 
 const STRINGS: Record<OutputLocale, Dict> = { ko, en, ja, zh };

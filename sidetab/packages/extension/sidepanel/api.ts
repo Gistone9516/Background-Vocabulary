@@ -27,6 +27,7 @@ export const DEFAULT_CLIENT_LIMITS: ClientLimits = {
   narrowMax: DEFAULT_LIMITS.narrowMax,
   detailLimitFree: DEFAULT_LIMITS.detailLimitFree,
   freeWeeklyLimit: DEFAULT_LIMITS.freeWeeklyLimit,
+  maxContextChars: DEFAULT_LIMITS.maxContextChars,
 };
 
 // 배포 후 실제 워커 도메인으로 교체. manifest host_permissions와 일치해야 CORS가 열린다.

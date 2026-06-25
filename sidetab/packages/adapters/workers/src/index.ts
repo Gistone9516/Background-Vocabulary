@@ -43,6 +43,7 @@ export interface Env {
   NARROW_MAX_FREE?: string; NARROW_MAX_PAID?: string;
   DETAIL_LIMIT_FREE?: string;
   MAX_INPUT_CHARS?: string; RATE_PER_MIN?: string; RATE_PER_DAY?: string;
+  MAX_CONTEXT_CHARS?: string;
   // 설정 시 이 chrome-extension origin만 허용(프로덕션 확장 ID 잠금). 미설정이면 모든 확장 허용(개발).
   ALLOWED_EXT_ORIGIN?: string;
 }
@@ -72,7 +73,20 @@ function buildLimits(env: Env): Limits {
     maxInputChars: num(env.MAX_INPUT_CHARS, D.maxInputChars),
     ratePerMin: num(env.RATE_PER_MIN, D.ratePerMin),
     ratePerDay: num(env.RATE_PER_DAY, D.ratePerDay),
+    maxContextChars: num(env.MAX_CONTEXT_CHARS, D.maxContextChars),
   };
+}
+
+// 입력 크기 검증(context-aware). context_object는 큰 상한(maxContextChars), 나머지 필드는 maxInputChars로 본다.
+function oversized(body: unknown, limits: Limits): boolean {
+  if (body && typeof body === "object" && !Array.isArray(body)) {
+    const ctx = (body as Record<string, unknown>)["context_object"];
+    if (typeof ctx === "string" && ctx.length > limits.maxContextChars) return true;
+    // context_object를 뺀 나머지를 일반 상한으로 검사한다.
+    const rest = { ...(body as Record<string, unknown>), context_object: undefined };
+    return oversizedField(rest, limits.maxInputChars);
+  }
+  return oversizedField(body, limits.maxInputChars);
 }
 
 // 클라이언트 IP를 읽는다. Cloudflare는 CF-Connecting-IP를 신뢰 헤더로 채운다.
@@ -181,7 +195,7 @@ app.use(
 // 클라이언트(확장)가 게이팅에 쓰는 운영 한도 부분집합을 돌려준다. env 변경이 재빌드 없이 확장에 반영된다.
 app.get("/config", (c) => {
   const L = buildLimits(c.env);
-  const client: ClientLimits = { narrowMax: L.narrowMax, detailLimitFree: L.detailLimitFree, freeWeeklyLimit: L.freeWeeklyLimit };
+  const client: ClientLimits = { narrowMax: L.narrowMax, detailLimitFree: L.detailLimitFree, freeWeeklyLimit: L.freeWeeklyLimit, maxContextChars: L.maxContextChars };
   return c.json(client);
 });
 
@@ -191,7 +205,7 @@ app.post("/classify", async (c) => {
   const limits = buildLimits(c.env);
   const blocked = await securityBlock(c, c.env, limits); if (blocked) return blocked;
   const body = await c.req.json<Prompt1In>();
-  if (oversizedField(body, limits.maxInputChars)) return c.json({ error: "INPUT_TOO_LARGE", message: "입력이 너무 길어요. 줄여서 다시 시도해 주세요." }, 413);
+  if (oversized(body, limits)) return c.json({ error: "INPUT_TOO_LARGE", message: "입력이 너무 길어요. 줄여서 다시 시도해 주세요." }, 413);
   const pipeline = buildPipeline(c.env);
   const result = await pipeline.classify(body, readLocale(c));
   return c.json(result);
@@ -203,7 +217,7 @@ app.post("/next", async (c) => {
   const limits = buildLimits(c.env);
   const blocked = await securityBlock(c, c.env, limits); if (blocked) return blocked;
   const body = await c.req.json<Prompt2In>();
-  if (oversizedField(body, limits.maxInputChars)) return c.json({ error: "INPUT_TOO_LARGE", message: "입력이 너무 길어요. 줄여서 다시 시도해 주세요." }, 413);
+  if (oversized(body, limits)) return c.json({ error: "INPUT_TOO_LARGE", message: "입력이 너무 길어요. 줄여서 다시 시도해 주세요." }, 413);
   const pipeline = buildPipeline(c.env);
   const result = await pipeline.nextBranch(body, readLocale(c));
   return c.json(result);
@@ -261,7 +275,7 @@ app.post("/recommend", async (c) => {
   }
 
   const body = await c.req.json<RecommendInput>();
-  if (oversizedField(body, limits.maxInputChars)) return c.json({ error: "INPUT_TOO_LARGE", message: "입력이 너무 길어요. 줄여서 다시 시도해 주세요." }, 413);
+  if (oversized(body, limits)) return c.json({ error: "INPUT_TOO_LARGE", message: "입력이 너무 길어요. 줄여서 다시 시도해 주세요." }, 413);
   const pipeline = buildPipeline(c.env);
 
   // AbortController로 업스트림 취소 체인을 구성한다.
@@ -325,7 +339,7 @@ app.post("/summarize", async (c) => {
     );
   }
   const body = await c.req.json<Prompt4In>();
-  if (oversizedField(body, limits.maxInputChars)) return c.json({ error: "INPUT_TOO_LARGE", message: "입력이 너무 길어요. 줄여서 다시 시도해 주세요." }, 413);
+  if (oversized(body, limits)) return c.json({ error: "INPUT_TOO_LARGE", message: "입력이 너무 길어요. 줄여서 다시 시도해 주세요." }, 413);
   const pipeline = buildPipeline(c.env);
   const result = await pipeline.summarize(body, readLocale(c));
   return c.json(result);
@@ -345,7 +359,7 @@ app.post("/detail", async (c) => {
     );
   }
   const body = await c.req.json<Prompt5In>();
-  if (oversizedField(body, limits.maxInputChars)) return c.json({ error: "INPUT_TOO_LARGE", message: "입력이 너무 길어요. 줄여서 다시 시도해 주세요." }, 413);
+  if (oversized(body, limits)) return c.json({ error: "INPUT_TOO_LARGE", message: "입력이 너무 길어요. 줄여서 다시 시도해 주세요." }, 413);
   const pipeline = buildPipeline(c.env);
   const result = await pipeline.detail(body, tier, readLocale(c));
   return c.json(result);

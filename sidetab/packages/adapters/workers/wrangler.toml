@@ -36,6 +36,7 @@ command = ""
 # MAX_INPUT_CHARS = "4000"
 # RATE_PER_MIN = "20"
 # RATE_PER_DAY = "200"
+# MAX_CONTEXT_CHARS = "12000"
 # ALLOWED_EXT_ORIGIN = "chrome-extension://<배포된_확장_ID>"
 
 # 로컬 개발(.dev.vars 파일 참조):
