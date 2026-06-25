@@ -24,8 +24,8 @@ import type {
   Prompt5In,
   StreamEvent,
 } from "@sidetab/shared";
-import type { RecommendInput } from "@sidetab/shared";
-import { UpstashUsageCounter, FREE_WEEKLY_LIMIT } from "./usage-counter.js";
+import type { RecommendInput, Tier } from "@sidetab/shared";
+import { UpstashUsageCounter, FREE_WEEKLY_LIMIT, UpstashGlobalDailyCap, DEFAULT_GLOBAL_DAILY_CAP } from "./usage-counter.js";
 
 // Workers env 바인딩 타입. wrangler.toml의 [vars]와 secrets에 대응한다.
 export interface Env {
@@ -33,6 +33,27 @@ export interface Env {
   TAVILY_API_KEY: string;
   UPSTASH_REDIS_REST_URL: string;
   UPSTASH_REDIS_REST_TOKEN: string;
+  // 빌드 단계 비용 폭주 방지용 전역 일일 캡(문자열, 선택). 미설정이면 DEFAULT_GLOBAL_DAILY_CAP.
+  GLOBAL_DAILY_CAP?: string;
+}
+
+// x-tier 헤더를 Tier로 좁힌다. "paid"가 아니면 모두 free로 본다.
+function readTier(c: { req: { header(name: string): string | undefined } }): Tier {
+  return (c.req.header("x-tier") ?? "").toLowerCase() === "paid" ? "paid" : "free";
+}
+
+// 전역 일일 캡 검사 겸 증가. 비싼 호출(recommend·detail·summarize) 앞에 둔다.
+// 캡 초과면 over=true. Upstash 오류 시 통과(서비스 우선, 보수적 접근).
+async function bumpGlobalCap(env: Env): Promise<{ over: boolean; count: number; cap: number }> {
+  const cap = Number(env.GLOBAL_DAILY_CAP ?? "") || DEFAULT_GLOBAL_DAILY_CAP;
+  try {
+    const counter = new UpstashGlobalDailyCap({ url: env.UPSTASH_REDIS_REST_URL, token: env.UPSTASH_REDIS_REST_TOKEN });
+    const count = await counter.incrAndGet();
+    return { over: count > cap, count, cap };
+  } catch (err) {
+    console.error("전역 일일 캡 카운터 오류:", err);
+    return { over: false, count: 0, cap };
+  }
 }
 
 // 요청마다 호출되는 구성 루트. Workers env를 인터페이스 구현체로 매핑한다.
@@ -92,8 +113,17 @@ app.post("/next", async (c) => {
 // userId는 x-user-id 헤더에서 읽는다.
 // 서버 측 설치 UUID 검증은 구현계획 12장(Tier3) 이후로 보류한다.
 app.post("/recommend", async (c) => {
-  const tier = (c.req.header("x-tier") ?? "free").toLowerCase();
+  const tier = readTier(c);
   const userId = c.req.header("x-user-id") ?? "anonymous";
+
+  // 전역 일일 캡(빌드 단계 비용 차단). 티어·사용자 무관. anonymous 우회도 여기서 덮는다.
+  const cap = await bumpGlobalCap(c.env);
+  if (cap.over) {
+    return c.json(
+      { error: "GLOBAL_DAILY_CAP", message: "오늘 전체 이용량이 많아 잠시 추천을 멈췄어요. 내일 다시 시도해 주세요.", count: cap.count, cap: cap.cap },
+      429
+    );
+  }
 
   // free 티어 주간 한도 검사
   if (tier === "free" && userId !== "anonymous") {
@@ -133,7 +163,7 @@ app.post("/recommend", async (c) => {
 
   // pipeline.recommendStream은 ReadableStream<StreamEvent>를 반환한다.
   // 클라이언트 연결 끊김(c.req.raw.signal)을 업스트림 DeepSeek까지 전파한다(구현계획 §5 취소 체인).
-  const eventStream: ReadableStream<StreamEvent> = pipeline.recommendStream(body, c.req.raw.signal);
+  const eventStream: ReadableStream<StreamEvent> = pipeline.recommendStream(body, tier, c.req.raw.signal);
 
   // StreamEvent를 SSE 바이트로 직렬화하는 TransformStream을 만든다.
   const { readable, writable } = new TransformStream<StreamEvent, Uint8Array>({
@@ -171,11 +201,18 @@ app.post("/recommend", async (c) => {
 // Prompt4In -> pipeline.summarize -> JSON
 // /summarize는 "AI로 더 정리"(유료 전용, D3). free 티어는 클라이언트 템플릿만 쓰므로 여기로 오면 거부.
 app.post("/summarize", async (c) => {
-  const tier = (c.req.header("x-tier") ?? "free").toLowerCase();
+  const tier = readTier(c);
   if (tier !== "paid") {
     return c.json(
       { error: "PAID_ONLY", message: "AI 추가 정리는 유료(pro) 플랜 전용입니다. 무료는 기본 정리문을 그대로 쓰세요." },
       402
+    );
+  }
+  const cap = await bumpGlobalCap(c.env);
+  if (cap.over) {
+    return c.json(
+      { error: "GLOBAL_DAILY_CAP", message: "오늘 전체 이용량이 많아 잠시 멈췄어요. 내일 다시 시도해 주세요.", count: cap.count, cap: cap.cap },
+      429
     );
   }
   const body = await c.req.json<Prompt4In>();
@@ -187,9 +224,17 @@ app.post("/summarize", async (c) => {
 // POST /detail
 // Prompt5In -> pipeline.detail -> JSON
 app.post("/detail", async (c) => {
+  const tier = readTier(c);
+  const cap = await bumpGlobalCap(c.env);
+  if (cap.over) {
+    return c.json(
+      { error: "GLOBAL_DAILY_CAP", message: "오늘 전체 이용량이 많아 잠시 멈췄어요. 내일 다시 시도해 주세요.", count: cap.count, cap: cap.cap },
+      429
+    );
+  }
   const body = await c.req.json<Prompt5In>();
   const pipeline = buildPipeline(c.env);
-  const result = await pipeline.detail(body);
+  const result = await pipeline.detail(body, tier);
   return c.json(result);
 });
 

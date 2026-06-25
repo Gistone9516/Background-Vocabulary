@@ -26,7 +26,7 @@ interface State {
   confidence: number; pending: boolean;
   customText: string; customOpen: boolean; // 아키네이터 직접 입력
   terms: UITerm[]; visibleCount: number; openId: string | null; opening: string | null;
-  query: string; groupView: boolean;
+  query: string; groupView: boolean; detailCount: number;
   moreLoading: boolean; moreLoaded: boolean; streaming: boolean;
   ctxInput: string; copied: boolean; copyFailed: boolean; shareNote: boolean;
   aiSummary: string; aiSummaryLoading: boolean;
@@ -46,7 +46,7 @@ function initial(): State {
   return {
     screen: "entry", input: "", cond: "", showCond: false, allChips: false, inputErr: false,
     classifyOut: null, questions: [], answers: [], sel: [], confidence: 0, pending: false, customText: "", customOpen: false,
-    terms: [], visibleCount: 0, openId: null, opening: null, query: "", groupView: false,
+    terms: [], visibleCount: 0, openId: null, opening: null, query: "", groupView: false, detailCount: 0,
     moreLoading: false, moreLoaded: false, streaming: false,
     ctxInput: "", copied: false, copyFailed: false, shareNote: false, aiSummary: "", aiSummaryLoading: false,
     plan: "flash", remaining: 5, prevScreen: "entry", limitHit: false, errorMsg: "",
@@ -145,7 +145,9 @@ export function App() {
     const history = answers.flat().map((label) => ({ label, action: "선택" as const }));
     try {
       const p2 = await api.nextBranch({ domain: s.classifyOut?.domain ?? "", job_type: s.classifyOut?.job_type ?? [], history });
-      const enough = (answers.length >= MIN_Q && p2.enough) || answers.length >= MAX_Q;
+      // free는 좁히기를 3턴에서 끝낸다(LLM 호출 절감). paid는 최대 MAX_Q까지 의중이 갈릴 때만 더 묻는다.
+      const maxQ = s.plan === "pro" ? MAX_Q : 3;
+      const enough = (answers.length >= MIN_Q && p2.enough) || answers.length >= maxQ;
       if (enough) { merge({ pending: false, confidence: p2.confidence }); void runRecommend(); return; }
       merge({ pending: false, confidence: p2.confidence, questions: [...s.questions, { question: p2.question, choices: p2.choices }] });
     } catch (e) {
@@ -169,7 +171,7 @@ export function App() {
     if (s.remaining <= 0) { merge({ prevScreen: s.screen, screen: "paywall", limitHit: true }); return; }
     abortRef.current?.abort();
     const ctrl = new AbortController(); abortRef.current = ctrl;
-    merge({ screen: "terms", terms: [], visibleCount: 0, openId: null, streaming: true, errorMsg: "", moreLoaded: false, query: "", remaining: Math.max(0, s.remaining - 1), sessionId: crypto.randomUUID(), histView: false });
+    merge({ screen: "terms", terms: [], visibleCount: 0, openId: null, streaming: true, errorMsg: "", moreLoaded: false, query: "", remaining: Math.max(0, s.remaining - 1), sessionId: crypto.randomUUID(), histView: false, detailCount: 0 });
     await api.streamRecommend(buildRecInput(), s.plan === "pro" ? "paid" : "free", (ev) => {
       if (ev.type === "term") {
         const id = "t" + sref.current.terms.length;
@@ -183,6 +185,8 @@ export function App() {
   const loadMore = useCallback(async () => {
     const s = sref.current;
     if (s.moreLoaded || s.moreLoading) return;
+    // 더 보기는 유료 전용. 무료는 페이월로 보낸다(추가 추천 호출 절감).
+    if (s.plan !== "pro") { merge({ prevScreen: "terms", screen: "paywall", limitHit: false }); return; }
     merge({ moreLoading: true });
     const exclude = s.terms.map((t) => t.term);
     let got = 0;
@@ -226,13 +230,20 @@ export function App() {
   const toggleDetail = useCallback(async (id: string) => {
     const s = sref.current;
     if (s.openId === id) { merge({ openId: null }); return; }
+    const t = s.terms.find((x) => x.id === id);
+    const willFetch = !!t && !t.detail && !t.detailLoading; // 캐시 없으면 새로 불러온다
+    // 무료 상세 열람은 세션당 3회. 새로 불러오는 경우만 세고, 한도를 넘으면 페이월로 안내한다(캐시 재열람은 무제한).
+    if (willFetch && s.plan !== "pro" && s.detailCount >= 3) {
+      merge({ prevScreen: s.screen, screen: "paywall", limitHit: false });
+      return;
+    }
     merge({ openId: id, opening: id });
     later(() => { if (sref.current.opening === id) merge({ opening: null }); }, 340);
-    const t = s.terms.find((x) => x.id === id);
-    if (t && !t.detail && !t.detailLoading) {
+    if (t && willFetch) {
       dispatch({ type: "updateTerm", id, patch: { detailLoading: true } });
+      if (s.plan !== "pro") merge({ detailCount: s.detailCount + 1 });
       try {
-        const d = await api.detail({ term: t.term, kind: t.kind, area: s.classifyOut?.domain ?? "", job_type: s.classifyOut?.job_type ?? [], domain: s.classifyOut?.domain ?? "other", topic: s.input, locale: s.classifyOut?.search_locale ?? "en" });
+        const d = await api.detail({ term: t.term, kind: t.kind, area: s.classifyOut?.domain ?? "", job_type: s.classifyOut?.job_type ?? [], domain: s.classifyOut?.domain ?? "other", topic: s.input, locale: s.classifyOut?.search_locale ?? "en" }, s.plan === "pro" ? "paid" : "free");
         dispatch({ type: "updateTerm", id, patch: { detail: d, detailLoading: false } });
         const withDetail = sref.current.terms.map((x) => (x.id === id ? { ...x, detail: d } : x));
         if (withDetail.find((x) => x.id === id)?.kept) void persist(withDetail);
@@ -240,7 +251,11 @@ export function App() {
     }
   }, [merge]);
   const jumpRelated = (name: string) => { const t = sref.current.terms.find((x) => x.term === name); if (t) void toggleDetail(t.id); };
-  const doDeepen = (id: string) => dispatch({ type: "updateTerm", id, patch: { deepened: true } });
+  const doDeepen = (id: string) => {
+    // "더 깊이"는 유료 전용 제품 혜택. 무료는 페이월로 안내한다.
+    if (sref.current.plan !== "pro") { merge({ prevScreen: sref.current.screen, screen: "paywall", limitHit: false }); return; }
+    dispatch({ type: "updateTerm", id, patch: { deepened: true } });
+  };
 
   // ----- 요약 -----
   const buildSummary = (s: State): string => {
@@ -346,7 +361,7 @@ function Entry({ state, merge, submitEntry, chip, openHistory }: { state: State;
     <main className="scroll entryMain">
       <div className="hero">
         <h1 className="heroTitle">무슨 일 때문에 왔나요?</h1>
-        <p className="heroSub">그 분야 핵심 어휘를 옆에 사전처럼 띄워둘게요. 막힌 용어나 문서를 붙여넣어도 돼요.</p>
+        <p className="heroSub">{sentLines("그 분야 핵심 어휘를 옆에 사전처럼 띄워둘게요. 막힌 용어나 문서를 붙여넣어도 돼요.")}</p>
         <div className={`composer ${state.inputErr ? "err" : ""}`}>
           <textarea ref={taRef} className="composerInput" rows={1} aria-label="무슨 일 때문에 왔는지 상황 입력"
             placeholder="무엇을 하려는지 한 줄로 적어주세요" value={state.input}
@@ -403,7 +418,7 @@ function Narrow({ state, merge, toggleSel, nextStep, undoStep, jumpToTerms }: { 
         {state.answers.length > 0 && <button className="link" style={{ marginLeft: "auto" }} onClick={undoStep}>↩ 되돌리기</button>}
       </div>
       <div className="progress" style={{ marginBottom: 16 }}><div className="track"><i style={{ width: pct + "%" }} /></div></div>
-      <h2>{cur?.question ?? ""}</h2>
+      <h2>{sentLines(cur?.question ?? "")}</h2>
       <p className="lead" style={{ margin: "6px 0 16px" }}>해당하는 걸 모두 고르세요 · 여러 개 가능</p>
       {(cur?.choices ?? []).map((o) => {
         const on = state.sel.includes(o.label);
@@ -461,8 +476,8 @@ function Card({ t, i, state, toggleKeep, toggleDetail, jumpRelated, doDeepen }: 
             {state.groupView && t.group && <span className="gchip">{t.group}</span>}
             {t.kept && <span className="badge-ok">담음 ✓</span>}
           </div>
-          <div className="oneline">{t.one_line}</div>
-          <div className="why"><b>추천 이유</b><span>{t.why}</span></div>
+          <div className="oneline">{sentLines(t.one_line)}</div>
+          <div className="why"><b>추천 이유</b><span>{sentLines(t.why)}</span></div>
         </div>
         <span className="chev"><Chev /></span>
       </div>
@@ -541,7 +556,7 @@ function Paywall({ state, closePaywall, onUpgrade }: { state: State; closePaywal
   return (
     <main className="scroll"><div className="pad" style={{ display: "flex", flexDirection: "column" }}>
       <button className="link" style={{ alignSelf: "flex-start", color: "var(--muted)", marginBottom: 14 }} onClick={closePaywall}>← 닫기</button>
-      {state.limitHit && <div className="callout"><b>이번 주 무료 추천을 다 썼어요.</b><p>정식 출시 때 pro로 무제한 이어갈 수 있어요. 무료는 매주 다시 채워져요.</p></div>}
+      {state.limitHit && <div className="callout"><b>이번 주 무료 추천을 다 썼어요.</b><p>{sentLines("정식 출시 때 pro로 무제한 이어갈 수 있어요. 무료는 매주 다시 채워져요.")}</p></div>}
       <h2>{state.plan === "pro" ? "pro" : "flash"} 사용 중</h2>
       <p className="lead" style={{ margin: "4px 0 16px" }}>{state.plan === "pro" ? "무제한" : "무료 " + state.remaining + "/7"}</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -560,7 +575,7 @@ function Refusal({ goHome }: { goHome: () => void }) {
     <div className="center">
       <div className="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 20, height: 20 }}><path d="M12 8v5M12 17h.01" /><circle cx="12" cy="12" r="9" /></svg></div>
       <h2>이 분야는 도와드리기 어려워요</h2>
-      <p className="lead" style={{ margin: 0 }}>의료, 법률처럼 개인의 진단이나 판단이 필요한 고위험 영역은 다루지 않아요. 기술, 창작, 비즈니스 학습 맥락에서 다시 시도해 주세요.</p>
+      <p className="lead" style={{ margin: 0 }}>{sentLines("의료, 법률처럼 개인의 진단이나 판단이 필요한 고위험 영역은 다루지 않아요. 기술, 창작, 비즈니스 학습 맥락에서 다시 시도해 주세요.")}</p>
       <button className="btn btn-ghost" style={{ width: "auto", padding: "11px 18px" }} onClick={goHome}>다시 입력하기</button>
     </div>
   );

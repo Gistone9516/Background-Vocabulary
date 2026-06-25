@@ -15,6 +15,7 @@ import type {
   StreamEvent,
   Locale,
   DomainRisk,
+  Tier,
 } from "./types.js";
 import type { LlmClient, SearchProvider, CacheStore } from "./interfaces.js";
 
@@ -38,9 +39,11 @@ export interface Pipeline {
   nextBranch(input: Prompt2In): Promise<Prompt2Out>;
   // 프롬프트3. RAG(검색→캐시→주입)를 내부에서 처리하고 term 단위로 StreamEvent를 흘린다.
   // 검색 실패는 캐시 폴백 후 근거 제한으로 진행하거나 고위험이면 거부한다(구현계획 6장).
-  recommendStream(input: RecommendInput, signal?: AbortSignal): ReadableStream<StreamEvent>;
+  // tier에 따라 어휘 개수와 출력 토큰 상한이 갈린다(free는 적게, paid는 많이).
+  recommendStream(input: RecommendInput, tier: Tier, signal?: AbortSignal): ReadableStream<StreamEvent>;
   summarize(input: Prompt4In): Promise<Prompt4Out>;
-  detail(input: Prompt5In): Promise<Prompt5Out>;
+  // tier에 따라 출력 토큰 상한이 갈린다. 출처 RAG는 양 티어 동일.
+  detail(input: Prompt5In, tier: Tier): Promise<Prompt5Out>;
 }
 
 // 팩토리 시그니처. core/pipeline.ts가 구현한다.

@@ -57,9 +57,9 @@ export async function nextBranch(input: Prompt2In): Promise<Prompt2Out> {
   return postJson<Prompt2In, Prompt2Out>("/next", input, "free");
 }
 
-export async function detail(input: Prompt5In): Promise<Prompt5Out> {
+export async function detail(input: Prompt5In, tier: Tier): Promise<Prompt5Out> {
   if (USE_MOCK) return mock.detail(input);
-  return postJson<Prompt5In, Prompt5Out>("/detail", input, "free");
+  return postJson<Prompt5In, Prompt5Out>("/detail", input, tier);
 }
 
 // /summarize는 유료 전용(D3). 무료 호출은 워커가 402로 거부한다.

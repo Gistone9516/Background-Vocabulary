@@ -24,6 +24,9 @@ export type GapType = (typeof GAP_TYPES)[number];
 export const TAGS = ["알아", "몰라", "적용모름"] as const;
 export type Tag = (typeof TAGS)[number];
 
+// 요금 티어. 무료(flash 한도)와 유료(pro 무제한). 게이팅과 출력량 차등의 기준.
+export type Tier = "free" | "paid";
+
 // 검색 언어. 진입 분류에서 검색 전에 한 번 결정한다.
 export type Locale = "en" | "ko";
 

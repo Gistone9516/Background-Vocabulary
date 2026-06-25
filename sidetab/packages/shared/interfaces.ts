@@ -8,6 +8,8 @@ export type Msg = { role: "system" | "user" | "assistant"; content: string };
 export interface LlmRequest {
   model: ModelId;
   messages: Msg[];
+  // 출력 토큰 상한. 비용 통제용. 미설정이면 모델 기본(무제한에 가까움).
+  maxTokens?: number;
 }
 
 export interface LlmClient {

@@ -51,6 +51,7 @@ export class DeepSeekLlmClient implements LlmClient {
       stream: false,
       response_format: { type: "json_object" },
       thinking: { type: "disabled" },
+      ...(req.maxTokens !== undefined && { max_tokens: req.maxTokens }),
     };
 
     const content = await this.fetchOnce(body);
@@ -100,6 +101,7 @@ export class DeepSeekLlmClient implements LlmClient {
       stream: true,
       response_format: { type: "json_object" },
       thinking: { type: "disabled" },
+      ...(req.maxTokens !== undefined && { max_tokens: req.maxTokens }),
     };
 
     const headers = this.buildHeaders();

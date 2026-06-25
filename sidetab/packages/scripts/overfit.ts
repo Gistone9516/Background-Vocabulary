@@ -47,7 +47,7 @@ for (const c of CASES) {
       locale: p1.search_locale, job_type: p1.job_type, domain_risk: p1.domain_risk,
     };
     if (p1.domain_risk === "high") { out.push({ label: c.label, area: p1.domain, refused: true }); console.log(`\n[${c.label}] 고위험 거부됨`); continue; }
-    const r = await drain(pipeline.recommendStream(input));
+    const r = await drain(pipeline.recommendStream(input, "paid"));
     const names: string[] = r.terms.map((t: any) => t.term);
     const contam = names.filter((n) => CONTAM.some((x) => norm(n).includes(norm(x))));
     out.push({

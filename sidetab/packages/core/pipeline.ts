@@ -21,6 +21,7 @@ import type {
   Pipeline,
   CreatePipeline,
   RecommendInput,
+  Tier,
 } from "@sidetab/shared";
 
 import { classifyRouting } from "./locale/index.js";
@@ -29,6 +30,17 @@ import { runRag } from "./rag/index.js";
 // 모델 식별자 상수. 이 파일 외부에서 문자열을 직접 쓰지 않는다.
 const MODEL_FLASH = "deepseek-v4-flash";
 const MODEL_PRO   = "deepseek-v4-pro";
+
+// 비용 통제 상한(출력 토큰). 폭주를 막는 안전 상한이다(유효 JSON을 자를 만큼 낮추면 응답이 깨지므로
+// 넉넉히 잡되 free < paid로만 둔다). 실제 출력량 차등은 어휘 개수(TERM_COUNT)와 호출 게이팅이 담당한다.
+const MAXTOK_CLASSIFY = 900;
+const MAXTOK_NEXT = 800;
+const MAXTOK_SUMMARIZE = 1000;
+const MAXTOK_RECOMMEND: Record<Tier, number> = { free: 1400, paid: 2600 };
+const MAXTOK_DETAIL: Record<Tier, number> = { free: 900, paid: 1300 };
+
+// 추천 어휘 개수(티어별 차등). free는 핵심만, paid는 더 넓게.
+const TERM_COUNT: Record<Tier, number> = { free: 4, paid: 8 };
 
 // 출처 표시용 site를 URL 호스트에서 파생한다(웹표준 URL, 이식 안전). 실패 시 빈 문자열.
 function siteFromUrl(url: string): string {
@@ -47,6 +59,7 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
       return deps.llm.complete<Prompt1Out>({
         model: MODEL_FLASH,
         messages,
+        maxTokens: MAXTOK_CLASSIFY,
       });
     },
 
@@ -56,13 +69,14 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
       return deps.llm.complete<Prompt2Out>({
         model: MODEL_FLASH,
         messages,
+        maxTokens: MAXTOK_NEXT,
       });
     },
 
     // 프롬프트3: RAG를 먼저 실행한 뒤 term 단위 스트리밍으로 추천 어휘를 내보낸다.
     // 고위험 도메인은 LLM을 호출하지 않고 즉시 error 이벤트로 스트림을 닫는다.
     // hard_domain이 true이면 flash 사용자라도 pro 모델을 쓴다(구현계획 6장 모델 라우팅).
-    recommendStream(input: RecommendInput, signal?: AbortSignal): ReadableStream<StreamEvent> {
+    recommendStream(input: RecommendInput, tier: Tier, signal?: AbortSignal): ReadableStream<StreamEvent> {
       // ReadableStream을 동기로 반환하되 내부 비동기 흐름을 start 안에서 처리한다.
       return new ReadableStream<StreamEvent>({
         async start(controller) {
@@ -113,6 +127,7 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
             };
             const prompt3Input = {
               ...prompt3Base,
+              count: TERM_COUNT[tier], // 티어별 어휘 개수(free 4, paid 8)
               ...(input.user_condition !== undefined && { user_condition: input.user_condition }),
               ...(input.context_object !== undefined && { context_object: input.context_object }),
               ...(input.gap_type !== undefined && { gap_type: input.gap_type }),
@@ -120,7 +135,7 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
             };
             const messages = prompts.buildPrompt3(prompt3Input);
 
-            const upstream = deps.llm.streamTerms({ model, messages }, signal);
+            const upstream = deps.llm.streamTerms({ model, messages, maxTokens: MAXTOK_RECOMMEND[tier] }, signal);
             const reader = upstream.getReader();
 
             // 업스트림 StreamEvent를 그대로 하위 컨트롤러에 전달한다.
@@ -164,12 +179,13 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
       return deps.llm.complete<Prompt4Out>({
         model: MODEL_FLASH,
         messages,
+        maxTokens: MAXTOK_SUMMARIZE,
       });
     },
 
     // 프롬프트5: 단어 상세. 자세히 클릭 시에만 호출한다(on-demand, lazy).
     // 출처(D2): 이 어휘로 경량 검색해 candidateSources를 만든다(en만; ko는 throw되어 빈 출처 폴백).
-    async detail(input: Prompt5In): Promise<Prompt5Out> {
+    async detail(input: Prompt5In, tier: Tier): Promise<Prompt5Out> {
       let grounding = "";
       let candidateSources: { title: string; url: string }[] = [];
       try {
@@ -202,6 +218,7 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
       const out = await deps.llm.complete<Prompt5Out>({
         model: MODEL_FLASH,
         messages,
+        maxTokens: MAXTOK_DETAIL[tier],
       });
 
       // LLM은 candidateSources에서 title과 url만 골랐다. site는 URL 호스트로 코드가 채운다.
