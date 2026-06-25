@@ -23,6 +23,7 @@ import type {
   RecommendInput,
   Tier,
 } from "@sidetab/shared";
+import { DEFAULT_LIMITS } from "@sidetab/shared";
 
 import { classifyRouting } from "./locale/index.js";
 import { runRag } from "./rag/index.js";
@@ -30,17 +31,9 @@ import { runRag } from "./rag/index.js";
 // 모델 식별자 상수. 이 파일 외부에서 문자열을 직접 쓰지 않는다.
 const MODEL_FLASH = "deepseek-v4-flash";
 const MODEL_PRO   = "deepseek-v4-pro";
-
-// 비용 통제 상한(출력 토큰). 폭주를 막는 안전 상한이다(유효 JSON을 자를 만큼 낮추면 응답이 깨지므로
-// 넉넉히 잡되 free < paid로만 둔다). 실제 출력량 차등은 어휘 개수(TERM_COUNT)와 호출 게이팅이 담당한다.
-const MAXTOK_CLASSIFY = 900;
-const MAXTOK_NEXT = 800;
-const MAXTOK_SUMMARIZE = 1000;
-const MAXTOK_RECOMMEND: Record<Tier, number> = { free: 1400, paid: 2600 };
-const MAXTOK_DETAIL: Record<Tier, number> = { free: 900, paid: 1300 };
-
-// 추천 어휘 개수(티어별 차등). free는 핵심만, paid는 더 넓게.
-const TERM_COUNT: Record<Tier, number> = { free: 4, paid: 8 };
+// 운영 한도(어휘 개수·토큰 상한 등)는 deps.limits로 주입한다(워커 env에서 옴). 미주입 시 기본값.
+// 토큰 상한은 폭주를 막는 안전 상한이다. 유효 JSON을 자를 만큼 낮추면 응답이 깨지므로 넉넉히 잡고
+// 실제 출력량 차등은 어휘 개수(termCount)와 호출 게이팅이 담당한다.
 
 // 출처 표시용 site를 URL 호스트에서 파생한다(웹표준 URL, 이식 안전). 실패 시 빈 문자열.
 function siteFromUrl(url: string): string {
@@ -52,6 +45,7 @@ function siteFromUrl(url: string): string {
 }
 
 export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => {
+  const limits = deps.limits ?? DEFAULT_LIMITS;
   return {
     // 프롬프트1: 자유 문장에서 도메인과 작업유형을 분류하고 첫 분기를 만든다.
     async classify(input: Prompt1In): Promise<Prompt1Out> {
@@ -59,7 +53,7 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
       return deps.llm.complete<Prompt1Out>({
         model: MODEL_FLASH,
         messages,
-        maxTokens: MAXTOK_CLASSIFY,
+        maxTokens: limits.maxTokens.classify,
       });
     },
 
@@ -69,7 +63,7 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
       return deps.llm.complete<Prompt2Out>({
         model: MODEL_FLASH,
         messages,
-        maxTokens: MAXTOK_NEXT,
+        maxTokens: limits.maxTokens.next,
       });
     },
 
@@ -127,7 +121,7 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
             };
             const prompt3Input = {
               ...prompt3Base,
-              count: TERM_COUNT[tier], // 티어별 어휘 개수(free 4, paid 8)
+              count: limits.termCount[tier], // 티어별 어휘 개수
               ...(input.user_condition !== undefined && { user_condition: input.user_condition }),
               ...(input.context_object !== undefined && { context_object: input.context_object }),
               ...(input.gap_type !== undefined && { gap_type: input.gap_type }),
@@ -135,7 +129,7 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
             };
             const messages = prompts.buildPrompt3(prompt3Input);
 
-            const upstream = deps.llm.streamTerms({ model, messages, maxTokens: MAXTOK_RECOMMEND[tier] }, signal);
+            const upstream = deps.llm.streamTerms({ model, messages, maxTokens: limits.maxTokens.recommend[tier] }, signal);
             const reader = upstream.getReader();
 
             // 업스트림 StreamEvent를 그대로 하위 컨트롤러에 전달한다.
@@ -179,7 +173,7 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
       return deps.llm.complete<Prompt4Out>({
         model: MODEL_FLASH,
         messages,
-        maxTokens: MAXTOK_SUMMARIZE,
+        maxTokens: limits.maxTokens.summarize,
       });
     },
 
@@ -218,7 +212,7 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
       const out = await deps.llm.complete<Prompt5Out>({
         model: MODEL_FLASH,
         messages,
-        maxTokens: MAXTOK_DETAIL[tier],
+        maxTokens: limits.maxTokens.detail[tier],
       });
 
       // LLM은 candidateSources에서 title과 url만 골랐다. site는 URL 호스트로 코드가 채운다.

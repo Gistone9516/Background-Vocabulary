@@ -24,17 +24,49 @@ import type {
   Prompt5In,
   StreamEvent,
 } from "@sidetab/shared";
-import type { RecommendInput, Tier } from "@sidetab/shared";
-import { UpstashUsageCounter, FREE_WEEKLY_LIMIT, UpstashGlobalDailyCap, DEFAULT_GLOBAL_DAILY_CAP } from "./usage-counter.js";
+import type { RecommendInput, Tier, Limits, ClientLimits } from "@sidetab/shared";
+import { DEFAULT_LIMITS } from "@sidetab/shared";
+import { UpstashUsageCounter, UpstashGlobalDailyCap } from "./usage-counter.js";
 
 // Workers env 바인딩 타입. wrangler.toml의 [vars]와 secrets에 대응한다.
+// 운영 한도는 전부 env로 튜닝한다(미설정이면 DEFAULT_LIMITS). 값은 양의 정수 문자열.
 export interface Env {
   DEEPSEEK_API_KEY: string;
   TAVILY_API_KEY: string;
   UPSTASH_REDIS_REST_URL: string;
   UPSTASH_REDIS_REST_TOKEN: string;
-  // 빌드 단계 비용 폭주 방지용 전역 일일 캡(문자열, 선택). 미설정이면 DEFAULT_GLOBAL_DAILY_CAP.
-  GLOBAL_DAILY_CAP?: string;
+  TERM_COUNT_FREE?: string; TERM_COUNT_PAID?: string;
+  MAXTOK_CLASSIFY?: string; MAXTOK_NEXT?: string; MAXTOK_SUMMARIZE?: string;
+  MAXTOK_RECOMMEND_FREE?: string; MAXTOK_RECOMMEND_PAID?: string;
+  MAXTOK_DETAIL_FREE?: string; MAXTOK_DETAIL_PAID?: string;
+  FREE_WEEKLY_LIMIT?: string; GLOBAL_DAILY_CAP?: string;
+  NARROW_MAX_FREE?: string; NARROW_MAX_PAID?: string;
+  DETAIL_LIMIT_FREE?: string;
+}
+
+// 양의 정수 문자열을 파싱한다. 비거나 잘못되면 기본값.
+function num(v: string | undefined, d: number): number {
+  const n = Number(v ?? "");
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : d;
+}
+
+// env에서 운영 한도를 읽어 Limits를 만든다. 미설정 값은 DEFAULT_LIMITS로 채운다.
+function buildLimits(env: Env): Limits {
+  const D = DEFAULT_LIMITS;
+  return {
+    termCount: { free: num(env.TERM_COUNT_FREE, D.termCount.free), paid: num(env.TERM_COUNT_PAID, D.termCount.paid) },
+    maxTokens: {
+      classify: num(env.MAXTOK_CLASSIFY, D.maxTokens.classify),
+      next: num(env.MAXTOK_NEXT, D.maxTokens.next),
+      summarize: num(env.MAXTOK_SUMMARIZE, D.maxTokens.summarize),
+      recommend: { free: num(env.MAXTOK_RECOMMEND_FREE, D.maxTokens.recommend.free), paid: num(env.MAXTOK_RECOMMEND_PAID, D.maxTokens.recommend.paid) },
+      detail: { free: num(env.MAXTOK_DETAIL_FREE, D.maxTokens.detail.free), paid: num(env.MAXTOK_DETAIL_PAID, D.maxTokens.detail.paid) },
+    },
+    freeWeeklyLimit: num(env.FREE_WEEKLY_LIMIT, D.freeWeeklyLimit),
+    globalDailyCap: num(env.GLOBAL_DAILY_CAP, D.globalDailyCap),
+    narrowMax: { free: num(env.NARROW_MAX_FREE, D.narrowMax.free), paid: num(env.NARROW_MAX_PAID, D.narrowMax.paid) },
+    detailLimitFree: num(env.DETAIL_LIMIT_FREE, D.detailLimitFree),
+  };
 }
 
 // x-tier 헤더를 Tier로 좁힌다. "paid"가 아니면 모두 free로 본다.
@@ -42,10 +74,9 @@ function readTier(c: { req: { header(name: string): string | undefined } }): Tie
   return (c.req.header("x-tier") ?? "").toLowerCase() === "paid" ? "paid" : "free";
 }
 
-// 전역 일일 캡 검사 겸 증가. 비싼 호출(recommend·detail·summarize) 앞에 둔다.
+// 전역 일일 캡 검사 겸 증가. cap은 buildLimits에서 온다. 비싼 호출(recommend·detail·summarize) 앞에 둔다.
 // 캡 초과면 over=true. Upstash 오류 시 통과(서비스 우선, 보수적 접근).
-async function bumpGlobalCap(env: Env): Promise<{ over: boolean; count: number; cap: number }> {
-  const cap = Number(env.GLOBAL_DAILY_CAP ?? "") || DEFAULT_GLOBAL_DAILY_CAP;
+async function bumpGlobalCap(env: Env, cap: number): Promise<{ over: boolean; count: number; cap: number }> {
   try {
     const counter = new UpstashGlobalDailyCap({ url: env.UPSTASH_REDIS_REST_URL, token: env.UPSTASH_REDIS_REST_TOKEN });
     const count = await counter.incrAndGet();
@@ -64,7 +95,7 @@ function buildPipeline(env: Env) {
     url: env.UPSTASH_REDIS_REST_URL,
     token: env.UPSTASH_REDIS_REST_TOKEN,
   });
-  return createPipeline({ llm, search, cache });
+  return createPipeline({ llm, search, cache, limits: buildLimits(env) });
 }
 
 const app = new Hono<{ Bindings: Env }>();
@@ -83,11 +114,19 @@ app.use(
       // 그 외는 null 반환으로 차단한다(CORS 헤더 미포함).
       return null;
     },
-    allowMethods: ["POST", "OPTIONS"],
+    allowMethods: ["GET", "POST", "OPTIONS"],
     allowHeaders: ["Content-Type", "x-user-id", "x-tier"],
     maxAge: 86400,
   })
 );
+
+// GET /config
+// 클라이언트(확장)가 게이팅에 쓰는 운영 한도 부분집합을 돌려준다. env 변경이 재빌드 없이 확장에 반영된다.
+app.get("/config", (c) => {
+  const L = buildLimits(c.env);
+  const client: ClientLimits = { narrowMax: L.narrowMax, detailLimitFree: L.detailLimitFree, freeWeeklyLimit: L.freeWeeklyLimit };
+  return c.json(client);
+});
 
 // POST /classify
 // Prompt1In -> pipeline.classify -> JSON
@@ -115,9 +154,10 @@ app.post("/next", async (c) => {
 app.post("/recommend", async (c) => {
   const tier = readTier(c);
   const userId = c.req.header("x-user-id") ?? "anonymous";
+  const limits = buildLimits(c.env);
 
   // 전역 일일 캡(빌드 단계 비용 차단). 티어·사용자 무관. anonymous 우회도 여기서 덮는다.
-  const cap = await bumpGlobalCap(c.env);
+  const cap = await bumpGlobalCap(c.env, limits.globalDailyCap);
   if (cap.over) {
     return c.json(
       { error: "GLOBAL_DAILY_CAP", message: "오늘 전체 이용량이 많아 잠시 추천을 멈췄어요. 내일 다시 시도해 주세요.", count: cap.count, cap: cap.cap },
@@ -139,13 +179,13 @@ app.post("/recommend", async (c) => {
       // 카운터 오류 시 통과시킨다(서비스 우선, 보수적 접근).
       count = 0;
     }
-    if (count > FREE_WEEKLY_LIMIT) {
+    if (count > limits.freeWeeklyLimit) {
       return c.json(
         {
           error: "WEEKLY_LIMIT_EXCEEDED",
-          message: `무료 티어 주간 한도(${FREE_WEEKLY_LIMIT}회)를 초과했습니다. 유료 플랜으로 업그레이드하면 무제한 이용할 수 있습니다.`,
+          message: `무료 티어 주간 한도(${limits.freeWeeklyLimit}회)를 초과했습니다. 유료 플랜으로 업그레이드하면 무제한 이용할 수 있습니다.`,
           count,
-          limit: FREE_WEEKLY_LIMIT,
+          limit: limits.freeWeeklyLimit,
         },
         429
       );
@@ -208,7 +248,7 @@ app.post("/summarize", async (c) => {
       402
     );
   }
-  const cap = await bumpGlobalCap(c.env);
+  const cap = await bumpGlobalCap(c.env, buildLimits(c.env).globalDailyCap);
   if (cap.over) {
     return c.json(
       { error: "GLOBAL_DAILY_CAP", message: "오늘 전체 이용량이 많아 잠시 멈췄어요. 내일 다시 시도해 주세요.", count: cap.count, cap: cap.cap },
@@ -225,7 +265,7 @@ app.post("/summarize", async (c) => {
 // Prompt5In -> pipeline.detail -> JSON
 app.post("/detail", async (c) => {
   const tier = readTier(c);
-  const cap = await bumpGlobalCap(c.env);
+  const cap = await bumpGlobalCap(c.env, buildLimits(c.env).globalDailyCap);
   if (cap.over) {
     return c.json(
       { error: "GLOBAL_DAILY_CAP", message: "오늘 전체 이용량이 많아 잠시 멈췄어요. 내일 다시 시도해 주세요.", count: cap.count, cap: cap.cap },

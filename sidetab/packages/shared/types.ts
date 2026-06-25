@@ -27,6 +27,45 @@ export type Tag = (typeof TAGS)[number];
 // 요금 티어. 무료(flash 한도)와 유료(pro 무제한). 게이팅과 출력량 차등의 기준.
 export type Tier = "free" | "paid";
 
+// 튜닝 가능한 운영 한도. 코드 기본값(DEFAULT_LIMITS)을 두되, 워커 env로 전부 덮어쓸 수 있다.
+// 서버(어댑터)가 env에서 읽어 createPipeline에 주입하고, 클라이언트 관련 값은 /config로 확장에 전달한다.
+export interface Limits {
+  termCount: { free: number; paid: number }; // 추천 어휘 개수(티어별)
+  maxTokens: {
+    classify: number;
+    next: number;
+    summarize: number;
+    recommend: { free: number; paid: number };
+    detail: { free: number; paid: number };
+  };
+  freeWeeklyLimit: number; // 무료 주간 추천 한도
+  globalDailyCap: number; // 전역 일일 캡(빌드 폭주 방지)
+  narrowMax: { free: number; paid: number }; // 좁히기 최대 턴
+  detailLimitFree: number; // 무료 세션당 상세 열람 횟수
+}
+
+export const DEFAULT_LIMITS: Limits = {
+  termCount: { free: 4, paid: 8 },
+  maxTokens: {
+    classify: 900,
+    next: 800,
+    summarize: 1000,
+    recommend: { free: 1400, paid: 2600 },
+    detail: { free: 900, paid: 1300 },
+  },
+  freeWeeklyLimit: 7,
+  globalDailyCap: 300,
+  narrowMax: { free: 3, paid: 8 },
+  detailLimitFree: 3,
+};
+
+// 클라이언트(확장)가 게이팅에 쓰는 한도 부분집합. /config 응답 형태.
+export interface ClientLimits {
+  narrowMax: { free: number; paid: number };
+  detailLimitFree: number;
+  freeWeeklyLimit: number;
+}
+
 // 검색 언어. 진입 분류에서 검색 전에 한 번 결정한다.
 export type Locale = "en" | "ko";
 

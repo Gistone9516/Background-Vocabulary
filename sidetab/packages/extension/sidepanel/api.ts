@@ -3,9 +3,17 @@
 import type {
   Prompt1In, Prompt1Out, Prompt2In, Prompt2Out,
   Prompt4In, Prompt4Out, Prompt5In, Prompt5Out,
-  RecommendInput, StreamEvent,
+  RecommendInput, StreamEvent, ClientLimits,
 } from "@sidetab/shared";
+import { DEFAULT_LIMITS } from "@sidetab/shared";
 import * as mock from "./mock.js";
+
+// 워커 /config 미응답(오프라인·mock·실패) 시 쓰는 클라이언트 기본 한도.
+export const DEFAULT_CLIENT_LIMITS: ClientLimits = {
+  narrowMax: DEFAULT_LIMITS.narrowMax,
+  detailLimitFree: DEFAULT_LIMITS.detailLimitFree,
+  freeWeeklyLimit: DEFAULT_LIMITS.freeWeeklyLimit,
+};
 
 // 배포 후 실제 워커 도메인으로 교체. manifest host_permissions와 일치해야 CORS가 열린다.
 // VITE_WORKER_BASE를 주면(예: 로컬 wrangler dev) 그 주소를 쓰고 실 API로 붙는다.
@@ -45,6 +53,18 @@ async function postJson<I, O>(path: string, body: I, tier: Tier): Promise<O> {
     throw Object.assign(new Error(text || `HTTP ${res.status}`), { status: res.status });
   }
   return (await res.json()) as O;
+}
+
+// 워커 운영 한도(클라이언트 게이팅용)를 읽는다. 실패 시 기본값으로 폴백한다(앱 동작은 막지 않음).
+export async function getConfig(): Promise<ClientLimits> {
+  if (USE_MOCK) return DEFAULT_CLIENT_LIMITS;
+  try {
+    const res = await fetch(`${WORKER_BASE}/config`, { method: "GET" });
+    if (!res.ok) return DEFAULT_CLIENT_LIMITS;
+    return (await res.json()) as ClientLimits;
+  } catch {
+    return DEFAULT_CLIENT_LIMITS;
+  }
 }
 
 export async function classify(input: Prompt1In): Promise<Prompt1Out> {

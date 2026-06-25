@@ -2,9 +2,10 @@
 // 디자인/구조는 panel.html을 따른다(theme.css = panel.html style verbatim). mock↔실API는 api.ts가 스위치.
 import { useReducer, useRef, useEffect, useCallback, type ReactNode } from "react";
 import type {
-  Prompt1Out, Choice, Term, Prompt5Out, Tag, RecommendInput,
+  Prompt1Out, Choice, Term, Prompt5Out, Tag, RecommendInput, ClientLimits,
 } from "@sidetab/shared";
 import * as api from "./api.js";
+import { DEFAULT_CLIENT_LIMITS } from "./api.js";
 import { loadSessions, saveSession, type SessionRec, type KeptTerm } from "./history.js";
 
 // ---------- 타입 ----------
@@ -33,8 +34,9 @@ interface State {
   plan: "flash" | "pro"; remaining: number; prevScreen: Screen; limitHit: boolean;
   errorMsg: string;
   sessionId: string; history: SessionRec[]; histView: boolean;
+  limits: ClientLimits;
 }
-const MIN_Q = 3, MAX_Q = 8;
+const MIN_Q = 3;
 const HIGHRISK = /(의료|진단|병원|처방|법률|소송|변호|판결|고소|세무신고|증상|치료)/;
 const CHIPS = [
   "졸업작품 모델이 자꾸 틀려요", "앱에 결제를 붙여야 해요", "추천 기능을 넣고 싶어요", "캐주얼 게임을 만들고 싶어요",
@@ -50,7 +52,7 @@ function initial(): State {
     moreLoading: false, moreLoaded: false, streaming: false,
     ctxInput: "", copied: false, copyFailed: false, shareNote: false, aiSummary: "", aiSummaryLoading: false,
     plan: "flash", remaining: 5, prevScreen: "entry", limitHit: false, errorMsg: "",
-    sessionId: "", history: [], histView: false,
+    sessionId: "", history: [], histView: false, limits: DEFAULT_CLIENT_LIMITS,
   };
 }
 
@@ -150,8 +152,8 @@ export function App() {
     const history = answers.flat().map((label) => ({ label, action: "선택" as const }));
     try {
       const p2 = await api.nextBranch({ domain: s.classifyOut?.domain ?? "", job_type: s.classifyOut?.job_type ?? [], history });
-      // free는 좁히기를 3턴에서 끝낸다(LLM 호출 절감). paid는 최대 MAX_Q까지 의중이 갈릴 때만 더 묻는다.
-      const maxQ = s.plan === "pro" ? MAX_Q : 3;
+      // 좁히기 최대 턴은 워커 한도(limits.narrowMax)에서 온다. free는 적게, paid는 의중이 갈릴 때만 더.
+      const maxQ = s.plan === "pro" ? s.limits.narrowMax.paid : s.limits.narrowMax.free;
       const enough = (answers.length >= MIN_Q && p2.enough) || answers.length >= maxQ;
       if (enough) { merge({ pending: false, confidence: p2.confidence }); void runRecommend(); return; }
       merge({ pending: false, confidence: p2.confidence, questions: [...s.questions, { question: p2.question, choices: p2.choices }] });
@@ -237,8 +239,8 @@ export function App() {
     if (s.openId === id) { merge({ openId: null }); return; }
     const t = s.terms.find((x) => x.id === id);
     const willFetch = !!t && !t.detail && !t.detailLoading; // 캐시 없으면 새로 불러온다
-    // 무료 상세 열람은 세션당 3회. 새로 불러오는 경우만 세고, 한도를 넘으면 페이월로 안내한다(캐시 재열람은 무제한).
-    if (willFetch && s.plan !== "pro" && s.detailCount >= 3) {
+    // 무료 상세 열람은 세션당 limits.detailLimitFree회. 새로 불러오는 경우만 세고, 한도를 넘으면 페이월(캐시 재열람은 무제한).
+    if (willFetch && s.plan !== "pro" && s.detailCount >= s.limits.detailLimitFree) {
       merge({ prevScreen: s.screen, screen: "paywall", limitHit: false });
       return;
     }
@@ -321,6 +323,8 @@ export function App() {
   useEffect(() => () => abortRef.current?.abort(), []);
   // 진입 화면에 들어설 때마다 저장된 이전 탐색을 다시 읽어 리스트를 채운다(reset 후에도 갱신).
   useEffect(() => { if (state.screen === "entry") void loadSessions().then((list) => merge({ history: list })); }, [state.screen, merge]);
+  // 워커 운영 한도(좁히기 턴·상세 횟수 등)를 한 번 읽어 게이팅에 쓴다. 실패 시 기본값 유지.
+  useEffect(() => { void api.getConfig().then((l) => merge({ limits: l })); }, [merge]);
 
   const live = state.screen === "narrow";
   return (

@@ -7,3 +7,24 @@ DEEPSEEK_API_KEY=your_deepseek_api_key_here
 TAVILY_API_KEY=your_tavily_api_key_here
 UPSTASH_REDIS_REST_URL=https://your-upstash-instance.upstash.io
 UPSTASH_REDIS_REST_TOKEN=your_upstash_rest_token_here
+
+# ── 운영 한도(전부 선택). 미설정이면 코드 기본값(shared DEFAULT_LIMITS)을 쓴다. ──
+# 여기 값만 바꾸면 코드 수정 없이 티어 차등·비용 한도를 조정한다(클라이언트 관련 값은 /config로 확장에 자동 반영).
+# 추천 어휘 개수(티어별)
+# TERM_COUNT_FREE=4
+# TERM_COUNT_PAID=8
+# 출력 토큰 상한(폭주 안전 상한, 너무 낮추면 JSON이 잘려 응답이 깨진다)
+# MAXTOK_CLASSIFY=900
+# MAXTOK_NEXT=800
+# MAXTOK_SUMMARIZE=1000
+# MAXTOK_RECOMMEND_FREE=1400
+# MAXTOK_RECOMMEND_PAID=2600
+# MAXTOK_DETAIL_FREE=900
+# MAXTOK_DETAIL_PAID=1300
+# 무료 주간 추천 한도 / 전역 일일 캡(빌드 폭주 방지)
+# FREE_WEEKLY_LIMIT=7
+# GLOBAL_DAILY_CAP=300
+# 좁히기 최대 턴(티어별) / 무료 세션당 상세 열람 횟수
+# NARROW_MAX_FREE=3
+# NARROW_MAX_PAID=8
+# DETAIL_LIMIT_FREE=3

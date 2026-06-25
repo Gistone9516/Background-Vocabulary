@@ -16,6 +16,7 @@ import type {
   Locale,
   DomainRisk,
   Tier,
+  Limits,
 } from "./types.js";
 import type { LlmClient, SearchProvider, CacheStore } from "./interfaces.js";
 
@@ -23,6 +24,8 @@ export interface PipelineDeps {
   llm: LlmClient;
   search: SearchProvider;
   cache: CacheStore;
+  // 운영 한도(어휘 개수·토큰 상한 등). 미지정이면 DEFAULT_LIMITS를 쓴다.
+  limits?: Limits;
 }
 
 // 추천(프롬프트3) 입력. 캐시키 조립에 domain과 topic과 locale이 필요하다.

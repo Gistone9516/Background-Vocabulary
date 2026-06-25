@@ -16,7 +16,22 @@ command = ""
 # wrangler secret put UPSTASH_REDIS_REST_TOKEN
 [vars]
 # 비밀이 아닌 공개 설정이 필요할 때 여기에 추가한다.
-# 예시: NODE_ENV = "production"
+# 운영 한도 튜닝 변수(전부 선택, 미설정이면 shared DEFAULT_LIMITS). 프로덕션은 여기 값으로 조정한다.
+# 클라이언트 관련 값(NARROW_MAX_*, DETAIL_LIMIT_FREE, FREE_WEEKLY_LIMIT)은 /config로 확장에 자동 반영된다.
+# TERM_COUNT_FREE = "4"
+# TERM_COUNT_PAID = "8"
+# MAXTOK_CLASSIFY = "900"
+# MAXTOK_NEXT = "800"
+# MAXTOK_SUMMARIZE = "1000"
+# MAXTOK_RECOMMEND_FREE = "1400"
+# MAXTOK_RECOMMEND_PAID = "2600"
+# MAXTOK_DETAIL_FREE = "900"
+# MAXTOK_DETAIL_PAID = "1300"
+# FREE_WEEKLY_LIMIT = "7"
+# GLOBAL_DAILY_CAP = "300"
+# NARROW_MAX_FREE = "3"
+# NARROW_MAX_PAID = "8"
+# DETAIL_LIMIT_FREE = "3"
 
 # 로컬 개발(.dev.vars 파일 참조):
 # .dev.vars 파일에 키를 넣으면 wrangler dev 실행 시 자동으로 env에 주입된다.
