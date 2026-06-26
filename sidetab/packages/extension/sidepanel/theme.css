@@ -66,6 +66,11 @@ header{display:flex;align-items:center;gap:10px;padding:11px 14px;background:var
 .plan b{font-size:11.5px;font-weight:700;color:var(--accent-ink)}
 .plan span{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
 .plan.warn b,.plan.warn span{color:var(--warn-ink)} .plan.warn{border-color:var(--warn-border)}
+/* pro 배지의 'pro' 글자는 메인 화면 오로라 색(그라데이션 텍스트)으로 특별함을 드러낸다. flash는 그대로 둔다. */
+.plan.ispro b{background:linear-gradient(90deg,transparent 30%,color-mix(in srgb,var(--aurora2) 55%,transparent) 50%,transparent 70%),linear-gradient(90deg,var(--aurora1),var(--aurora3));background-size:400% 100%,100% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:proSheen 20s linear infinite}
+/* 2층 구조. 아래는 파랑 베이스(불투명, 라이트에서도 또렷), 위는 자주빛 띠가 좌우로 흐른다. 위 레이어만 한 주기(400%) 이동하고 띠 양끝이 투명이라 루프 이음매가 없다. */
+@keyframes proSheen{0%{background-position:0% 0,0 0}100%{background-position:400% 0,0 0}}
+@media (prefers-reduced-motion:reduce){.plan.ispro b{animation:none}}
 /* 아주 좁은 사이드패널(최소 약 320px)에서 헤더가 한 줄을 유지하도록. 브랜드 부제를 숨기고 도구 간격과 언어 선택 폭을 줄인다. */
 @media (max-width:345px){header{gap:6px;padding:11px 10px}.brand span span{display:none}.htools{gap:3px}.langsel{max-width:72px}}
 
@@ -208,7 +213,6 @@ textarea.field{line-height:1.55}
 .hint{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
 .hint i{width:4px;height:4px;border-radius:99px;background:var(--accent);opacity:.6}
 .toggle{font-size:12.5px;font-weight:600;color:var(--muted);background:transparent;border:1px solid var(--border);border-radius:8px;padding:5px 9px}
-.toggle.on{color:var(--accent-ink);background:var(--accent-soft);border-color:var(--accent)}
 .taghint{display:flex;align-items:center;gap:8px;font-size:12.5px;line-height:1.5;color:var(--muted);background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:9px 11px;margin-bottom:11px}
 .taghint b{color:var(--text);font-weight:600}
 .taghint button{flex:0 0 auto;font-size:12.5px;font-weight:600;color:var(--accent-ink);padding:4px 8px}
@@ -216,6 +220,10 @@ textarea.field{line-height:1.55}
 .grouphead{display:flex;align-items:center;gap:8px;margin:8px 2px 9px}
 .grouphead b{font-size:12.5px;font-weight:700}
 .grouphead i{flex:1;height:1px;background:var(--border)}
+/* 그룹별 추가 생성 버튼(작게). 그룹명 옆 구분선 끝에 둔다. */
+.groupgen{flex:0 0 auto;font-size:12.5px;font-weight:600;color:var(--muted);background:transparent;border:1px solid var(--border);border-radius:8px;padding:1px 9px;line-height:1.4;transition:.12s}
+.groupgen:hover{border-color:var(--accent);color:var(--accent-ink)}
+.groupgen:disabled{opacity:.5;cursor:default}
 
 .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:13px;margin-bottom:9px;box-shadow:var(--shadow);transition:border-color .2s,box-shadow .2s}
 .card:hover{border-color:var(--accent)}
@@ -242,9 +250,10 @@ textarea.field{line-height:1.55}
 
 .detail{margin-top:11px;border-top:1px solid var(--border);padding-top:11px}
 .dsec{font-size:11px;font-weight:700;letter-spacing:.05em;color:var(--accent-ink);margin-bottom:8px}
-.dbody{display:flex;flex-direction:column;gap:9px;font-size:14px;line-height:1.66}
+.dbody{display:flex;flex-direction:column;gap:12px;font-size:13.5px;line-height:1.72;color:color-mix(in srgb,var(--text) 68%,var(--muted))}
 .dbody p{margin:0}
-.dbody .tag-in{color:var(--accent-ink);font-weight:700}
+.dbody p:first-of-type{font-weight:500;color:var(--text)}
+.dbody .tag-in{color:var(--accent-ink);font-weight:700;margin-right:1px}
 .misc{background:var(--surface-2);border-radius:8px;padding:8px 10px;font-size:13px;line-height:1.55;color:var(--text)}
 .related{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
 .relbtn{font-size:12.5px;font-weight:500;color:var(--text);background:var(--surface-2);border:1px solid var(--border);border-radius:99px;padding:5px 10px}
@@ -259,17 +268,39 @@ textarea.field{line-height:1.55}
 .keeprow{margin-top:11px}
 .keepbtn{width:100%;font-size:13.5px;font-weight:700;border-radius:10px;padding:10px;text-align:center;border:1px solid var(--border);background:var(--surface-2);color:var(--accent-ink);transition:.12s}
 .keepbtn:hover{border-color:var(--accent)}
-.keepbtn.on{color:var(--on-primary);background:var(--primary);border-color:var(--primary);box-shadow:var(--shadow)}
+.keepbtn.on{color:var(--accent-ink);background:var(--accent-soft);border-color:var(--accent)}
 .keepbtn.big{margin-top:13px}
-.card.kept{border-color:var(--accent);background:var(--accent-soft)}
+/* 상세 하단: 더 깊이(1)와 담기(2)를 좌우 2열로 둔다. */
+.detailacts{display:flex;gap:8px;margin-top:13px}
+.detailacts .deepen{flex:1;width:auto;margin-top:0}
+.detailacts .keepbtn.big{flex:2;margin-top:0}
+/* 카드 헤더 우측의 작은 담기 토글. 담으면 북마크가 채워질 뿐 색 변화는 최소로 둔다. */
+.keepmini{flex:0 0 auto;width:26px;height:26px;display:flex;align-items:center;justify-content:center;color:var(--faint);border-radius:7px;transition:color .12s,background .12s}
+.keepmini:hover{color:var(--accent-ink);background:var(--surface-2)}
+.keepmini svg{width:16px;height:16px}
+.keepmini.on{color:var(--accent-ink)}
+.keepmini.on svg{fill:currentColor}
+/* AI로 더 정리: 특별(pro) 기능임을 표시한다. 좌우 가장자리에서 은은한 오로라가 호흡한다(메인 화면과 같은 색). */
+.refinebtn{position:relative;overflow:hidden}
+.refinebtn::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background:radial-gradient(55% 150% at 0% 50%,var(--aurora1),transparent 70%),radial-gradient(55% 150% at 100% 50%,var(--aurora3),transparent 70%);opacity:.4;animation:refineGlow 6s ease-in-out infinite}
+.refinebtn .rlabel{position:relative;z-index:1;display:inline-flex;align-items:center;justify-content:center;gap:5px}
+.refinebtn .rlabel svg{width:12px;height:12px;opacity:.75}
+@keyframes refineGlow{0%,100%{opacity:.28}50%{opacity:.5}}
+@media (prefers-reduced-motion:reduce){.refinebtn::before{animation:none}}
+.card.kept{border-color:var(--accent)}
 
 /* 이전 탐색(히스토리) 리스트 */
 .history{margin-top:18px;display:flex;flex-direction:column;gap:7px}
 .histhead{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.02em;margin-bottom:2px}
-.histitem{display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left;border:1px solid var(--border);background:var(--surface);border-radius:11px;padding:11px 13px;transition:.12s}
+.histitem{display:flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--surface);border-radius:11px;padding:11px 13px;transition:.12s}
 .histitem:hover{border-color:var(--accent)}
+.histmain{flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left}
 .histtopic{font-size:13.5px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
 .histmeta{flex:0 0 auto;font-size:11.5px;color:var(--muted);font-weight:600}
+/* 이전 탐색 삭제: 예시 새로고침 버튼처럼 작고 평소 희미(투명도 30), 호버 시 진해지고 경고색. */
+.histdel{flex:0 0 auto;width:20px;height:20px;display:flex;align-items:center;justify-content:center;color:var(--muted);opacity:.3;transition:opacity .15s,color .15s}
+.histdel:hover{opacity:.75;color:var(--warn-ink)}
+.histdel svg{width:14px;height:14px}
 .more{width:100%;display:flex;align-items:center;justify-content:center;gap:7px;font-size:14px;font-weight:600;color:var(--accent-ink);background:var(--surface);border:1px dashed var(--border);border-radius:11px;padding:12px;margin-top:6px}
 .more.done{color:var(--muted);opacity:.65;cursor:default}
 .skel{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:13px;margin-bottom:9px}
@@ -280,11 +311,12 @@ textarea.field{line-height:1.55}
 .progress .track{flex:1;height:3px;border-radius:99px;background:var(--border);overflow:hidden}
 .progress .track i{display:block;height:100%;background:var(--grad);border-radius:99px;transition:width .4s}
 .progress small{font-size:11.5px;color:var(--muted);font-weight:600;font-variant-numeric:tabular-nums}
-/* pro 심화 구간(4번째 질문부터). 무료는 3턴에서 끝나 도달하지 않는다. */
-.progress.pro .track{height:5px;background:var(--accent-soft)}
-.progress.pro .track i{background:var(--grad);background-size:200% 100%;animation:proflow 1.5s linear infinite;box-shadow:0 0 8px var(--primary)}
-@keyframes proflow{0%{background-position:0 0}100%{background-position:200% 0}}
-.prophase{flex:0 0 auto;font-size:10.5px;font-weight:700;color:var(--on-primary);background:var(--primary);border-radius:99px;padding:2px 8px;letter-spacing:.02em}
+/* 아키네이터 진행바: 기본 트랙은 좌측 절반으로 3턴에 가득 찬다. 4턴부터 오른쪽 extra 트랙이 오로라로 연장된다(pro 심화). Terms 화면은 base/extra 없이 기본 트랙만 쓰므로 영향 없다. */
+.progress .track.base{flex:0 0 46%}
+.progress .track.extra{flex:1 1 auto;background:var(--border)}
+.progress .track.extra i{background:linear-gradient(90deg,var(--aurora1),var(--aurora2),var(--aurora3));box-shadow:0 0 7px color-mix(in srgb,var(--aurora1) 60%,transparent)}
+.progress.pro .track{height:4px}
+.promark{flex:0 0 auto;font-size:10px;font-weight:700;letter-spacing:.04em;color:color-mix(in srgb,var(--aurora2) 52%,var(--text));opacity:.9;white-space:nowrap}
 /* 무료에서 진행바 옆에 약하게 띄우는 pro 잠금 힌트(3턴 이후는 pro). */
 .prolock{flex:0 0 auto;display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;color:var(--muted);opacity:.5;white-space:nowrap}
 /* 언어 선택 드롭다운(헤더 구석). 작고 차분하게. */

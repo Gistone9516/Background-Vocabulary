@@ -1,12 +1,12 @@
 // 배경노트(Vock note) 사이드패널 — panel.html(UI 정본) 화면을 React로 이식하고 실 API에 배선.
 // UI 문자열은 i18n.ts의 t()(여기선 tr)로 가져온다. LLM 콘텐츠는 워커가 출력 언어로 만든다(별개).
-import { useReducer, useRef, useEffect, useCallback, useMemo, type ReactNode, type DragEvent } from "react";
+import { useReducer, useRef, useEffect, useState, useCallback, useMemo, type ReactNode, type DragEvent } from "react";
 import type {
   Prompt1Out, Choice, Term, Prompt5Out, Tag, RecommendInput, ClientLimits, OutputLocale,
 } from "@sidetab/shared";
 import * as api from "./api.js";
 import { DEFAULT_CLIENT_LIMITS } from "./api.js";
-import { loadSessions, saveSession, type SessionRec, type KeptTerm } from "./history.js";
+import { loadSessions, saveSession, deleteSession, type SessionRec, type KeptTerm } from "./history.js";
 import { t as tr, LOCALE_LABELS } from "./i18n.js";
 import { EXAMPLES, pickRandom } from "./examples.js";
 
@@ -32,7 +32,7 @@ interface State {
   customText: string; customOpen: boolean; // 아키네이터 직접 입력
   terms: UITerm[]; visibleCount: number; openId: string | null; opening: string | null;
   query: string; groupView: boolean; detailCount: number;
-  moreLoading: boolean; moreLoaded: boolean; streaming: boolean;
+  moreLoading: boolean; moreLoaded: boolean; streaming: boolean; groupGenLoading: string; refining: boolean;
   ctxInput: string; copied: boolean; copyFailed: boolean; shareNote: boolean;
   aiSummary: string; aiSummaryLoading: boolean;
   plan: "flash" | "pro"; remaining: number; prevScreen: Screen; limitHit: boolean;
@@ -41,19 +41,26 @@ interface State {
   limits: ClientLimits; locale: OutputLocale;
 }
 const MIN_Q = 3;
+// 아키네이터 로딩 문구. 추론이 길어질 때 4초 간격으로 다음 문구로 바꿔 진행감을 준다(마지막 문구에서 정지).
+const THINK_KEYS = ["thinking", "thinking2", "thinking3", "thinking4"] as const;
 const HIGHRISK = /(의료|진단|병원|처방|법률|소송|변호|판결|고소|세무신고|증상|치료)/;
 const LOCALE_TAG: Record<OutputLocale, string> = { ko: "ko-KR", en: "en-US", ja: "ja-JP", zh: "zh-CN" };
 
+// pro 여부를 localStorage에 저장해 화면 전환과 새로고침에도 유지한다. reset이 initial을 다시 부르므로 여기서 복원하면 goHome 후에도 pro가 남는다.
+function savedPlan(): "flash" | "pro" {
+  try { return localStorage.getItem("sidetab:plan") === "pro" ? "pro" : "flash"; } catch { return "flash"; }
+}
 function initial(): State {
+  const plan = savedPlan();
   return {
     screen: "entry", input: "", cond: "", showCond: false, inputErr: false,
     attachedFile: null, dragging: false, attachNote: "",
     chipSeed: 0, tutorialOpen: false,
     classifyOut: null, questions: [], answers: [], sel: [], confidence: 0, pending: false, customText: "", customOpen: false,
     terms: [], visibleCount: 0, openId: null, opening: null, query: "", groupView: false, detailCount: 0,
-    moreLoading: false, moreLoaded: false, streaming: false,
+    moreLoading: false, moreLoaded: false, streaming: false, groupGenLoading: "", refining: false,
     ctxInput: "", copied: false, copyFailed: false, shareNote: false, aiSummary: "", aiSummaryLoading: false,
-    plan: "flash", remaining: 5, prevScreen: "entry", limitHit: false, errorMsg: "",
+    plan, remaining: plan === "pro" ? 99 : 5, prevScreen: "entry", limitHit: false, errorMsg: "",
     sessionId: "", history: [], histView: false, limits: DEFAULT_CLIENT_LIMITS, locale: "ko",
   };
 }
@@ -75,7 +82,7 @@ function reducer(s: State, a: Action): State {
 // ---------- 표시 헬퍼 ----------
 // 문장 단위 줄바꿈: 마침표/물음표/느낌표 뒤(공백 동반)에서 줄을 나눠 <br/>로.
 function sentLines(t: string): ReactNode[] {
-  const parts = t.split(/([.!?]\s+)/);
+  const parts = String(t ?? "").split(/([.!?]\s+)/);
   const out: ReactNode[] = []; let buf = "";
   for (const p of parts) {
     buf += p;
@@ -114,6 +121,8 @@ const SearchIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentCo
 const LinkIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M7 17L17 7M9 7h8v8" /></svg>);
 const RefreshIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 11a8 8 0 1 0-.9 4.5" /><path d="M20 4v6h-6" /></svg>);
 const LockIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>);
+const TrashIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3M10 11v6M14 11v6" /></svg>);
+const BookmarkIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4h12a1 1 0 0 1 1 1v15l-7-4.5L5 20V5a1 1 0 0 1 1-1z" /></svg>);
 
 export function App() {
   const [state, dispatch] = useReducer(reducer, undefined, initial);
@@ -125,12 +134,18 @@ export function App() {
   // ----- 진입 -----
   const go = (screen: Screen) => merge({ screen });
   const goHome = () => dispatch({ type: "reset" });
+  // 이전 탐색 항목 삭제: 저장소에서 지우고 남은 목록으로 갱신.
+  const deleteHistory = (id: string) => { void deleteSession(id).then((list) => merge({ history: list })); };
 
   const startNarrow = useCallback(async (raw: string) => {
-    merge({ pending: true, screen: "narrow", answers: [], sel: [], questions: [], input: raw });
+    merge({ pending: true, screen: "narrow", answers: [], sel: [], questions: [], input: raw, refining: false });
     try {
       const p1 = await api.classify({ raw_input: raw, ...(sref.current.attachedFile ? { context_object: sref.current.attachedFile.text } : {}) });
       if (p1.domain_risk === "high") { merge({ pending: false, screen: "refusal" }); return; }
+      // 분류 결과가 비정상(질문/선택지 형태가 깨짐)이면 좁히기를 건너뛰고 바로 추천으로. 렌더 중 throw로 인한 블랭크 크래시 방지.
+      if (typeof p1.question !== "string" || !Array.isArray(p1.choices) || p1.choices.length === 0) {
+        merge({ pending: false, classifyOut: p1 }); void runRecommend(); return;
+      }
       merge({ pending: false, classifyOut: p1, questions: [{ question: p1.question, choices: p1.choices }] });
     } catch (e) {
       merge({ pending: false, screen: "terms", errorMsg: msg(e), streaming: false });
@@ -168,25 +183,44 @@ export function App() {
     const next = sel.includes(o) ? sel.filter((x) => x !== o) : [...sel, o];
     merge({ sel: next });
   };
-  const nextStep = useCallback(async () => {
-    const s = sref.current;
-    const custom = s.customText.trim();
-    const picked = custom ? [...s.sel, custom] : s.sel; // 칩 + 직접 입력 합산(ⓑ)
-    if (picked.length === 0) return;
-    const answers = [...s.answers, picked];
-    merge({ answers, sel: [], customText: "", customOpen: false, pending: true });
+  // 좁히기 한 턴 진행: 누적 답변으로 nextBranch를 호출해 다음 질문을 받거나, 충분하면 추천으로 넘긴다. nextStep과 조건 재탐색이 공유한다.
+  const advanceNarrow = useCallback(async (answers: string[][]) => {
+    const s0 = sref.current;
     const history = answers.flat().map((label) => ({ label, action: "선택" as const }));
     try {
-      const p2 = await api.nextBranch({ domain: s.classifyOut?.domain ?? "", job_type: s.classifyOut?.job_type ?? [], history, ...(s.attachedFile ? { context_object: s.attachedFile.text } : {}) });
+      const p2 = await api.nextBranch({ domain: s0.classifyOut?.domain ?? "", job_type: s0.classifyOut?.job_type ?? [], history, ...(s0.attachedFile ? { context_object: s0.attachedFile.text } : {}) });
+      const s = sref.current;
       // 좁히기 최대 턴은 워커 한도(limits.narrowMax)에서 온다. free는 적게, paid는 의중이 갈릴 때만 더.
       const maxQ = s.plan === "pro" ? s.limits.narrowMax.paid : s.limits.narrowMax.free;
+      const conf = Number.isFinite(p2.confidence) ? p2.confidence : s.confidence;
       const enough = (answers.length >= MIN_Q && p2.enough) || answers.length >= maxQ;
-      if (enough) { merge({ pending: false, confidence: p2.confidence }); void runRecommend(); return; }
-      merge({ pending: false, confidence: p2.confidence, questions: [...s.questions, { question: p2.question, choices: p2.choices }] });
+      // 다음 질문이 비정상이면(off-topic 등으로 형태가 깨짐) 좁히기를 종료하고 추천으로. 렌더 중 throw로 인한 블랭크 크래시 방지.
+      const badNext = typeof p2.question !== "string" || !Array.isArray(p2.choices) || p2.choices.length === 0;
+      if (enough || badNext) { merge({ pending: false, confidence: conf }); void runRecommend(sref.current.refining); return; }
+      merge({ pending: false, confidence: conf, questions: [...s.questions, { question: p2.question, choices: p2.choices }] });
     } catch (e) {
       merge({ pending: false, screen: "terms", errorMsg: msg(e) });
     }
   }, [merge]);
+  const nextStep = useCallback(async () => {
+    const s = sref.current;
+    const custom = s.customText.trim();
+    const picked = custom ? [...s.sel, custom] : s.sel; // 칩 + 직접 입력 합산
+    if (picked.length === 0) return;
+    const answers = [...s.answers, picked];
+    merge({ answers, sel: [], customText: "", customOpen: false, pending: true });
+    await advanceNarrow(answers);
+  }, [merge, advanceNarrow]);
+  // Terms에서 조건을 입력해 아키네이터로 재진입(다음 질문부터). pro 전용, 무료는 페이월. narrowMax 동일 적용.
+  const refineFromTerms = useCallback(async (text: string) => {
+    const s = sref.current;
+    const t = text.trim();
+    if (!t) return;
+    if (s.plan !== "pro") { merge({ prevScreen: "terms", screen: "paywall", limitHit: false }); return; }
+    const answers = [...s.answers, [t]];
+    merge({ answers, sel: [], customText: "", customOpen: false, query: "", screen: "narrow", pending: true, refining: true });
+    await advanceNarrow(answers);
+  }, [merge, advanceNarrow]);
   const undoStep = () => { const s = sref.current; if (s.answers.length) merge({ answers: s.answers.slice(0, -1), sel: [], customText: "", customOpen: false }); };
   const jumpToTerms = () => void runRecommend();
 
@@ -200,13 +234,30 @@ export function App() {
       ...(s.attachedFile ? { context_object: s.attachedFile.text } : {}),
     };
   };
-  const runRecommend = useCallback(async () => {
+  const runRecommend = useCallback(async (append = false) => {
     const s = sref.current;
-    if (s.remaining <= 0) { merge({ prevScreen: s.screen, screen: "paywall", limitHit: true }); return; }
+    const tier = s.plan === "pro" ? "paid" : "free";
+    if (!append && s.remaining <= 0) { merge({ prevScreen: s.screen, screen: "paywall", limitHit: true }); return; }
     abortRef.current?.abort();
     const ctrl = new AbortController(); abortRef.current = ctrl;
-    merge({ screen: "terms", terms: [], visibleCount: 0, openId: null, streaming: true, errorMsg: "", moreLoaded: false, query: "", remaining: Math.max(0, s.remaining - 1), sessionId: crypto.randomUUID(), histView: false, detailCount: 0 });
-    await api.streamRecommend(buildRecInput(), s.plan === "pro" ? "paid" : "free", (ev) => {
+    if (append) {
+      // 조건 재탐색: 기존 리스트를 비우지 않고 이어서 추가한다(기존 어휘 제외, 누적 상한까지).
+      const cap = s.limits.maxTotal[tier];
+      merge({ screen: "terms", streaming: true, errorMsg: "", moreLoaded: false, query: "", refining: false });
+      const exclude = s.terms.map((t) => t.term);
+      await api.streamRecommend(buildRecInput(exclude), tier, (ev) => {
+        if (ev.type === "term") {
+          if (sref.current.terms.length >= cap) { ctrl.abort(); return; }
+          const n = sref.current.terms.length; const id = "r" + n;
+          dispatch({ type: "addTerm", term: { ...ev.term, priority: n + 1, id, kept: false, deepened: false, _new: true } });
+          later(() => dispatch({ type: "updateTerm", id, patch: { _new: false } }), 780);
+        } else if (ev.type === "done") merge({ streaming: false });
+        else if (ev.type === "error") merge({ streaming: false, errorMsg: ev.message, ...(ev.code === "HIGH_RISK_REFUSED" ? { screen: "refusal" } : {}) });
+      }, ctrl.signal).catch((e) => { if ((e as Error).name !== "AbortError") merge({ streaming: false, errorMsg: msg(e) }); });
+      return;
+    }
+    merge({ screen: "terms", terms: [], visibleCount: 0, openId: null, streaming: true, errorMsg: "", moreLoaded: false, query: "", remaining: Math.max(0, s.remaining - 1), sessionId: crypto.randomUUID(), histView: false, detailCount: 0, refining: false });
+    await api.streamRecommend(buildRecInput(), tier, (ev) => {
       if (ev.type === "term") {
         const id = "t" + sref.current.terms.length;
         dispatch({ type: "addTerm", term: { ...ev.term, id, kept: false, deepened: false, _new: true } });
@@ -221,6 +272,7 @@ export function App() {
     if (s.moreLoaded || s.moreLoading) return;
     // 더 보기는 유료 전용. 무료는 페이월로 보낸다(추가 추천 호출 절감).
     if (s.plan !== "pro") { merge({ prevScreen: "terms", screen: "paywall", limitHit: false }); return; }
+    if (s.terms.length >= s.limits.maxTotal.paid) { merge({ moreLoaded: true }); return; } // 누적 상한(maxTotal) 도달
     merge({ moreLoading: true });
     const exclude = s.terms.map((t) => t.term);
     let got = 0;
@@ -234,6 +286,28 @@ export function App() {
       }
     }, ctrl.signal).catch(() => {});
     merge({ moreLoading: false, moreLoaded: got === 0 });
+  }, [merge]);
+
+  // 그룹 보기에서 해당 그룹 어휘만 추가 생성한다(무료 2·유료 4 고정). maxTotal 누적 상한을 적용한다.
+  const genGroup = useCallback(async (group: string) => {
+    const s = sref.current;
+    if (s.groupGenLoading) return;
+    const tier: "free" | "paid" = s.plan === "pro" ? "paid" : "free";
+    if (s.terms.length >= s.limits.maxTotal[tier]) { merge({ prevScreen: "terms", screen: "paywall", limitHit: true }); return; }
+    merge({ groupGenLoading: group });
+    const want = s.limits.groupGen[tier];
+    const exclude = s.terms.map((t) => t.term);
+    let got = 0;
+    const ctrl = new AbortController();
+    await api.streamRecommend({ ...buildRecInput(exclude), user_condition: `Only suggest vocabulary that belongs to the group "${group}".` }, tier, (ev) => {
+      if (ev.type === "term" && got < want) {
+        got++; const n = sref.current.terms.length; const id = "g" + n;
+        dispatch({ type: "addTerm", term: { ...ev.term, group, priority: n + 1, id, kept: false, deepened: false, _new: true } });
+        later(() => dispatch({ type: "updateTerm", id, patch: { _new: false } }), 780);
+        if (got >= want) ctrl.abort();
+      }
+    }, ctrl.signal).catch(() => {});
+    merge({ groupGenLoading: "" });
   }, [merge]);
 
   // ----- Keep(담기)/상세 -----
@@ -346,7 +420,7 @@ export function App() {
 
   const openPaywall = () => merge({ prevScreen: sref.current.screen, screen: "paywall", limitHit: false });
   const closePaywall = () => merge({ screen: sref.current.prevScreen === "paywall" ? "entry" : sref.current.prevScreen });
-  const onUpgrade = () => { merge({ plan: "pro", remaining: 99 }); later(closePaywall, 350); };
+  const onUpgrade = () => { merge({ plan: "pro", remaining: 99 }); try { localStorage.setItem("sidetab:plan", "pro"); } catch { /* 무시 */ } later(closePaywall, 350); };
   // 언어 변경: api 헤더·로컬 저장·상태를 함께 갱신한다(재빌드 없이 즉시 반영).
   const changeLocale = (l: OutputLocale) => {
     api.setLocale(l);
@@ -380,9 +454,9 @@ export function App() {
     <div id="app" className={live ? "live" : ""} role="application" aria-label="Vock note">
       {state.pending && <div className="bar" role="status"><i /></div>}
       <Header state={state} openPaywall={openPaywall} goHome={goHome} changeLocale={changeLocale} openTutorial={() => merge({ tutorialOpen: true })} />
-      {state.screen === "entry" && <Entry state={state} merge={merge} submitEntry={submitEntry} chip={chip} openHistory={openHistory} acceptFile={acceptFile} attachPaywall={attachPaywall} removeAttached={removeAttached} />}
+      {state.screen === "entry" && <Entry state={state} merge={merge} submitEntry={submitEntry} chip={chip} openHistory={openHistory} deleteHistory={deleteHistory} acceptFile={acceptFile} attachPaywall={attachPaywall} removeAttached={removeAttached} />}
       {state.screen === "narrow" && <Narrow state={state} merge={merge} toggleSel={toggleSel} nextStep={nextStep} undoStep={undoStep} jumpToTerms={jumpToTerms} />}
-      {state.screen === "terms" && <Terms state={state} merge={merge} loadMore={loadMore} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} doDeepen={doDeepen} go={go} />}
+      {state.screen === "terms" && <Terms state={state} merge={merge} loadMore={loadMore} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} doDeepen={doDeepen} go={go} refine={refineFromTerms} genGroup={genGroup} />}
       {state.screen === "kept" && <Kept state={state} merge={merge} go={go} goHome={goHome} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} doDeepen={doDeepen} buildSummary={buildSummary} onCopy={onCopy} onShare={onShare} aiRefine={aiRefine} />}
       {state.screen === "paywall" && <Paywall state={state} closePaywall={closePaywall} onUpgrade={onUpgrade} />}
       {state.screen === "refusal" && <Refusal state={state} goHome={goHome} />}
@@ -405,11 +479,14 @@ function Header({ state, openPaywall, goHome, changeLocale, openTutorial }: { st
         <span><b>{brandName}</b><span>{brandSub}</span></span>
       </button>
       <div className="htools">
-        <button className="help" onClick={openTutorial} aria-label={tr(state.locale, "help")} title={tr(state.locale, "help")}>?</button>
-        <select className="langsel" aria-label={tr(state.locale, "lang_label")} value={state.locale} onChange={(e) => changeLocale(e.target.value as OutputLocale)}>
-          {(Object.keys(LOCALE_LABELS) as OutputLocale[]).map((l) => <option key={l} value={l}>{LOCALE_LABELS[l]}</option>)}
-        </select>
-        <button className={`plan ${warn ? "warn" : ""}`} onClick={openPaywall}>
+        {/* 언어 설정과 도움말은 진입(메인) 화면에서만. 이미 생성된 LLM 텍스트는 언어 변경에 반응하지 않아, 탐색 중 전환을 막는다. */}
+        {state.screen === "entry" && <>
+          <button className="help" onClick={openTutorial} aria-label={tr(state.locale, "help")} title={tr(state.locale, "help")}>?</button>
+          <select className="langsel" aria-label={tr(state.locale, "lang_label")} value={state.locale} onChange={(e) => changeLocale(e.target.value as OutputLocale)}>
+            {(Object.keys(LOCALE_LABELS) as OutputLocale[]).map((l) => <option key={l} value={l}>{LOCALE_LABELS[l]}</option>)}
+          </select>
+        </>}
+        <button className={`plan ${state.plan === "pro" ? "ispro" : ""} ${warn ? "warn" : ""}`} onClick={openPaywall}>
           {state.plan === "pro" ? <><b>pro</b><span>{tr(state.locale, "plan_unlimited")}</span></> : <><b>flash</b><span>{tr(state.locale, "plan_free_left", { n: state.remaining })}</span></>}
         </button>
       </div>
@@ -417,7 +494,7 @@ function Header({ state, openPaywall, goHome, changeLocale, openTutorial }: { st
   );
 }
 
-function Entry({ state, merge, submitEntry, chip, openHistory, acceptFile, attachPaywall, removeAttached }: { state: State; merge: (p: Partial<State>) => void; submitEntry: () => void; chip: (t: string) => void; openHistory: (rec: SessionRec) => void; acceptFile: (f: File) => void; attachPaywall: () => void; removeAttached: () => void }) {
+function Entry({ state, merge, submitEntry, chip, openHistory, deleteHistory, acceptFile, attachPaywall, removeAttached }: { state: State; merge: (p: Partial<State>) => void; submitEntry: () => void; chip: (t: string) => void; openHistory: (rec: SessionRec) => void; deleteHistory: (id: string) => void; acceptFile: (f: File) => void; attachPaywall: () => void; removeAttached: () => void }) {
   const loc = state.locale;
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -471,10 +548,13 @@ function Entry({ state, merge, submitEntry, chip, openHistory, acceptFile, attac
           <div className="history">
             <div className="histhead">{tr(loc, "history_head")}</div>
             {state.history.slice(0, 8).map((h) => (
-              <button key={h.id} className="histitem" onClick={() => openHistory(h)}>
-                <span className="histtopic">{h.topic || tr(loc, "history_untitled")}</span>
-                <span className="histmeta">{tr(loc, "history_meta", { n: h.terms.length, date: fmtDate(h.createdAt, loc) })}</span>
-              </button>
+              <div key={h.id} className="histitem">
+                <button className="histmain" onClick={() => openHistory(h)}>
+                  <span className="histtopic">{h.topic || tr(loc, "history_untitled")}</span>
+                  <span className="histmeta">{tr(loc, "history_meta", { n: h.terms.length, date: fmtDate(h.createdAt, loc) })}</span>
+                </button>
+                <button className="histdel" onClick={() => deleteHistory(h.id)} aria-label={tr(loc, "history_delete")} title={tr(loc, "history_delete")}><TrashIcon /></button>
+              </div>
             ))}
           </div>
         )}
@@ -487,21 +567,32 @@ function Entry({ state, merge, submitEntry, chip, openHistory, acceptFile, attac
 function Narrow({ state, merge, toggleSel, nextStep, undoStep, jumpToTerms }: { state: State; merge: (p: Partial<State>) => void; toggleSel: (o: string) => void; nextStep: () => void; undoStep: () => void; jumpToTerms: () => void }) {
   const loc = state.locale;
   const customRef = useRef<HTMLTextAreaElement>(null);
+  // 로딩 중일 때 4초 간격으로 문구 인덱스를 올린다(마지막에서 멈춤). pending이 끝나거나 화면을 떠나면 정리한다.
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (!state.pending) { setTick(0); return; }
+    setTick(0);
+    const id = window.setInterval(() => setTick((n) => (n < THINK_KEYS.length - 1 ? n + 1 : n)), 4000);
+    return () => window.clearInterval(id);
+  }, [state.pending]);
   // 입력 길이에 따라 높이가 늘어나는 적응형 입력(최대 140px 후 내부 스크롤).
   const growCustom = () => { const el = customRef.current; if (el) { el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight, 140) + "px"; } };
   if (state.pending) {
     return (<main className="scroll entryMain"><div className="thinking">
       <div className="aiav"><Spark /></div>
-      <div className="msg">{sentLines(tr(loc, "thinking"))}</div>
+      <div className="msg">{sentLines(tr(loc, THINK_KEYS[tick]))}</div>
       <div className="dots3"><i /><i /><i /></div>
     </div></main>);
   }
   const idx = state.answers.length;
   const cur = state.questions[idx] ?? state.questions[state.questions.length - 1];
-  // 진행은 confidence와 진행 위치(목표 3턴) 중 큰 값으로 부드럽게 채운다(점 팝 없음).
-  const pct = Math.round(Math.max(state.confidence, Math.min(idx, 3) / 3) * 100);
+  // 기본 진행바는 턴 수로만 채운다(confidence 무관). 한 칸 당겨 3번째 질문(idx 2)에서 100%가 되고, 그 뒤는 pro 연장 트랙이 맡는다.
+  const pct = Math.round(Math.min(idx + 1, 3) / 3 * 100);
   // 4번째 질문부터는 pro 전용 심화 구간(무료는 3턴에서 종료되므로 자연히 pro만 도달).
   const proPhase = idx >= 3;
+  // 4턴부터 기본 진행바 오른쪽으로 오로라가 연장되는 비율(paid 한도까지 채워짐).
+  const maxPaid = state.limits.narrowMax.paid;
+  const extraPct = proPhase ? Math.round(Math.min(1, (idx - 3) / Math.max(1, maxPaid - 3)) * 100) : 0;
   return (
     <main className="scroll"><div className="pad" style={{ display: "flex", flexDirection: "column" }}>
       <div className="aiwrap">
@@ -510,9 +601,11 @@ function Narrow({ state, merge, toggleSel, nextStep, undoStep, jumpToTerms }: { 
         {state.answers.length > 0 && <button className="link" style={{ marginLeft: "auto" }} onClick={undoStep}>{tr(loc, "undo")}</button>}
       </div>
       <div className={`progress${proPhase ? " pro" : ""}`} style={{ marginBottom: 16 }}>
-        <div className="track"><i style={{ width: pct + "%" }} /></div>
-        {proPhase && <span className="prophase">{tr(loc, "prophase")}</span>}
-        {state.plan !== "pro" && <span className="prolock" title={tr(loc, "prolock_title")}><LockIcon />{tr(loc, "prolock")}</span>}
+        <div className="track base"><i style={{ width: pct + "%" }} /></div>
+        {proPhase && <div className="track extra"><i style={{ width: extraPct + "%" }} /></div>}
+        {proPhase
+          ? <span className="promark">{tr(loc, "prolock")}</span>
+          : (state.plan !== "pro" && <span className="prolock" title={tr(loc, "prolock_title")}><LockIcon />{tr(loc, "prolock")}</span>)}
       </div>
       <h2>{sentLines(cur?.question ?? "")}</h2>
       <p className="lead" style={{ margin: "6px 0 16px" }}>{tr(loc, "narrow_lead")}</p>
@@ -551,10 +644,10 @@ function Detail({ t, locale, opening, jumpRelated, doDeepen, toggleKeep }: { t: 
       {d.sources.length > 0
         ? d.sources.map((s, i) => <a key={i} className="src" href={s.url} target="_blank" rel="noopener noreferrer"><span style={{ color: "var(--faint)", flex: "0 0 auto" }}><LinkIcon /></span><span style={{ flex: 1, minWidth: 0 }}><b>{s.title}</b><small>{s.site}</small></span></a>)
         : <div className="nosrc">{tr(locale, "detail_nosrc")}</div>}
-      {t.deepened
-        ? null
-        : <button className="deepen" onClick={() => doDeepen(t.id)}>{tr(locale, "deepen")}</button>}
-      <button className={`keepbtn big ${t.kept ? "on" : ""}`} onClick={() => toggleKeep(t.id)}>{t.kept ? tr(locale, "keep_detail_on") : tr(locale, "keep_detail_off")}</button>
+      <div className="detailacts">
+        {!t.deepened && <button className="deepen" onClick={() => doDeepen(t.id)}>{tr(locale, "deepen")}</button>}
+        <button className={`keepbtn big ${t.kept ? "on" : ""}`} onClick={() => toggleKeep(t.id)}>{t.kept ? tr(locale, "keep_detail_on") : tr(locale, "keep_detail_off")}</button>
+      </div>
     </div>
   );
 }
@@ -578,37 +671,30 @@ function Card({ t, i, state, toggleKeep, toggleDetail, jumpRelated, doDeepen }: 
           <div className="oneline">{sentLines(t.one_line)}</div>
           <div className="why"><b>{tr(loc, "why_label")}</b><span>{firstSentence(t.why)}</span></div>
         </div>
+        <button className={`keepmini ${t.kept ? "on" : ""}`} onClick={(e) => { e.stopPropagation(); toggleKeep(t.id); }} aria-label={t.kept ? tr(loc, "keep_on") : tr(loc, "keep_off")} title={t.kept ? tr(loc, "keep_on") : tr(loc, "keep_off")}><BookmarkIcon /></button>
         <span className="chev"><Chev /></span>
       </div>
       {open && <Detail t={t} locale={loc} opening={state.opening === t.id} jumpRelated={jumpRelated} doDeepen={doDeepen} toggleKeep={toggleKeep} />}
-      <div className="keeprow">
-        <button className={`keepbtn ${t.kept ? "on" : ""}`} onClick={() => toggleKeep(t.id)}>{t.kept ? tr(loc, "keep_on") : tr(loc, "keep_off")}</button>
-      </div>
     </div>
   );
 }
 
-function Terms({ state, merge, loadMore, toggleKeep, toggleDetail, jumpRelated, doDeepen, go }: { state: State; merge: (p: Partial<State>) => void; loadMore: () => void; toggleKeep: (id: string) => void; toggleDetail: (id: string) => void; jumpRelated: (n: string) => void; doDeepen: (id: string) => void; go: (s: Screen) => void }) {
+function Terms({ state, merge, loadMore, toggleKeep, toggleDetail, jumpRelated, doDeepen, go, refine, genGroup }: { state: State; merge: (p: Partial<State>) => void; loadMore: () => void; toggleKeep: (id: string) => void; toggleDetail: (id: string) => void; jumpRelated: (n: string) => void; doDeepen: (id: string) => void; go: (s: Screen) => void; refine: (text: string) => void; genGroup: (group: string) => void }) {
   const loc = state.locale;
   const revealed = state.terms.slice(0, state.visibleCount);
   let active = [...revealed];
-  const q = state.query.trim().toLowerCase();
-  if (q) active = active.filter((t) => (t.term + " " + t.one_line).toLowerCase().includes(q));
   if (state.groupView) active = [...active].sort((a, b) => (a.group ?? "").localeCompare(b.group ?? "") || a.priority - b.priority);
-  const total = state.terms.length || 6;
-  const pct = Math.round((state.visibleCount / Math.max(1, total)) * 100);
   const keptCount = revealed.filter((t) => t.kept).length;
   let lastG: string | undefined;
   return (
     <>
       <main className="scroll"><div style={{ padding: "13px 13px 14px" }}>
         <div className="tagrow"><span className="minitag">{state.classifyOut?.domain ?? tr(loc, "terms_domain_fallback")}</span><small>{tr(loc, "terms_domain_label")}</small></div>
-        <div className="searchwrap"><SearchIcon /><input className="search" aria-label={tr(loc, "terms_search_ph")} placeholder={tr(loc, "terms_search_ph")} value={state.query} onChange={(e) => merge({ query: e.target.value })} /></div>
-        <div className="progress"><div className="track"><i style={{ width: pct + "%" }} /></div><small>{state.visibleCount}/{total}</small></div>
-        <div className="toolrow"><span className="hint"><i />{tr(loc, "terms_hint")}</span><button className={`toggle ${state.groupView ? "on" : ""}`} onClick={() => merge({ groupView: !state.groupView })}>{state.groupView ? tr(loc, "group_off") : tr(loc, "group_on")}</button></div>
+        <div className="searchwrap"><SearchIcon /><input className="search" aria-label={tr(loc, "terms_refine_ph")} placeholder={tr(loc, "terms_refine_ph")} value={state.query} onChange={(e) => merge({ query: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); refine(state.query); } }} /></div>
+        <div className="toolrow"><span className="hint">{tr(loc, "terms_count", { max: state.plan === "pro" ? state.limits.maxTotal.paid : state.limits.maxTotal.free, n: state.terms.length })}</span><button className={`toggle ${state.groupView ? "on" : ""}`} onClick={() => merge({ groupView: !state.groupView })}>{state.groupView ? tr(loc, "group_off") : tr(loc, "group_on")}</button></div>
         {state.errorMsg && <div className="taghint" style={{ color: "var(--warn-ink)" }}><span>{state.errorMsg}</span></div>}
         {active.length > 0 ? active.map((t, i) => {
-          const head = state.groupView && t.group !== lastG ? <div key={"g" + t.id} className="grouphead"><b>{t.group}</b><i /></div> : null;
+          const head = state.groupView && t.group !== lastG ? <div key={"g" + t.id} className="grouphead"><b>{t.group}</b><i /><button className="groupgen" onClick={() => genGroup(t.group as string)} disabled={!!state.groupGenLoading}>{state.groupGenLoading === t.group ? tr(loc, "group_gen_loading") : tr(loc, "group_gen", { n: state.plan === "pro" ? state.limits.groupGen.paid : state.limits.groupGen.free })}</button></div> : null;
           lastG = t.group;
           return <div key={t.id}>{head}<Card t={t} i={i} state={state} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} doDeepen={doDeepen} /></div>;
         }) : <p className="note" style={{ margin: "24px 0" }}>{state.streaming ? tr(loc, "terms_loading") : tr(loc, "terms_nomatch")}</p>}
@@ -645,7 +731,7 @@ function Kept({ state, merge, go, goHome, toggleKeep, toggleDetail, jumpRelated,
           <button className="btn btn-ghost" style={{ flex: 2 }} onClick={onCopy}>{copyLabel}</button>
           <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onShare}>{state.shareNote ? tr(loc, "share_done") : tr(loc, "share")}</button>
         </div>
-        <button className="btn btn-ghost" style={{ marginTop: 10 }} onClick={aiRefine}>{state.aiSummaryLoading ? tr(loc, "refine_loading") : state.plan === "pro" ? tr(loc, "refine") : tr(loc, "refine_locked")}</button>
+        <button className="btn btn-ghost refinebtn" style={{ marginTop: 10 }} onClick={aiRefine}><span className="rlabel">{state.aiSummaryLoading ? tr(loc, "refine_loading") : state.plan === "pro" ? tr(loc, "refine") : <>{tr(loc, "refine_locked")}<LockIcon /></>}</span></button>
       </>}
       <button className="link" style={{ alignSelf: "center", color: "var(--muted)", marginTop: 14 }} onClick={goHome}>{tr(loc, "restart")}</button>
       <p className="note">{tr(loc, "kept_note")}</p>
@@ -663,7 +749,7 @@ function Paywall({ state, closePaywall, onUpgrade }: { state: State; closePaywal
       <p className="lead" style={{ margin: "4px 0 16px" }}>{state.plan === "pro" ? tr(loc, "plan_unlimited") : tr(loc, "plan_free_left", { n: state.remaining })}</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <div className="plancard"><div className="ph"><b>{tr(loc, "pw_free_card")}</b><span>₩0</span></div><ul><li>{tr(loc, "pw_free_1")}</li><li>{tr(loc, "pw_free_2")}</li><li>{tr(loc, "pw_free_3")}</li></ul></div>
-        <div className="plancard hi"><div className="ribbon">{tr(loc, "pw_reco")}</div><div className="ph"><b>{tr(loc, "pw_pro_card")}</b><span className="hl">{tr(loc, "pw_pro_price")}</span></div><ul><li>{tr(loc, "pw_pro_1")}</li><li>{tr(loc, "pw_pro_2")}</li><li>{tr(loc, "pw_pro_3")}</li></ul></div>
+        <div className="plancard hi"><div className="ribbon">{tr(loc, "pw_reco")}</div><div className="ph"><b>{tr(loc, "pw_pro_card")}</b><span className="hl">{tr(loc, "pw_pro_price")}</span></div><ul><li>{tr(loc, "pw_pro_1")}</li><li>{tr(loc, "pw_pro_2")}</li><li>{tr(loc, "pw_pro_3")}</li><li>{tr(loc, "pw_pro_4")}</li><li>{tr(loc, "pw_pro_5")}</li></ul></div>
       </div>
       <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={onUpgrade}>{state.plan === "pro" ? tr(loc, "pw_preview_on") : tr(loc, "pw_preview")}</button>
       <p className="note">{tr(loc, "pw_note")}</p>

@@ -42,6 +42,8 @@ export interface Env {
   FREE_WEEKLY_LIMIT?: string; GLOBAL_DAILY_CAP?: string;
   NARROW_MAX_FREE?: string; NARROW_MAX_PAID?: string;
   DETAIL_LIMIT_FREE?: string;
+  MAX_TOTAL_FREE?: string; MAX_TOTAL_PAID?: string;
+  GROUP_GEN_FREE?: string; GROUP_GEN_PAID?: string;
   MAX_INPUT_CHARS?: string; RATE_PER_MIN?: string; RATE_PER_DAY?: string;
   MAX_CONTEXT_CHARS?: string;
   // 설정 시 이 chrome-extension origin만 허용(프로덕션 확장 ID 잠금). 미설정이면 모든 확장 허용(개발).
@@ -70,6 +72,8 @@ function buildLimits(env: Env): Limits {
     globalDailyCap: num(env.GLOBAL_DAILY_CAP, D.globalDailyCap),
     narrowMax: { free: num(env.NARROW_MAX_FREE, D.narrowMax.free), paid: num(env.NARROW_MAX_PAID, D.narrowMax.paid) },
     detailLimitFree: num(env.DETAIL_LIMIT_FREE, D.detailLimitFree),
+    maxTotal: { free: num(env.MAX_TOTAL_FREE, D.maxTotal.free), paid: num(env.MAX_TOTAL_PAID, D.maxTotal.paid) },
+    groupGen: { free: num(env.GROUP_GEN_FREE, D.groupGen.free), paid: num(env.GROUP_GEN_PAID, D.groupGen.paid) },
     maxInputChars: num(env.MAX_INPUT_CHARS, D.maxInputChars),
     ratePerMin: num(env.RATE_PER_MIN, D.ratePerMin),
     ratePerDay: num(env.RATE_PER_DAY, D.ratePerDay),
@@ -195,7 +199,7 @@ app.use(
 // 클라이언트(확장)가 게이팅에 쓰는 운영 한도 부분집합을 돌려준다. env 변경이 재빌드 없이 확장에 반영된다.
 app.get("/config", (c) => {
   const L = buildLimits(c.env);
-  const client: ClientLimits = { narrowMax: L.narrowMax, detailLimitFree: L.detailLimitFree, freeWeeklyLimit: L.freeWeeklyLimit, maxContextChars: L.maxContextChars };
+  const client: ClientLimits = { narrowMax: L.narrowMax, detailLimitFree: L.detailLimitFree, freeWeeklyLimit: L.freeWeeklyLimit, maxTotal: L.maxTotal, groupGen: L.groupGen, maxContextChars: L.maxContextChars };
   return c.json(client);
 });
 

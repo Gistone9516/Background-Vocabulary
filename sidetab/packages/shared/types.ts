@@ -42,6 +42,8 @@ export interface Limits {
   globalDailyCap: number; // 전역 일일 캡(빌드 폭주 방지)
   narrowMax: { free: number; paid: number }; // 좁히기 최대 턴
   detailLimitFree: number; // 무료 세션당 상세 열람 횟수
+  maxTotal: { free: number; paid: number }; // 한 탐색에서 누적 가능한 어휘 카드 총 상한
+  groupGen: { free: number; paid: number }; // 그룹별 추가 생성 1회당 개수
   // 보안 하드닝(Phase 4). 인증 없는 anti-abuse 한도.
   maxInputChars: number; // 단일 사용자 입력 텍스트 필드 길이 상한(토큰 비용·인젝션 방어)
   ratePerMin: number; // IP당 분당 요청 상한
@@ -63,6 +65,8 @@ export const DEFAULT_LIMITS: Limits = {
   globalDailyCap: 300,
   narrowMax: { free: 3, paid: 8 },
   detailLimitFree: 3,
+  maxTotal: { free: 8, paid: 32 },
+  groupGen: { free: 2, paid: 4 },
   maxInputChars: 4000,
   ratePerMin: 20,
   ratePerDay: 200,
@@ -74,6 +78,8 @@ export interface ClientLimits {
   narrowMax: { free: number; paid: number };
   detailLimitFree: number;
   freeWeeklyLimit: number;
+  maxTotal: { free: number; paid: number }; // 어휘 카드 누적 상한(티어별)
+  groupGen: { free: number; paid: number }; // 그룹별 추가 생성 개수(티어별)
   maxContextChars: number; // 첨부 문서 텍스트를 클라가 이 길이로 잘라 보낸다.
 }
 

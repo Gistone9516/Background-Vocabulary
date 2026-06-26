@@ -51,6 +51,14 @@ export async function saveSession(rec: SessionRec): Promise<SessionRec[]> {
   return capped;
 }
 
+// 한 세션을 id로 삭제하고 남은 전체를 반환한다.
+export async function deleteSession(id: string): Promise<SessionRec[]> {
+  const list = await loadSessions();
+  const next = list.filter((s) => s.id !== id);
+  await writeAll(next);
+  return next;
+}
+
 async function writeAll(list: SessionRec[]): Promise<void> {
   const cl = chromeLocal();
   if (cl) {

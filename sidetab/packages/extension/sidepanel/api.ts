@@ -27,6 +27,8 @@ export const DEFAULT_CLIENT_LIMITS: ClientLimits = {
   narrowMax: DEFAULT_LIMITS.narrowMax,
   detailLimitFree: DEFAULT_LIMITS.detailLimitFree,
   freeWeeklyLimit: DEFAULT_LIMITS.freeWeeklyLimit,
+  maxTotal: DEFAULT_LIMITS.maxTotal,
+  groupGen: DEFAULT_LIMITS.groupGen,
   maxContextChars: DEFAULT_LIMITS.maxContextChars,
 };
 
