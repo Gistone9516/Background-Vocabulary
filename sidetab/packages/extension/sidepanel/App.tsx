@@ -626,7 +626,6 @@ function Narrow({ state, merge, toggleSel, nextStep, undoStep, jumpToTerms }: { 
   return (
     <main className="scroll"><div className="pad" style={{ display: "flex", flexDirection: "column" }}>
       <div className="aiwrap">
-        <span className="aiav"><Spark /></span>
         <span className="aimeta">{tr(loc, "narrow_ai", { n: idx + 1 })}{state.confidence >= 0.75 ? tr(loc, "narrow_almost") : ""}</span>
         {(state.answers.length > 0 || state.usedUndo) && <button className="link" style={{ marginLeft: "auto" }} disabled={state.usedUndo} onClick={undoStep}>{tr(loc, "undo")}</button>}
       </div>
