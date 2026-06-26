@@ -19,6 +19,7 @@
 | `docs/배경어휘-사이드탭-배포-가이드.md` | 프로덕션 배포 런북(wrangler login → secret → deploy → 배선) |
 | `docs/배경어휘-사이드탭-사용자판단대기.md` | 파킹·백로그 결정 대기 항목 |
 | `docs/배경어휘-사이드탭-이관.md` | 진행 핸드오프 |
+| `docs/비용수익_예측.md` | **비용·수익 예측**(웹근거) — 요금·법무·전환율 실측 + 10^n(최대 10만명) 비용·매출·손익분기(약 4.3% 수렴)·민감도 |
 | `sidetab/.env` | 스크립트(e2e·g4g7 등)용 API 키 4종(DeepSeek/Tavily/Upstash). 워커는 `sidetab/packages/adapters/workers/.dev.vars` 사용. **둘 다 커밋 금지** |
 | `_archive/` | 과거 산출물(기획·검증·정확도·비용·하니스·구 프로토타입). git 제외, 로컬 참조용 |
 
