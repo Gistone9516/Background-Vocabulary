@@ -1,50 +1,17 @@
 // 배경노트(Vock note) 사이드패널 — panel.html(UI 정본) 화면을 React로 이식하고 실 API에 배선.
 // UI 문자열은 i18n.ts의 t()(여기선 tr)로 가져온다. LLM 콘텐츠는 워커가 출력 언어로 만든다(별개).
-import { useReducer, useRef, useEffect, useState, useCallback, useMemo, type ReactNode, type DragEvent } from "react";
-import type {
-  Prompt1Out, Choice, Term, Prompt5Out, Tag, RecommendInput, ClientLimits, OutputLocale,
-} from "@sidetab/shared";
+import { useReducer, useRef, useEffect, useState, useCallback, useMemo } from "react";
+import type { Tag, RecommendInput, OutputLocale } from "@sidetab/shared";
 import * as api from "./api.js";
 import { DEFAULT_CLIENT_LIMITS } from "./api.js";
 import { loadSessions, saveSession, deleteSession, type SessionRec, type KeptTerm } from "./history.js";
 import { t as tr, LOCALE_LABELS } from "./i18n.js";
 import { EXAMPLES, pickRandom } from "./examples.js";
-
-// ---------- 타입 ----------
-type Screen = "entry" | "narrow" | "terms" | "kept" | "paywall" | "refusal";
-interface UITerm extends Term {
-  id: string;
-  kept: boolean;
-  _new: boolean;
-  detail?: Prompt5Out;
-  detailLoading?: boolean;
-}
-interface Q { question: string; choices: Choice[] }
-interface State {
-  screen: Screen;
-  input: string; cond: string; showCond: boolean; inputErr: boolean;
-  attachedFile: { name: string; text: string } | null; dragging: boolean; attachNote: string;
-  chipSeed: number; tutorialOpen: boolean;
-  classifyOut: Prompt1Out | null;
-  questions: Q[]; answers: string[][]; sel: string[];
-  confidence: number; pending: boolean;
-  customText: string; customOpen: boolean; // 아키네이터 직접 입력
-  usedUndo: boolean; tooHard: boolean; simplify: boolean; // 되돌리기 1회·이번턴 "어려워요" 선택·세션 난이도 하향
-  terms: UITerm[]; visibleCount: number; openId: string | null; opening: string | null;
-  query: string; groupView: boolean; detailCount: number;
-  moreLoading: boolean; moreLoaded: boolean; streaming: boolean; groupGenLoading: string; refining: boolean;
-  ctxInput: string; copied: boolean; copyFailed: boolean; shareNote: boolean;
-  aiSummary: string; aiSummaryLoading: boolean;
-  plan: "flash" | "pro"; remaining: number; prevScreen: Screen; limitHit: boolean;
-  errorMsg: string;
-  sessionId: string; history: SessionRec[]; histView: boolean;
-  limits: ClientLimits; locale: OutputLocale;
-}
-const MIN_Q = 3;
-// 아키네이터 로딩 문구. 추론이 길어질 때 4초 간격으로 다음 문구로 바꿔 진행감을 준다(마지막 문구에서 정지).
-const THINK_KEYS = ["thinking", "thinking2", "thinking3", "thinking4"] as const;
-const HIGHRISK = /(의료|진단|병원|처방|법률|소송|변호|판결|고소|세무신고|증상|치료)/;
-const LOCALE_TAG: Record<OutputLocale, string> = { ko: "ko-KR", en: "en-US", ja: "ja-JP", zh: "zh-CN" };
+import { MIN_Q, THINK_KEYS, HIGHRISK, GALAXY_POS } from "./constants.js";
+import type { Screen, UITerm, State, Action } from "./types.js";
+import { sentLines, splitSentences, firstSentence, fmtDate, markTerms, commaLines } from "./text.js";
+import { isTextFile, readTextFile } from "./file.js";
+import { Spark, Chev, SearchIcon, LinkIcon, RefreshIcon, LockIcon, TrashIcon, BookmarkIcon, UserIcon, CopyIcon, ShareIcon, InfoIcon } from "./icons.js";
 
 // pro 여부를 localStorage에 저장해 화면 전환과 새로고침에도 유지한다. reset이 initial을 다시 부르므로 여기서 복원하면 goHome 후에도 pro가 남는다.
 function savedPlan(): "flash" | "pro" {
@@ -66,11 +33,6 @@ function initial(): State {
   };
 }
 
-type Action =
-  | { type: "merge"; patch: Partial<State> }
-  | { type: "addTerm"; term: UITerm }
-  | { type: "updateTerm"; id: string; patch: Partial<UITerm> }
-  | { type: "reset" };
 function reducer(s: State, a: Action): State {
   switch (a.type) {
     case "merge": return { ...s, ...a.patch };
@@ -79,67 +41,6 @@ function reducer(s: State, a: Action): State {
     case "reset": return initial();
   }
 }
-
-// ---------- 표시 헬퍼 ----------
-// 문장 단위 줄바꿈. 끊는 지점은 세 가지다. 개행 문자, 전각 종결부호(。！？) 바로 뒤,
-// 그리고 반각 종결부호(.!?) 뒤에 공백이 오는 자리. 소수점이나 약어처럼 종결부호 뒤가
-// 공백이 아니면 끊지 않는다. 끊은 문장 사이에 <br/>를 넣는다.
-function sentLines(t: string): ReactNode[] {
-  const segs = String(t ?? "")
-    .split(/\n+|(?<=[。！？])|(?<=[.!?])(?=\s)/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
-  const out: ReactNode[] = [];
-  segs.forEach((s, i) => {
-    if (i > 0) out.push(<br key={"br" + i} />);
-    out.push(s);
-  });
-  return out;
-}
-// 문장 배열로 쪼갠다. sentLines와 같은 분할 규칙(개행, 전각 종결부호, 반각 종결부호+공백).
-// 활용 단계 리스트와 개념 핵심/나머지 분리에 쓴다.
-function splitSentences(t: string): string[] {
-  return String(t ?? "")
-    .split(/\n+|(?<=[。！？])|(?<=[.!?])(?=\s)/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
-}
-// 첫 문장만 남긴다. 추천 이유처럼 한 문장만 보여줄 때 두 번째 문장 이후를 잘라 깔끔하게 한다.
-function firstSentence(t: string): string {
-  const m = t.match(/[\s\S]*?[.!?](?=\s|$)/);
-  return (m ? m[0] : t).trim();
-}
-// 이전 탐색 항목의 날짜 표기(로케일에 맞춰).
-function fmtDate(ms: number, locale: OutputLocale): string {
-  return new Date(ms).toLocaleDateString(LOCALE_TAG[locale], { month: "short", day: "numeric" });
-}
-// 텍스트 파일만 허용(타입 또는 확장자). 바이너리(PDF·이미지 등)는 거부한다.
-function isTextFile(f: File): boolean {
-  if (f.type && (f.type.startsWith("text/") || f.type === "application/json" || f.type === "application/xml")) return true;
-  return /\.(txt|md|markdown|csv|json|ya?ml|xml|html?|css|js|ts|tsx|jsx|py|java|c|cpp|cs|go|rs|rb|php|sh|sql|log|tex)$/i.test(f.name);
-}
-function readTextFile(f: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result ?? ""));
-    r.onerror = () => reject(r.error);
-    r.readAsText(f);
-  });
-}
-
-// SVG 아이콘(panel.html과 동일).
-const Spark = () => (<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.7 5.1a3 3 0 0 0 1.9 1.9L21 11l-5.4 1.8a3 3 0 0 0-1.9 1.9L12 21l-1.7-5.3a3 3 0 0 0-1.9-1.9L3 11l5.4-1.8a3 3 0 0 0 1.9-1.9z" /></svg>);
-const Chev = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M6 9l6 6 6-6" /></svg>);
-const SearchIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>);
-const LinkIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M7 17L17 7M9 7h8v8" /></svg>);
-const RefreshIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 11a8 8 0 1 0-.9 4.5" /><path d="M20 4v6h-6" /></svg>);
-const LockIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>);
-const TrashIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3M10 11v6M14 11v6" /></svg>);
-const BookmarkIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4h12a1 1 0 0 1 1 1v15l-7-4.5L5 20V5a1 1 0 0 1 1-1z" /></svg>);
-const UserIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4" /><path d="M5 20a7 7 0 0 1 14 0" /></svg>);
-const CopyIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h8" /></svg>);
-const ShareIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>);
-const InfoIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 11v5" /><path d="M12 8h.01" /></svg>);
 
 export function App() {
   const [state, dispatch] = useReducer(reducer, undefined, initial);
@@ -817,25 +718,6 @@ function Refusal({ state, goHome }: { state: State; goHome: () => void }) {
     </div>
   );
 }
-
-// 텍스트에서 주어진 용어를 찾아 <em>로 감싼다(튜토리얼 1스텝의 전문 용어 강조용).
-function markTerms(text: string, terms: string[]): ReactNode[] {
-  const list = terms.map((t) => t.trim()).filter(Boolean);
-  if (!list.length) return [text];
-  const esc = list.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  const re = new RegExp(`(${esc.join("|")})`, "g");
-  return text.split(re).map((p, i) => (list.includes(p) ? <em key={i}>{p}</em> : <span key={i}>{p}</span>));
-}
-// 쉼표를 줄바꿈으로 바꿔 표시한다(쉼표 제거, 각 절을 한 줄로). 튜토리얼 문장·답변용.
-function commaLines(text: string): ReactNode[] {
-  return text.split(",").map((s, i) => <span key={i}>{i > 0 && <br />}{s.trim()}</span>);
-}
-// 3스텝 은하계 분야 맵의 노드 좌표(중심 코어 기준으로 흩뿌림).
-const GALAXY_POS = [
-  { left: "50%", top: "13%" }, { left: "76%", top: "20%" }, { left: "89%", top: "46%" }, { left: "78%", top: "74%" },
-  { left: "52%", top: "88%" }, { left: "24%", top: "80%" }, { left: "11%", top: "54%" }, { left: "21%", top: "23%" },
-  { left: "63%", top: "39%" }, { left: "37%", top: "37%" }, { left: "70%", top: "61%" }, { left: "32%", top: "63%" },
-];
 
 // 첫 방문 안내 팝업. 4스텝 — ①②③ 제품의 목적·이유(문장마다 사례 예시) ④ 사용방법. 백드롭/시작하기로 닫는다.
 function Tutorial({ state, onClose }: { state: State; onClose: () => void }) {

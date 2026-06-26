@@ -5,8 +5,7 @@ import type {
   Prompt4In, Prompt4Out, Prompt5In, Prompt5Out,
   RecommendInput, StreamEvent, Term,
 } from "@sidetab/shared";
-
-const HIGHRISK = /(의료|진단|병원|처방|법률|소송|변호|판결|고소|세무신고|증상|치료)/;
+import { HIGHRISK } from "./constants.js";
 
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
