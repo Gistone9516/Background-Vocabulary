@@ -123,6 +123,7 @@ const RefreshIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentC
 const LockIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>);
 const TrashIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3M10 11v6M14 11v6" /></svg>);
 const BookmarkIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4h12a1 1 0 0 1 1 1v15l-7-4.5L5 20V5a1 1 0 0 1 1-1z" /></svg>);
+const UserIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4" /><path d="M5 20a7 7 0 0 1 14 0" /></svg>);
 
 export function App() {
   const [state, dispatch] = useReducer(reducer, undefined, initial);
@@ -769,20 +770,85 @@ function Refusal({ state, goHome }: { state: State; goHome: () => void }) {
   );
 }
 
-// 첫 방문 안내 팝업. 메인 화면에서 뭘 하면 되는지만 짧게(3스텝). 백드롭/시작하기로 닫는다.
+// 텍스트에서 주어진 용어를 찾아 <em>로 감싼다(튜토리얼 1스텝의 전문 용어 강조용).
+function markTerms(text: string, terms: string[]): ReactNode[] {
+  const list = terms.map((t) => t.trim()).filter(Boolean);
+  if (!list.length) return [text];
+  const esc = list.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const re = new RegExp(`(${esc.join("|")})`, "g");
+  return text.split(re).map((p, i) => (list.includes(p) ? <em key={i}>{p}</em> : <span key={i}>{p}</span>));
+}
+// 쉼표를 줄바꿈으로 바꿔 표시한다(쉼표 제거, 각 절을 한 줄로). 튜토리얼 문장·답변용.
+function commaLines(text: string): ReactNode[] {
+  return text.split(",").map((s, i) => <span key={i}>{i > 0 && <br />}{s.trim()}</span>);
+}
+// 3스텝 은하계 분야 맵의 노드 좌표(중심 코어 기준으로 흩뿌림).
+const GALAXY_POS = [
+  { left: "50%", top: "13%" }, { left: "76%", top: "20%" }, { left: "89%", top: "46%" }, { left: "78%", top: "74%" },
+  { left: "52%", top: "88%" }, { left: "24%", top: "80%" }, { left: "11%", top: "54%" }, { left: "21%", top: "23%" },
+  { left: "63%", top: "39%" }, { left: "37%", top: "37%" }, { left: "70%", top: "61%" }, { left: "32%", top: "63%" },
+];
+
+// 첫 방문 안내 팝업. 4스텝 — ①②③ 제품의 목적·이유(문장마다 사례 예시) ④ 사용방법. 백드롭/시작하기로 닫는다.
 function Tutorial({ state, onClose }: { state: State; onClose: () => void }) {
   const loc = state.locale;
+  const [step, setStep] = useState(0);
+  const LAST = 3;
+  const fields = tr(loc, "tut_p3_eg").split(",");
   return (
     <div className="modalBackdrop" onClick={onClose}>
-      <div className="modalCard" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+      <div className="modalCard tut" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         <div className="tutIcon"><Spark /></div>
-        <h2>{tr(loc, "tut_title")}</h2>
-        <ol className="tutSteps">
-          <li><b>1</b><span>{tr(loc, "tut_step1")}</span></li>
-          <li><b>2</b><span>{tr(loc, "tut_step2")}</span></li>
-          <li><b>3</b><span>{tr(loc, "tut_step3")}</span></li>
-        </ol>
-        <button className="btn btn-primary" onClick={onClose}>{tr(loc, "tut_start")}</button>
+        {step === 0 && <>
+          {/* 이유1: AI 답이 전문가 수준이라 이해하기 어렵다. Claude 채팅을 모방한 사례. */}
+          <p className="tutSentence">{commaLines(tr(loc, "tut_p1"))}</p>
+          <div className="tutChat" aria-hidden="true">
+            <div className="tcUser">{tr(loc, "tut_q1")}</div>
+            <div className="tcAI">
+              <span className="tcAvatar"><Spark /></span>
+              <div className="tcMsg">{tr(loc, "tut_a1").split(",").map((seg, i) => <span key={i}>{i > 0 && <br />}{markTerms(seg.trim(), tr(loc, "tut_a1_hl").split(","))}</span>)}</div>
+            </div>
+            <div className="tutEgCap">{tr(loc, "tut_p1_cap")}</div>
+          </div>
+        </>}
+        {step === 1 && <>
+          {/* 이유2: 핵심 어휘를 쥐면 읽힌다. 우리 어휘 카드의 미니 버전. */}
+          <p className="tutSentence">{commaLines(tr(loc, "tut_p2"))}</p>
+          <div className="tutCards" aria-hidden="true">
+            <div className="tutCard">
+              <span className="pri">1</span>
+              <div className="tcBody"><div className="tcTitle"><b>{tr(loc, "tut_card_term")}</b><span className="tcKind">{tr(loc, "tut_card_kind")}</span></div><p>{tr(loc, "tut_card_line")}</p></div>
+            </div>
+            <div className="tutCard">
+              <span className="pri">2</span>
+              <div className="tcBody"><div className="tcTitle"><b>{tr(loc, "tut_card2_term")}</b><span className="tcKind warn">{tr(loc, "tut_card2_kind")}</span></div><p>{tr(loc, "tut_card2_line")}</p></div>
+            </div>
+            <div className="tutEgCap">{tr(loc, "tut_p2_cap")}</div>
+          </div>
+        </>}
+        {step === 2 && <>
+          {/* 이유3: 탑다운 시대, 남의 분야를 빠르게 익히는 힘. 은하계처럼 뻗은 분야 맵. */}
+          <p className="tutSentence">{commaLines(tr(loc, "tut_p3"))}</p>
+          <div className="tutGalaxy" aria-hidden="true">
+            <span className="tgCore"><UserIcon /></span>
+            {fields.map((d, i) => <span key={d} className="tgNode" style={GALAXY_POS[i % GALAXY_POS.length]}>{d.trim()}</span>)}
+          </div>
+        </>}
+        {step === 3 && <>
+          <h2>{tr(loc, "tut_how_title")}</h2>
+          <ol className="tutSteps">
+            <li><b>1</b><span>{tr(loc, "tut_step1")}</span></li>
+            <li><b>2</b><span>{tr(loc, "tut_step2")}</span></li>
+            <li><b>3</b><span>{tr(loc, "tut_step3")}</span></li>
+          </ol>
+        </>}
+        <div className="row2">
+          {step > 0 && <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setStep(step - 1)}>{tr(loc, "tut_back")}</button>}
+          {step < LAST
+            ? <button className="btn btn-primary" style={{ flex: step > 0 ? 2 : 1 }} onClick={() => setStep(step + 1)}>{tr(loc, "tut_next")}</button>
+            : <button className="btn btn-primary" style={{ flex: 2 }} onClick={onClose}>{tr(loc, "tut_start")}</button>}
+        </div>
+        <div className="tutDots">{[0, 1, 2, 3].map((i) => <i key={i} className={step === i ? "on" : ""} />)}</div>
       </div>
     </div>
   );
