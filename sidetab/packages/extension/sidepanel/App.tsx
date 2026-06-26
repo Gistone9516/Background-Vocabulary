@@ -29,6 +29,7 @@ interface State {
   questions: Q[]; answers: string[][]; sel: string[];
   confidence: number; pending: boolean;
   customText: string; customOpen: boolean; // 아키네이터 직접 입력
+  usedUndo: boolean; tooHard: boolean; simplify: boolean; // 되돌리기 1회·이번턴 "어려워요" 선택·세션 난이도 하향
   terms: UITerm[]; visibleCount: number; openId: string | null; opening: string | null;
   query: string; groupView: boolean; detailCount: number;
   moreLoading: boolean; moreLoaded: boolean; streaming: boolean; groupGenLoading: string; refining: boolean;
@@ -56,6 +57,7 @@ function initial(): State {
     attachedFile: null, dragging: false, attachNote: "",
     chipSeed: 0, tutorialOpen: false,
     classifyOut: null, questions: [], answers: [], sel: [], confidence: 0, pending: false, customText: "", customOpen: false,
+    usedUndo: false, tooHard: false, simplify: false,
     terms: [], visibleCount: 0, openId: null, opening: null, query: "", groupView: false, detailCount: 0,
     moreLoading: false, moreLoaded: false, streaming: false, groupGenLoading: "", refining: false,
     ctxInput: "", copied: false, copyFailed: false, shareNote: false, aiSummary: "", aiSummaryLoading: false,
@@ -153,7 +155,7 @@ export function App() {
   const deleteHistory = (id: string) => { void deleteSession(id).then((list) => merge({ history: list })); };
 
   const startNarrow = useCallback(async (raw: string) => {
-    merge({ pending: true, screen: "narrow", answers: [], sel: [], questions: [], input: raw, refining: false });
+    merge({ pending: true, screen: "narrow", answers: [], sel: [], questions: [], input: raw, refining: false, usedUndo: false, tooHard: false, simplify: false });
     try {
       const p1 = await api.classify({ raw_input: raw, ...(sref.current.attachedFile ? { context_object: sref.current.attachedFile.text } : {}) });
       if (p1.domain_risk === "high") { merge({ pending: false, screen: "refusal" }); return; }
@@ -196,14 +198,16 @@ export function App() {
   const toggleSel = (o: string) => {
     const sel = sref.current.sel;
     const next = sel.includes(o) ? sel.filter((x) => x !== o) : [...sel, o];
-    merge({ sel: next });
+    merge({ sel: next, tooHard: false }); // 일반 선택을 누르면 "어려워요" 배타 선택은 해제
   };
   // 좁히기 한 턴 진행: 누적 답변으로 nextBranch를 호출해 다음 질문을 받거나, 충분하면 추천으로 넘긴다. nextStep과 조건 재탐색이 공유한다.
-  const advanceNarrow = useCallback(async (answers: string[][]) => {
+  // simplify는 sticky(세션 유지)지만 막 설정한 직후엔 sref가 stale일 수 있어 opts로 명시 전달한다.
+  const advanceNarrow = useCallback(async (answers: string[][], opts?: { simplify?: boolean }) => {
     const s0 = sref.current;
     const history = answers.flat().map((label) => ({ label, action: "선택" as const }));
+    const simplify = opts?.simplify ?? s0.simplify;
     try {
-      const p2 = await api.nextBranch({ domain: s0.classifyOut?.domain ?? "", job_type: s0.classifyOut?.job_type ?? [], history, ...(s0.attachedFile ? { context_object: s0.attachedFile.text } : {}) });
+      const p2 = await api.nextBranch({ domain: s0.classifyOut?.domain ?? "", job_type: s0.classifyOut?.job_type ?? [], history, ...(s0.attachedFile ? { context_object: s0.attachedFile.text } : {}), ...(simplify ? { simplify: true } : {}) });
       const s = sref.current;
       // 좁히기 최대 턴은 워커 한도(limits.narrowMax)에서 온다. free는 적게, paid는 의중이 갈릴 때만 더.
       const maxQ = s.plan === "pro" ? s.limits.narrowMax.paid : s.limits.narrowMax.free;
@@ -219,8 +223,15 @@ export function App() {
   }, [merge]);
   const nextStep = useCallback(async () => {
     const s = sref.current;
+    // "선택지가 어려워요"를 고른 턴: 마커 한 칸을 답변으로 넣고 이후 난이도를 낮춘다(simplify sticky).
+    if (s.tooHard) {
+      const answers = [...s.answers, [tr(s.locale, "narrow_hard")]];
+      merge({ answers, sel: [], customText: "", customOpen: false, tooHard: false, simplify: true, pending: true });
+      await advanceNarrow(answers, { simplify: true });
+      return;
+    }
     const custom = s.customText.trim();
-    const picked = custom ? [...s.sel, custom] : s.sel; // 칩 + 직접 입력 합산
+    const picked = custom ? [...s.sel, custom] : s.sel; // 칩 + 직접 입력 합산(둘 다 포함)
     if (picked.length === 0) return;
     const answers = [...s.answers, picked];
     merge({ answers, sel: [], customText: "", customOpen: false, pending: true });
@@ -240,7 +251,12 @@ export function App() {
     merge({ answers, sel: [], customText: "", customOpen: false, query: "", screen: "narrow", pending: true, refining: true });
     await advanceNarrow(answers);
   }, [merge, advanceNarrow]);
-  const undoStep = () => { const s = sref.current; if (s.answers.length) merge({ answers: s.answers.slice(0, -1), sel: [], customText: "", customOpen: false }); };
+  // 되돌리기는 세션당 1회. 누르면 곧장 1턴(첫 질문)으로 회귀하고 버튼은 비활성된다.
+  const undoStep = () => {
+    const s = sref.current;
+    if (s.usedUndo || s.answers.length === 0) return;
+    merge({ answers: [], questions: s.questions.slice(0, 1), sel: [], customText: "", customOpen: false, tooHard: false, confidence: 0, usedUndo: true });
+  };
   const jumpToTerms = () => void runRecommend();
 
   // ----- 추천(스트리밍) -----
@@ -612,7 +628,7 @@ function Narrow({ state, merge, toggleSel, nextStep, undoStep, jumpToTerms }: { 
       <div className="aiwrap">
         <span className="aiav"><Spark /></span>
         <span className="aimeta">{tr(loc, "narrow_ai", { n: idx + 1 })}{state.confidence >= 0.75 ? tr(loc, "narrow_almost") : ""}</span>
-        {state.answers.length > 0 && <button className="link" style={{ marginLeft: "auto" }} onClick={undoStep}>{tr(loc, "undo")}</button>}
+        {(state.answers.length > 0 || state.usedUndo) && <button className="link" style={{ marginLeft: "auto" }} disabled={state.usedUndo} onClick={undoStep}>{tr(loc, "undo")}</button>}
       </div>
       <div className={`progress${proPhase ? " pro" : ""}`} style={{ marginBottom: 16 }}>
         <div className="track base"><i style={{ width: pct + "%" }} /></div>
@@ -627,12 +643,17 @@ function Narrow({ state, merge, toggleSel, nextStep, undoStep, jumpToTerms }: { 
         const on = state.sel.includes(o.label);
         return <button key={o.label} className={`opt ${on ? "sel" : ""}`} onClick={() => toggleSel(o.label)}><span>{o.label}</span><span className="tick">✓</span></button>;
       })}
-      {state.customOpen
-        ? <textarea ref={customRef} className="field" rows={1} autoFocus aria-label={tr(loc, "custom_open")} placeholder={tr(loc, "custom_ph")} value={state.customText} style={{ marginTop: 9 }}
-            onChange={(e) => { merge({ customText: e.target.value }); growCustom(); }}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); nextStep(); } }} />
-        : <button className="dash" style={{ marginTop: 9 }} onClick={() => merge({ customOpen: true })}>{tr(loc, "custom_open")}</button>}
-      <button className="btn btn-primary" style={{ marginTop: 18 }} onClick={nextStep} disabled={state.sel.length === 0 && !state.customText.trim()}>{tr(loc, "next")}</button>
+      {state.customOpen && <>
+        <textarea ref={customRef} className="field" rows={1} autoFocus aria-label={tr(loc, "custom_open")} placeholder={tr(loc, "custom_ph")} value={state.customText} style={{ marginTop: 11 }}
+          onChange={(e) => { merge({ customText: e.target.value, tooHard: false }); growCustom(); }}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); nextStep(); } }} />
+        <p className="subhint">{tr(loc, "custom_hint")}</p>
+      </>}
+      <div className="subrow">
+        <button className={`sublink ${state.customOpen ? "on" : ""}`} onClick={() => merge({ customOpen: !state.customOpen, tooHard: false, ...(state.customOpen ? { customText: "" } : {}) })}>{tr(loc, "custom_open")}</button>
+        <button className={`sublink ${state.tooHard ? "on" : ""}`} onClick={() => merge({ tooHard: true, sel: [], customText: "", customOpen: false })}>{tr(loc, "narrow_hard")}</button>
+      </div>
+      <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={nextStep} disabled={!state.tooHard && state.sel.length === 0 && !state.customText.trim()}>{tr(loc, "next")}</button>
       <p className="note" style={{ marginTop: 12 }}>{tr(loc, "narrow_note")}</p>
       <button className="link" style={{ marginTop: 8, alignSelf: "center" }} onClick={jumpToTerms}>{tr(loc, "narrow_jump")}</button>
     </div></main>

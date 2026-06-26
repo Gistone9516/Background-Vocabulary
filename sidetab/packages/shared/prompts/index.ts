@@ -62,6 +62,7 @@ export function buildPrompt2(input: {
   remaining_tags?: string[];
   context_object?: string;
   user_condition?: string;
+  simplify?: boolean;
   outputLocale: OutputLocale;
 }): Msg[] {
   const sys = [
@@ -71,10 +72,11 @@ export function buildPrompt2(input: {
     "The user can pick several choices at once (multi-select). Therefore never create a merged/umbrella option that combines other choices, like 'both A and B' or 'all of the above'. Each choice must be a single, non-overlapping branch.",
     "If action is '더깊이' (go deeper), create sub-branches or derived choices of the immediately preceding branch (do not update the intent distribution).",
     "If context_object or user_condition is given, narrow the choices to fit that context.",
+    input.simplify ? "The user signaled the previous choices were too hard to understand. From now on write the question and every choice in the simplest everyday language with concrete familiar examples, and avoid technical jargon and abbreviations. Treat any 'too hard' marker in the history as this simplification request, not as a content preference." : "",
     EYE_LEVEL,
     "Judge whether the history has narrowed the intent enough, and output enough (boolean) and confidence (0-1). The goal is to finish within 3 turns — once about 3 answers are gathered, usually end with enough=true. Ask additional questions (max 8) only when intent genuinely splits widely. Do not pad questions just to fill turns (D1).",
     'Output exactly one JSON object. Format: {"question","choices":[{"label","domain_tag"}],"enough":bool,"confidence":0~1}. Must be valid JSON.',
-  ].join("\n");
+  ].filter(Boolean).join("\n");
   const user = JSON.stringify(input);
   return [
     { role: "system", content: sys },

@@ -171,6 +171,7 @@ export interface Prompt2In {
   remaining_tags?: string[];
   context_object?: string;
   user_condition?: string;
+  simplify?: boolean; // "선택지가 어려워요" 이후. 질문·선택지를 더 쉬운 말로.
 }
 export interface Prompt2Out {
   question: string;

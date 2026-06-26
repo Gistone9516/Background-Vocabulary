@@ -76,8 +76,10 @@ export async function nextBranch(input: Prompt2In): Promise<Prompt2Out> {
   await delay(600);
   const i = Math.min(input.history.length, QUESTIONS.length - 1);
   const enough = input.history.length >= 3;
+  // simplify가 전달되면 DEV에서 신호 도달을 눈으로 확인할 수 있게 마커를 붙인다.
+  const q = input.simplify ? "[쉬운 말] " + QUESTIONS[i].question : QUESTIONS[i].question;
   return {
-    question: QUESTIONS[i].question, choices: QUESTIONS[i].choices,
+    question: q, choices: QUESTIONS[i].choices,
     enough, confidence: Math.min(0.95, 0.3 + input.history.length * 0.2),
   };
 }
