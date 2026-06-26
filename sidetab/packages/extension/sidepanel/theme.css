@@ -52,20 +52,22 @@ a{color:inherit}
 @keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(440%)}}
 
 header{display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--surface);border-bottom:1px solid var(--border);flex:0 0 auto;z-index:5}
-.brand{display:flex;align-items:center;gap:8px}
+.brand{display:flex;align-items:center;gap:8px;min-width:0;overflow:hidden}
 .logo{width:24px;height:24px;border-radius:7px;overflow:hidden;display:block;flex:0 0 auto}
 .logo img{width:100%;height:100%;display:block;object-fit:cover}
-.brand b{font-size:15px;font-weight:700;letter-spacing:-.01em}
-.brand span{font-size:10.5px;color:var(--faint);letter-spacing:.12em;display:block;margin-top:-1px}
-.htools{margin-left:auto;display:flex;align-items:center;gap:4px}
+.brand b{font-size:15px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.brand span{font-size:10.5px;color:var(--faint);letter-spacing:.12em;display:block;margin-top:-1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.htools{margin-left:auto;display:flex;align-items:center;gap:4px;flex:0 0 auto}
 .iconbtn{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--muted)}
 .iconbtn:hover{background:var(--surface-2);color:var(--text)}
 .iconbtn svg{width:16px;height:16px}
-.plan{display:flex;align-items:center;gap:6px;padding:5px 9px;border-radius:99px;border:1px solid var(--border)}
+.plan{display:flex;align-items:center;gap:6px;padding:5px 9px;border-radius:99px;border:1px solid var(--border);flex:0 0 auto;white-space:nowrap}
 .plan:hover{border-color:var(--accent)}
 .plan b{font-size:11.5px;font-weight:700;color:var(--accent-ink)}
 .plan span{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
 .plan.warn b,.plan.warn span{color:var(--warn-ink)} .plan.warn{border-color:var(--warn-border)}
+/* 아주 좁은 사이드패널(최소 약 320px)에서 헤더가 한 줄을 유지하도록. 브랜드 부제를 숨기고 도구 간격과 언어 선택 폭을 줄인다. */
+@media (max-width:345px){header{gap:6px;padding:11px 10px}.brand span span{display:none}.htools{gap:3px}.langsel{max-width:72px}}
 
 main{flex:1;overflow-y:auto;overflow-x:hidden;min-width:0;display:flex;flex-direction:column}
 .pad{padding:18px 16px}
