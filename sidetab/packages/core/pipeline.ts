@@ -209,7 +209,6 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
         grounding,
         candidateSources,
         outputLocale,
-        ...(input.deepen !== undefined && { deepen: input.deepen }),
       });
 
       const out = await deps.llm.complete<Prompt5Out>({

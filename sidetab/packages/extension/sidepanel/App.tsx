@@ -15,7 +15,6 @@ type Screen = "entry" | "narrow" | "terms" | "kept" | "paywall" | "refusal";
 interface UITerm extends Term {
   id: string;
   kept: boolean;
-  deepened: boolean;
   _new: boolean;
   detail?: Prompt5Out;
   detailLoading?: boolean;
@@ -80,16 +79,28 @@ function reducer(s: State, a: Action): State {
 }
 
 // ---------- 표시 헬퍼 ----------
-// 문장 단위 줄바꿈: 마침표/물음표/느낌표 뒤(공백 동반)에서 줄을 나눠 <br/>로.
+// 문장 단위 줄바꿈. 끊는 지점은 세 가지다. 개행 문자, 전각 종결부호(。！？) 바로 뒤,
+// 그리고 반각 종결부호(.!?) 뒤에 공백이 오는 자리. 소수점이나 약어처럼 종결부호 뒤가
+// 공백이 아니면 끊지 않는다. 끊은 문장 사이에 <br/>를 넣는다.
 function sentLines(t: string): ReactNode[] {
-  const parts = String(t ?? "").split(/([.!?]\s+)/);
-  const out: ReactNode[] = []; let buf = "";
-  for (const p of parts) {
-    buf += p;
-    if (/[.!?]\s+$/.test(p)) { out.push(buf.trimEnd()); out.push(<br key={out.length} />); buf = ""; }
-  }
-  if (buf) out.push(buf);
+  const segs = String(t ?? "")
+    .split(/\n+|(?<=[。！？])|(?<=[.!?])(?=\s)/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  const out: ReactNode[] = [];
+  segs.forEach((s, i) => {
+    if (i > 0) out.push(<br key={"br" + i} />);
+    out.push(s);
+  });
   return out;
+}
+// 문장 배열로 쪼갠다. sentLines와 같은 분할 규칙(개행, 전각 종결부호, 반각 종결부호+공백).
+// 활용 단계 리스트와 개념 핵심/나머지 분리에 쓴다.
+function splitSentences(t: string): string[] {
+  return String(t ?? "")
+    .split(/\n+|(?<=[。！？])|(?<=[.!?])(?=\s)/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
 }
 // 첫 문장만 남긴다. 추천 이유처럼 한 문장만 보여줄 때 두 번째 문장 이후를 잘라 깔끔하게 한다.
 function firstSentence(t: string): string {
@@ -124,6 +135,9 @@ const LockIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColo
 const TrashIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3M10 11v6M14 11v6" /></svg>);
 const BookmarkIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4h12a1 1 0 0 1 1 1v15l-7-4.5L5 20V5a1 1 0 0 1 1-1z" /></svg>);
 const UserIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4" /><path d="M5 20a7 7 0 0 1 14 0" /></svg>);
+const CopyIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h8" /></svg>);
+const ShareIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>);
+const InfoIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 11v5" /><path d="M12 8h.01" /></svg>);
 
 export function App() {
   const [state, dispatch] = useReducer(reducer, undefined, initial);
@@ -218,7 +232,11 @@ export function App() {
     const t = text.trim();
     if (!t) return;
     if (s.plan !== "pro") { merge({ prevScreen: "terms", screen: "paywall", limitHit: false }); return; }
-    const answers = [...s.answers, [t]];
+    // 재탐색 조건은 새 턴이 아니라 직전 답변에 덧붙인다. 새 그룹으로 넣으면 턴 수가 한 칸 부풀어
+    // 다음 질문이 4턴이 아니라 5턴으로 밀린다(진행바도 같이 밀림). 덧붙이면 nextBranch 히스토리는 동일하다.
+    const answers = s.answers.length
+      ? s.answers.map((g, i) => (i === s.answers.length - 1 ? [...g, t] : g))
+      : [[t]];
     merge({ answers, sel: [], customText: "", customOpen: false, query: "", screen: "narrow", pending: true, refining: true });
     await advanceNarrow(answers);
   }, [merge, advanceNarrow]);
@@ -250,7 +268,7 @@ export function App() {
         if (ev.type === "term") {
           if (sref.current.terms.length >= cap) { ctrl.abort(); return; }
           const n = sref.current.terms.length; const id = "r" + n;
-          dispatch({ type: "addTerm", term: { ...ev.term, priority: n + 1, id, kept: false, deepened: false, _new: true } });
+          dispatch({ type: "addTerm", term: { ...ev.term, priority: n + 1, id, kept: false, _new: true } });
           later(() => dispatch({ type: "updateTerm", id, patch: { _new: false } }), 780);
         } else if (ev.type === "done") merge({ streaming: false });
         else if (ev.type === "error") merge({ streaming: false, errorMsg: ev.message, ...(ev.code === "HIGH_RISK_REFUSED" ? { screen: "refusal" } : {}) });
@@ -261,7 +279,7 @@ export function App() {
     await api.streamRecommend(buildRecInput(), tier, (ev) => {
       if (ev.type === "term") {
         const id = "t" + sref.current.terms.length;
-        dispatch({ type: "addTerm", term: { ...ev.term, id, kept: false, deepened: false, _new: true } });
+        dispatch({ type: "addTerm", term: { ...ev.term, id, kept: false, _new: true } });
         later(() => dispatch({ type: "updateTerm", id, patch: { _new: false } }), 780);
       } else if (ev.type === "done") merge({ streaming: false });
       else if (ev.type === "error") merge({ streaming: false, errorMsg: ev.message, ...(ev.code === "HIGH_RISK_REFUSED" ? { screen: "refusal" } : {}) });
@@ -282,7 +300,7 @@ export function App() {
       if (ev.type === "term") {
         // 카드 번호는 기존 개수에 이어서 매긴다(더보기 시 1부터 재시작 버그 수정).
         got++; const n = sref.current.terms.length; const id = "m" + n;
-        dispatch({ type: "addTerm", term: { ...ev.term, priority: n + 1, id, kept: false, deepened: false, _new: true } });
+        dispatch({ type: "addTerm", term: { ...ev.term, priority: n + 1, id, kept: false, _new: true } });
         later(() => dispatch({ type: "updateTerm", id, patch: { _new: false } }), 780);
       }
     }, ctrl.signal).catch(() => {});
@@ -303,7 +321,7 @@ export function App() {
     await api.streamRecommend({ ...buildRecInput(exclude), user_condition: `Only suggest vocabulary that belongs to the group "${group}".` }, tier, (ev) => {
       if (ev.type === "term" && got < want) {
         got++; const n = sref.current.terms.length; const id = "g" + n;
-        dispatch({ type: "addTerm", term: { ...ev.term, group, priority: n + 1, id, kept: false, deepened: false, _new: true } });
+        dispatch({ type: "addTerm", term: { ...ev.term, group, priority: n + 1, id, kept: false, _new: true } });
         later(() => dispatch({ type: "updateTerm", id, patch: { _new: false } }), 780);
         if (got >= want) ctrl.abort();
       }
@@ -360,17 +378,11 @@ export function App() {
     }
   }, [merge]);
   const jumpRelated = (name: string) => { const t = sref.current.terms.find((x) => x.term === name); if (t) void toggleDetail(t.id); };
-  const doDeepen = (id: string) => {
-    // "더 깊이"는 유료 전용 제품 혜택. 무료는 페이월로 안내한다.
-    if (sref.current.plan !== "pro") { merge({ prevScreen: sref.current.screen, screen: "paywall", limitHit: false }); return; }
-    dispatch({ type: "updateTerm", id, patch: { deepened: true } });
-  };
-
   // ----- 요약(출력 언어로) -----
   const buildSummary = (s: State): string => {
     const loc = s.locale;
     const names = s.terms.filter((t) => t.kept).map((t) => t.term);
-    const cond = (s.ctxInput || s.cond || "").trim(); const ctxObj = s.input.trim();
+    const cond = (s.cond || "").trim(); const ctxObj = s.input.trim();
     const area = s.classifyOut?.domain ?? "";
     const L = [tr(loc, "sum_intro", { area: area || "—" })];
     if (cond) L.push(tr(loc, "sum_cond", { cond }));
@@ -410,7 +422,7 @@ export function App() {
     const terms: UITerm[] = rec.terms.map((k, i) => ({
       term: k.term, kind: k.kind, priority: k.priority, why: k.why, one_line: k.one_line, tag: "몰라",
       ...(k.group ? { group: k.group } : {}),
-      id: "h" + i, kept: true, deepened: false, _new: false, ...(k.detail ? { detail: k.detail } : {}),
+      id: "h" + i, kept: true, _new: false, ...(k.detail ? { detail: k.detail } : {}),
     }));
     merge({
       screen: "kept", histView: true, terms, visibleCount: terms.length, openId: null,
@@ -457,8 +469,8 @@ export function App() {
       <Header state={state} openPaywall={openPaywall} goHome={goHome} changeLocale={changeLocale} openTutorial={() => merge({ tutorialOpen: true })} />
       {state.screen === "entry" && <Entry state={state} merge={merge} submitEntry={submitEntry} chip={chip} openHistory={openHistory} deleteHistory={deleteHistory} acceptFile={acceptFile} attachPaywall={attachPaywall} removeAttached={removeAttached} />}
       {state.screen === "narrow" && <Narrow state={state} merge={merge} toggleSel={toggleSel} nextStep={nextStep} undoStep={undoStep} jumpToTerms={jumpToTerms} />}
-      {state.screen === "terms" && <Terms state={state} merge={merge} loadMore={loadMore} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} doDeepen={doDeepen} go={go} refine={refineFromTerms} genGroup={genGroup} />}
-      {state.screen === "kept" && <Kept state={state} merge={merge} go={go} goHome={goHome} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} doDeepen={doDeepen} buildSummary={buildSummary} onCopy={onCopy} onShare={onShare} aiRefine={aiRefine} />}
+      {state.screen === "terms" && <Terms state={state} merge={merge} loadMore={loadMore} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} go={go} refine={refineFromTerms} genGroup={genGroup} />}
+      {state.screen === "kept" && <Kept state={state} merge={merge} go={go} goHome={goHome} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} buildSummary={buildSummary} onCopy={onCopy} onShare={onShare} aiRefine={aiRefine} />}
       {state.screen === "paywall" && <Paywall state={state} closePaywall={closePaywall} onUpgrade={onUpgrade} />}
       {state.screen === "refusal" && <Refusal state={state} goHome={goHome} />}
       {state.tutorialOpen && <Tutorial state={state} onClose={closeTutorial} />}
@@ -592,8 +604,9 @@ function Narrow({ state, merge, toggleSel, nextStep, undoStep, jumpToTerms }: { 
   // 4번째 질문부터는 pro 전용 심화 구간(무료는 3턴에서 종료되므로 자연히 pro만 도달).
   const proPhase = idx >= 3;
   // 4턴부터 기본 진행바 오른쪽으로 오로라가 연장되는 비율(paid 한도까지 채워짐).
+  // 4턴(idx 3)에서 이미 한 칸(약 20%) 차 있고 마지막 턴에서 100%가 되도록 (idx-2)로 한 칸 당긴다.
   const maxPaid = state.limits.narrowMax.paid;
-  const extraPct = proPhase ? Math.round(Math.min(1, (idx - 3) / Math.max(1, maxPaid - 3)) * 100) : 0;
+  const extraPct = proPhase ? Math.round(Math.min(1, (idx - 2) / Math.max(1, maxPaid - 3)) * 100) : 0;
   return (
     <main className="scroll"><div className="pad" style={{ display: "flex", flexDirection: "column" }}>
       <div className="aiwrap">
@@ -605,7 +618,7 @@ function Narrow({ state, merge, toggleSel, nextStep, undoStep, jumpToTerms }: { 
         <div className="track base"><i style={{ width: pct + "%" }} /></div>
         {proPhase && <div className="track extra"><i style={{ width: extraPct + "%" }} /></div>}
         {proPhase
-          ? <span className="promark">{tr(loc, "prolock")}</span>
+          ? <span className="promark">/{maxPaid}</span>
           : (state.plan !== "pro" && <span className="prolock" title={tr(loc, "prolock_title")}><LockIcon />{tr(loc, "prolock")}</span>)}
       </div>
       <h2>{sentLines(cur?.question ?? "")}</h2>
@@ -626,34 +639,45 @@ function Narrow({ state, merge, toggleSel, nextStep, undoStep, jumpToTerms }: { 
   );
 }
 
-function Detail({ t, locale, opening, jumpRelated, doDeepen, toggleKeep }: { t: UITerm; locale: OutputLocale; opening: boolean; jumpRelated: (n: string) => void; doDeepen: (id: string) => void; toggleKeep: (id: string) => void }) {
-  if (t.detailLoading || !t.detail) return <div className="detail"><div className="dbody"><p style={{ color: "var(--muted)" }}>{tr(locale, "detail_loading")}</p></div></div>;
+function Detail({ t, locale, opening, jumpRelated, toggleKeep }: { t: UITerm; locale: OutputLocale; opening: boolean; jumpRelated: (n: string) => void; toggleKeep: (id: string) => void }) {
+  if (t.detailLoading || !t.detail) return <div className="detail"><p className="dtext" style={{ color: "var(--muted)" }}>{tr(locale, "detail_loading")}</p></div>;
   const d = t.detail;
-  const how = d.how;
+  // 개념은 핵심(첫 문장)을 굵게 두고 나머지를 이어 보여준다(핵심 우선). 활용은 문장을 단계로 쪼갠다.
+  const whatSents = splitSentences(d.what);
+  const whatLead = whatSents[0] ?? d.what;
+  const whatRest = whatSents.slice(1);
+  const howSteps = splitSentences(d.how);
   return (
     <div className={`detail${opening ? " animin" : ""}`}>
-      <div className="dsec">{tr(locale, "detail_sec1")}</div>
-      <div className="dbody">
-        <p>{sentLines(d.what)}</p><p>{sentLines(d.whymine)}</p><p>{sentLines(how)}</p>
-        {t.context_note && <p><b className="tag-in">{tr(locale, "detail_ctx")}</b>{sentLines(t.context_note)}</p>}
-        {t.direction && <p><b className="tag-in">{tr(locale, "detail_dir")}</b>{sentLines(t.direction)}</p>}
-        {t.use_example && <p><b className="tag-in">{tr(locale, "detail_ex")}</b>{sentLines(t.use_example)}</p>}
-        {d.misc && <div className="misc">{sentLines(d.misc)}</div>}
+      <div className="dparts">
+        <section className="dpart">
+          <div className="dlabel">{tr(locale, "dlabel_what")}</div>
+          <div className="dtext"><b className="dlead">{whatLead}</b>{whatRest.map((s, i) => <span key={i}><br />{s}</span>)}</div>
+        </section>
+        <section className="dpart mine">
+          <div className="dlabel">{tr(locale, "dlabel_mine")}</div>
+          <div className="dtext">{sentLines(d.whymine)}</div>
+          {t.context_note && <div className="dsub"><b>{tr(locale, "detail_ctx")}</b>{sentLines(t.context_note)}</div>}
+        </section>
+        <section className="dpart">
+          <div className="dlabel">{tr(locale, "dlabel_how")}</div>
+          <ul className="dsteps">{howSteps.map((s, i) => <li key={i}>{s}</li>)}</ul>
+          {t.direction && <div className="dsub"><b>{tr(locale, "detail_dir")}</b>{sentLines(t.direction)}</div>}
+          {t.use_example && <div className="dsub"><b>{tr(locale, "detail_ex")}</b>{sentLines(t.use_example)}</div>}
+        </section>
+        {d.misc && <p className="dmemo"><InfoIcon />{sentLines(d.misc)}</p>}
       </div>
-      <div className="dsec" style={{ marginTop: 13 }}>{tr(locale, "detail_sec2")}</div>
+      <div className="dsec" style={{ marginTop: 16 }}>{tr(locale, "detail_sec2")}</div>
       {d.related.length > 0 && <div className="related">{d.related.map((r) => <button key={r} className="relbtn" onClick={() => jumpRelated(r)}>{r} ↗</button>)}</div>}
       {d.sources.length > 0
         ? d.sources.map((s, i) => <a key={i} className="src" href={s.url} target="_blank" rel="noopener noreferrer"><span style={{ color: "var(--faint)", flex: "0 0 auto" }}><LinkIcon /></span><span style={{ flex: 1, minWidth: 0 }}><b>{s.title}</b><small>{s.site}</small></span></a>)
         : <div className="nosrc">{tr(locale, "detail_nosrc")}</div>}
-      <div className="detailacts">
-        {!t.deepened && <button className="deepen" onClick={() => doDeepen(t.id)}>{tr(locale, "deepen")}</button>}
-        <button className={`keepbtn big ${t.kept ? "on" : ""}`} onClick={() => toggleKeep(t.id)}>{t.kept ? tr(locale, "keep_detail_on") : tr(locale, "keep_detail_off")}</button>
-      </div>
+      <button className={`keepbtn big ${t.kept ? "on" : ""}`} onClick={() => toggleKeep(t.id)}>{t.kept ? tr(locale, "keep_detail_on") : tr(locale, "keep_detail_off")}</button>
     </div>
   );
 }
 
-function Card({ t, i, state, toggleKeep, toggleDetail, jumpRelated, doDeepen }: { t: UITerm; i: number; state: State; toggleKeep: (id: string) => void; toggleDetail: (id: string) => void; jumpRelated: (n: string) => void; doDeepen: (id: string) => void }) {
+function Card({ t, i, state, toggleKeep, toggleDetail, jumpRelated }: { t: UITerm; i: number; state: State; toggleKeep: (id: string) => void; toggleDetail: (id: string) => void; jumpRelated: (n: string) => void }) {
   const loc = state.locale;
   const open = state.openId === t.id;
   const animStyle = t._new ? { animation: `cardIn .42s ease both`, animationDelay: `${i * 55}ms` } : undefined;
@@ -675,12 +699,12 @@ function Card({ t, i, state, toggleKeep, toggleDetail, jumpRelated, doDeepen }: 
         <button className={`keepmini ${t.kept ? "on" : ""}`} onClick={(e) => { e.stopPropagation(); toggleKeep(t.id); }} aria-label={t.kept ? tr(loc, "keep_on") : tr(loc, "keep_off")} title={t.kept ? tr(loc, "keep_on") : tr(loc, "keep_off")}><BookmarkIcon /></button>
         <span className="chev"><Chev /></span>
       </div>
-      {open && <Detail t={t} locale={loc} opening={state.opening === t.id} jumpRelated={jumpRelated} doDeepen={doDeepen} toggleKeep={toggleKeep} />}
+      {open && <Detail t={t} locale={loc} opening={state.opening === t.id} jumpRelated={jumpRelated} toggleKeep={toggleKeep} />}
     </div>
   );
 }
 
-function Terms({ state, merge, loadMore, toggleKeep, toggleDetail, jumpRelated, doDeepen, go, refine, genGroup }: { state: State; merge: (p: Partial<State>) => void; loadMore: () => void; toggleKeep: (id: string) => void; toggleDetail: (id: string) => void; jumpRelated: (n: string) => void; doDeepen: (id: string) => void; go: (s: Screen) => void; refine: (text: string) => void; genGroup: (group: string) => void }) {
+function Terms({ state, merge, loadMore, toggleKeep, toggleDetail, jumpRelated, go, refine, genGroup }: { state: State; merge: (p: Partial<State>) => void; loadMore: () => void; toggleKeep: (id: string) => void; toggleDetail: (id: string) => void; jumpRelated: (n: string) => void; go: (s: Screen) => void; refine: (text: string) => void; genGroup: (group: string) => void }) {
   const loc = state.locale;
   const revealed = state.terms.slice(0, state.visibleCount);
   let active = [...revealed];
@@ -697,7 +721,7 @@ function Terms({ state, merge, loadMore, toggleKeep, toggleDetail, jumpRelated, 
         {active.length > 0 ? active.map((t, i) => {
           const head = state.groupView && t.group !== lastG ? <div key={"g" + t.id} className="grouphead"><b>{t.group}</b><i /><button className="groupgen" onClick={() => genGroup(t.group as string)} disabled={!!state.groupGenLoading}>{state.groupGenLoading === t.group ? tr(loc, "group_gen_loading") : tr(loc, "group_gen", { n: state.plan === "pro" ? state.limits.groupGen.paid : state.limits.groupGen.free })}</button></div> : null;
           lastG = t.group;
-          return <div key={t.id}>{head}<Card t={t} i={i} state={state} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} doDeepen={doDeepen} /></div>;
+          return <div key={t.id}>{head}<Card t={t} i={i} state={state} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} /></div>;
         }) : <p className="note" style={{ margin: "24px 0" }}>{state.streaming ? tr(loc, "terms_loading") : tr(loc, "terms_nomatch")}</p>}
         {state.moreLoaded
           ? <button className="more done">{tr(loc, "more_done")}</button>
@@ -712,27 +736,31 @@ function Terms({ state, merge, loadMore, toggleKeep, toggleDetail, jumpRelated, 
   );
 }
 
-function Kept({ state, merge, go, goHome, toggleKeep, toggleDetail, jumpRelated, doDeepen, buildSummary, onCopy, onShare, aiRefine }: { state: State; merge: (p: Partial<State>) => void; go: (s: Screen) => void; goHome: () => void; toggleKeep: (id: string) => void; toggleDetail: (id: string) => void; jumpRelated: (n: string) => void; doDeepen: (id: string) => void; buildSummary: (s: State) => string; onCopy: () => void; onShare: () => void; aiRefine: () => void }) {
+function Kept({ state, merge, go, goHome, toggleKeep, toggleDetail, jumpRelated, buildSummary, onCopy, onShare, aiRefine }: { state: State; merge: (p: Partial<State>) => void; go: (s: Screen) => void; goHome: () => void; toggleKeep: (id: string) => void; toggleDetail: (id: string) => void; jumpRelated: (n: string) => void; buildSummary: (s: State) => string; onCopy: () => void; onShare: () => void; aiRefine: () => void }) {
   const loc = state.locale;
-  const copyLabel = state.copyFailed ? tr(loc, "copy_fail") : state.copied ? tr(loc, "copy_done") : tr(loc, "copy");
+  const copyLabel = state.copied ? tr(loc, "copy_done") : tr(loc, "copy");
   const kept = state.terms.filter((t) => t.kept);
   return (
     <main className="scroll"><div className="pad" style={{ display: "flex", flexDirection: "column" }}>
       <button className="link" style={{ alignSelf: "flex-start", color: "var(--muted)", marginBottom: 13 }} onClick={() => (state.histView ? goHome() : go("terms"))}>{state.histView ? tr(loc, "kept_back_home") : tr(loc, "kept_back_terms")}</button>
       <h2>{tr(loc, "kept_title")}{state.input ? ` · ${state.input}` : ""}</h2>
       <p className="lead" style={{ margin: "4px 0 14px" }}>{kept.length ? tr(loc, "kept_some", { n: kept.length }) : tr(loc, "kept_none")}</p>
-      {kept.map((t, i) => <Card key={t.id} t={t} i={i} state={state} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} doDeepen={doDeepen} />)}
+      {kept.map((t, i) => <Card key={t.id} t={t} i={i} state={state} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} />)}
       {kept.length > 0 && <>
         <div className="dsec" style={{ marginTop: 16 }}>{tr(loc, "paste_head")}</div>
-        <div className="label" style={{ marginTop: 8 }}>{tr(loc, "ctx_label")}</div>
-        <input className="field" aria-label={tr(loc, "ctx_label")} placeholder={tr(loc, "ctx_ph")} value={state.ctxInput} onChange={(e) => merge({ ctxInput: e.target.value })} />
-        <div className="summary" style={{ marginTop: 13 }}>{buildSummary(state)}</div>
-        {state.aiSummary && <><div className="dsec" style={{ marginTop: 14 }}>{tr(loc, "ai_extra")}</div><div className="summary" style={{ marginTop: 6 }}>{state.aiSummary}</div></>}
-        <div className="row2">
-          <button className="btn btn-ghost" style={{ flex: 2 }} onClick={onCopy}>{copyLabel}</button>
-          <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onShare}>{state.shareNote ? tr(loc, "share_done") : tr(loc, "share")}</button>
+        <p className="note" style={{ margin: "4px 0 0" }}>{tr(loc, "paste_sub")}</p>
+        <div className="summary" style={{ marginTop: 12 }}>{buildSummary(state)}</div>
+        <div className="actrow">
+          <button className="pillbtn ghost" onClick={onShare}><ShareIcon />{state.shareNote ? tr(loc, "share_done") : tr(loc, "share")}</button>
+          <button className="pillbtn primary" onClick={onCopy}><CopyIcon />{copyLabel}</button>
         </div>
-        <button className="btn btn-ghost refinebtn" style={{ marginTop: 10 }} onClick={aiRefine}><span className="rlabel">{state.aiSummaryLoading ? tr(loc, "refine_loading") : state.plan === "pro" ? tr(loc, "refine") : <>{tr(loc, "refine_locked")}<LockIcon /></>}</span></button>
+        {state.copyFailed && <p className="note" style={{ textAlign: "right", color: "var(--warn-ink)", marginTop: 6 }}>{tr(loc, "copy_fail")}</p>}
+        <div className="dsec" style={{ marginTop: 16 }}>{tr(loc, "ai_extra")}</div>
+        <div className="refinerow">
+          <input className="field" style={{ flex: 3 }} aria-label={tr(loc, "refine_dir_ph")} placeholder={tr(loc, "refine_dir_ph")} value={state.ctxInput} onChange={(e) => merge({ ctxInput: e.target.value })} />
+          <button className="btn btn-ghost refinebtn" style={{ flex: 1 }} onClick={aiRefine}><span className="rlabel">{state.aiSummaryLoading ? tr(loc, "refine_loading") : state.plan === "pro" ? tr(loc, "refine") : <>{tr(loc, "refine_locked")}<LockIcon /></>}</span></button>
+        </div>
+        {state.aiSummary && <div className="summary" style={{ marginTop: 10 }}>{state.aiSummary}</div>}
       </>}
       <button className="link" style={{ alignSelf: "center", color: "var(--muted)", marginTop: 14 }} onClick={goHome}>{tr(loc, "restart")}</button>
       <p className="note">{tr(loc, "kept_note")}</p>

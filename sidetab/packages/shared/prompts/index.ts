@@ -141,13 +141,18 @@ export function buildPrompt4(input: {
   outputLocale: OutputLocale;
 }): Msg[] {
   const sys = [
-    "Given the tagged vocabulary and the situation, create a summary text the user can paste directly into their main AI.",
+    "Given the tagged vocabulary and the situation, write a detailed, paste-ready briefing the user will drop into their main AI (ChatGPT, Claude, etc.) so it explains these terms in the context of the project they are working on.",
     langInstruction(input.outputLocale),
     SECURITY_GUARD,
-    'paste_text structure template (render this meaning naturally in the output language): "I am trying to [task_intent] in the field of [area]. (My situation: [user_condition]) Among the key terms A, B, C, I do not know B well. (Reference context: [context_object])". Omit empty slots.',
+    "Build paste_text as a rich, well-structured briefing (not a single sentence). Use plain line breaks between parts. It must contain three parts:",
+    "Part 1 (opening): state what the user is trying to do (task_intent) in the field (area), and weave in their situation/direction (user_condition) and any reference context (context_object) when present. One short paragraph.",
+    "Part 2 (the vocabulary): list each key term on its own line as \"term: one short, plain-language meaning grounded in this project's context\". This tells the main AI the user's vocabulary level and exactly which concepts matter.",
+    "Part 3 (the ask): ask the main AI to explain how these concepts apply to the user's specific project, prioritized, with concrete examples, and to surface 2-3 follow-up questions worth asking next.",
+    "Treat user_condition as the steering direction for focus and tone (e.g. 'keep it simple', 'interview prep', 'practical application'), not merely a 'my situation' slot. If user_condition is empty, write a sensible neutral briefing.",
+    "Be genuinely detailed and clear, but no filler or repetition. Keep each term's meaning to one line.",
     "If job_type has multiple values, write both tasks in task_intent.",
     "Generate context_sentence from background_hint.",
-    'Output exactly one JSON object. Format: {"area","task_intent","user_condition"?,"context_object"?,"context_sentence","vocab":[{"term","tag"}],"paste_text"}. Must be valid JSON.',
+    'Output exactly one JSON object. Format: {"area","task_intent","user_condition"?,"context_object"?,"context_sentence","vocab":[{"term","tag"}],"paste_text"}. paste_text holds the full multi-part briefing. Must be valid JSON.',
   ].join("\n");
   const user = JSON.stringify(input);
   return [
@@ -162,7 +167,6 @@ export function buildPrompt5(input: {
   kind: string;
   area: string;
   job_type: JobType[];
-  deepen?: boolean;
   grounding?: string; // recommend서 재사용한 RAG 근거(있으면 출처 귀속에 쓴다)
   candidateSources?: { title: string; url: string }[]; // 근거 문서 목록. 이 중에서만 고른다.
   outputLocale: OutputLocale;
@@ -171,19 +175,19 @@ export function buildPrompt5(input: {
     "Explain the detail of one vocabulary card the user opened, as if speaking to a non-expert hearing it for the first time.",
     langInstruction(input.outputLocale),
     SECURITY_GUARD,
-    "Write the body in 3 parts: what (the concept — what it is) · whymine (my context — why it matters to me) · how (usage — how to use it). If there is a helpful one-liner, put it in misc.",
-    "Each part is 1-2 short, easy sentences. No rambling or verbosity. Unpack jargon; keep any analogy to one line.",
+    "Write the body in 3 parts: what (the concept), whymine (why it matters to me), how (how to use it). If there is a helpful one-liner, put it in misc.",
+    "what: lead with ONE plain-language definition sentence (the essence), then optionally ONE analogy sentence. The UI bolds the first sentence, so it must stand alone as the core meaning.",
+    "whymine: 1-2 short sentences addressed to the user, on why this matters in their situation.",
+    "how: 2-4 short, actionable steps. Write each step as its own separate sentence (the UI renders them as a list). No rambling. Unpack jargon.",
     "related are general related terms for detail browsing (a different concept from relates_to in prompt 3).",
     "sources: choose only those among the provided candidateSources that genuinely support this term (precision first). If unsure, leave an empty array. Do not invent sources not in the list (site may be left empty; the code fills it from the URL).",
-    input.deepen ? "deepen is on, so add one concrete example or analogy to how." : "",
-    'Output exactly one JSON object. Format: {"what","whymine","how","misc"?,"related":[],"sources":[{"title","url"}],"example"?}. Must be valid JSON.',
+    'Output exactly one JSON object. Format: {"what","whymine","how","misc"?,"related":[],"sources":[{"title","url"}]}. Must be valid JSON.',
   ].filter(Boolean).join("\n");
   const user = JSON.stringify({
     term: input.term,
     kind: input.kind,
     area: input.area,
     job_type: input.job_type,
-    deepen: input.deepen ?? false,
     grounding: input.grounding ?? "",
     candidateSources: input.candidateSources ?? [],
   });

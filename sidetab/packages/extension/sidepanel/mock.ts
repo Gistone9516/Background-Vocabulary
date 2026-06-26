@@ -114,10 +114,14 @@ export async function detail(input: Prompt5In): Promise<Prompt5Out> {
 
 export async function summarize(input: Prompt4In): Promise<Prompt4Out> {
   await delay(700);
-  const terms = input.vocab.map((v) => v.term).join("·");
+  const dir = (input.user_condition ?? "").trim();
+  const intro = `나는 ${input.area} 분야에서 작업을 진행하고 있어.${dir ? ` 특히 이런 방향으로 봐줘: ${dir}.` : ""} 아래 핵심 어휘들을 내 프로젝트 맥락에 맞춰 이해하려고 해.`;
+  const lines = input.vocab.map((v) => `- ${v.term}: 이 프로젝트에서 ${v.term}가 어떤 의미인지 한 줄로 풀어 설명해줘.`).join("\n");
+  const ask = "이 개념들이 내 프로젝트에 구체적으로 어떻게 적용되는지, 우선순위를 매겨 예시와 함께 알려줘. 그리고 내가 다음으로 물어보면 좋을 질문 2~3개도 제안해줘.";
   return {
     area: input.area, task_intent: "이 분야를 이해하고 활용",
+    ...(dir ? { user_condition: dir } : {}),
     context_sentence: "", vocab: input.vocab,
-    paste_text: `나는 ${input.area} 영역에서 작업하려 한다. 핵심어 ${terms}를 짚었다. 이 개념들을 내 상황에 어떻게 적용하는지 알려줘.`,
+    paste_text: `${intro}\n\n[핵심 어휘]\n${lines}\n\n[요청]\n${ask}`,
   };
 }

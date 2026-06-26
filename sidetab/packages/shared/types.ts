@@ -57,7 +57,7 @@ export const DEFAULT_LIMITS: Limits = {
   maxTokens: {
     classify: 900,
     next: 800,
-    summarize: 1000,
+    summarize: 1800,
     recommend: { free: 1400, paid: 2600 },
     detail: { free: 900, paid: 1300 },
   },
@@ -219,7 +219,6 @@ export interface Prompt5In {
   domain: string;
   topic: string;
   locale: Locale;
-  deepen?: boolean; // "더 깊이(예시·비유 추가)" 클릭 시.
 }
 export interface Prompt5Out {
   // 프론트 상세 3단 구조(D2). 정본 = panel.html detailHTML.
@@ -230,5 +229,4 @@ export interface Prompt5Out {
   // related는 상세 열람용 일반 관련어다. Term.relates_to와 다른 개념이다(기획 P28).
   related: string[];
   sources: Source[]; // 출처 필수. 확신 가는 귀속만, 애매하면 빈 배열(프론트 폴백).
-  example?: string; // deepen 시 추가 예시.
 }
