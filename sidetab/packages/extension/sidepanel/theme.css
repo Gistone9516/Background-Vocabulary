@@ -444,3 +444,46 @@ textarea.field{line-height:1.55}
    핵심 원인: #root가 body(flex)의 자식인데 폭 미지정이라 내용 크기로 줄어들어 폭이 들쭉날쭉했다. */
 #root{width:100%}
 #app{max-width:none;width:100%;border-left:none;border-right:none}
+
+/* ───── 잠금·페이월 일관성(다크패턴 제거). 무료에 잠금을 미리 보이고, 페이월은 온 이유를 알린다. ───── */
+/* 무료의 첨부 버튼: 글자 옆에 작은 자물쇠. 평소 옅고 호버 시 진해진다(기존 .attach:hover 계승). */
+.attach.locked{display:inline-flex;align-items:center;gap:4px;color:var(--faint);opacity:.75}
+.attach.locked svg{width:11px;height:11px}
+/* 재탐색 입력 오른쪽 자물쇠(무료). 왼쪽 스파클은 기존 .searchwrap svg 규칙을 그대로 쓴다. */
+.searchwrap .searchlock{position:absolute;right:10px;top:50%;left:auto;transform:translateY(-50%);color:var(--faint);opacity:.6;display:flex;pointer-events:none}
+.searchwrap .searchlock svg{position:static;left:auto;top:auto;transform:none;width:12px;height:12px}
+.search.locked{padding-right:28px}
+/* 더 보기 버튼 안의 잠금(무료). */
+.more svg{width:14px;height:14px;opacity:.6}
+
+/* ───── 진입: 세션 스냅샷(이어서 보기, d-2)과 삭제 실행취소(c-1-4). 차분하게, 오로라 없이. ───── */
+/* 가장 최근 세션을 진입 상단에 능동 노출. 카드 패턴 계승 + 호버 시 accent. */
+.resume{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:14px;box-shadow:var(--shadow);transition:border-color .14s,box-shadow .14s}
+.resume:hover{border-color:var(--accent);box-shadow:var(--shadow-lg)}
+.resume:active{transform:scale(.99)}
+.resumeText{display:flex;flex-direction:column;gap:2px;min-width:0}
+.resumeEy{font-size:11px;font-weight:600;letter-spacing:.04em;color:var(--accent-ink)}
+.resumeText b{font-size:14.5px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.resumeMeta{font-size:11.5px;color:var(--muted)}
+.resumeGo{flex:0 0 auto;font-size:13px;font-weight:600;color:var(--accent-ink);white-space:nowrap}
+/* 삭제 실행취소 줄: 경고색이 아니라 조용한 surface-2 한 줄(삭제는 이미 됐고 되돌리기만 제안). */
+.snackbar{display:flex;align-items:center;justify-content:center;gap:12px;font-size:12.5px;color:var(--muted);background:var(--surface-2);border:1px solid var(--border);border-radius:11px;padding:9px 12px;margin-top:10px}
+
+/* ───── 좁히기(아키네이터) 안내 줄. 조용한 한 줄 텍스트. ───── */
+/* "쉬운 말로 다시 물어볼게요" 확인(c-2-1). */
+.aihint{font-size:12px;font-weight:500;color:var(--accent-ink);margin:0 0 12px}
+/* 종료 턴 범위(c-2-3). 진행바 바로 아래 옅게. */
+.rangehint{font-size:11.5px;color:var(--muted);margin:0}
+
+/* ───── 어휘 리스트 한 줄 안내(c-3-4·c-3-5·c-4-1)와 무출처 안내(c-4-3). ───── */
+.listnote{font-size:12px;color:var(--muted);line-height:1.5;margin:-4px 0 12px}
+.listnote .dleft.warn{color:var(--warn-ink);font-weight:600}
+/* 무출처 안내를 아이콘 곁들인 가벼운 한 줄로(dmemo와 같은 결, 색·폰트는 기존 .nosrc 유지). */
+.nosrc{display:flex;gap:7px;align-items:flex-start}
+.nosrc svg{flex:0 0 auto;width:14px;height:14px;opacity:.7;margin-top:1px}
+
+/* ───── 잠금 동작 고지 토스트. 작은 알약을 하단 중앙에 띄우고 2초에 걸쳐 페이드인·홀드·아웃. ───── */
+.proSheet{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);z-index:30;max-width:calc(100% - 36px);display:flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--border);border-radius:13px;box-shadow:var(--shadow-lg);padding:8px 13px;font-size:12.5px;line-height:1.4;color:var(--text);animation:toastInOut 2s ease both}
+.proSheet svg{flex:0 0 auto;width:13px;height:13px;color:var(--accent-ink)}
+@keyframes toastInOut{0%{opacity:0;transform:translate(-50%,8px)}12%{opacity:1;transform:translate(-50%,0)}80%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,4px)}}
+@media (prefers-reduced-motion:reduce){.proSheet{animation:none}}

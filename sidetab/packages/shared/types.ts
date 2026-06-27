@@ -151,6 +151,7 @@ export type StreamEvent =
 export interface Prompt1In {
   raw_input: string;
   context_object?: string;
+  user_condition?: string; // 진입 화면에서 사용자가 적은 좁힘 조건. 첫 분기와 어휘 선정에 반영한다.
 }
 export interface Prompt1Out {
   domain: string;

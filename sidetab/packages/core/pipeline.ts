@@ -50,7 +50,7 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
   return {
     // 프롬프트1: 자유 문장에서 도메인과 작업유형을 분류하고 첫 분기를 만든다.
     async classify(input: Prompt1In, outputLocale: OutputLocale): Promise<Prompt1Out> {
-      const messages = prompts.buildPrompt1(input.raw_input, outputLocale, input.context_object);
+      const messages = prompts.buildPrompt1(input.raw_input, outputLocale, input.context_object, input.user_condition);
       return deps.llm.complete<Prompt1Out>({
         model: MODEL_FLASH,
         messages,
