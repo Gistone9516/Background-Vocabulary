@@ -128,6 +128,7 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
               ...(input.context_object !== undefined && { context_object: input.context_object }),
               ...(input.gap_type !== undefined && { gap_type: input.gap_type }),
               ...(input.exclude !== undefined && { exclude: input.exclude }),
+              ...(input.difficulty !== undefined && { difficulty: input.difficulty }),
             };
             const messages = prompts.buildPrompt3(prompt3Input);
 

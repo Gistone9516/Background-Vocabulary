@@ -208,10 +208,36 @@ app.get("/config", (c) => {
 app.post("/classify", async (c) => {
   const limits = buildLimits(c.env);
   const blocked = await securityBlock(c, c.env, limits); if (blocked) return blocked;
+
+  // 주간 한도(free)는 세션 생성 시점인 classify에서 차감한다(D3: 1 탐색 = 주간 1회). free·비익명만 집계.
+  // GET으로 한도를 먼저 확인해 초과면 LLM 호출 전에 막는다(선증가-후차단 방지). 실제 INCR은 분류 성공·비고위험일 때만.
+  const tier = readTier(c);
+  const userId = c.req.header("x-user-id") ?? "anonymous";
+  const metered = tier === "free" && userId !== "anonymous";
+  const counter = new UpstashUsageCounter({ url: c.env.UPSTASH_REDIS_REST_URL, token: c.env.UPSTASH_REDIS_REST_TOKEN });
+  if (metered) {
+    let count = 0;
+    try { count = await counter.getCount(userId); } catch (err) { console.error("주간 카운터 조회 오류:", err); count = 0; }
+    if (count >= limits.freeWeeklyLimit) {
+      return c.json({ error: "WEEKLY_LIMIT_EXCEEDED", message: `무료 티어 주간 한도(${limits.freeWeeklyLimit}회)를 초과했습니다. 유료 플랜으로 업그레이드하면 무제한 이용할 수 있습니다.`, count, limit: limits.freeWeeklyLimit }, 429);
+    }
+  }
+
+  // 전역 일일 캡(classify도 DeepSeek를 호출하는 비용 엔드포인트 — recommend·detail·summarize와 캡 일관성).
+  const cap = await bumpGlobalCap(c.env, limits.globalDailyCap);
+  if (cap.over) {
+    return c.json({ error: "GLOBAL_DAILY_CAP", message: "오늘 전체 이용량이 많아 잠시 추천을 멈췄어요. 내일 다시 시도해 주세요.", count: cap.count, cap: cap.cap }, 429);
+  }
+
   const body = await c.req.json<Prompt1In>();
   if (oversized(body, limits)) return c.json({ error: "INPUT_TOO_LARGE", message: "입력이 너무 길어요. 줄여서 다시 시도해 주세요." }, 413);
   const pipeline = buildPipeline(c.env);
   const result = await pipeline.classify(body, readLocale(c));
+
+  // 고위험(거부) 분류는 과금하지 않는다. 정상·비고위험 분류일 때만 주간 카운트를 올린다(세션 생성 = 결제).
+  if (metered && result.domain_risk !== "high") {
+    try { await counter.incrAndGet(userId); } catch (err) { console.error("주간 카운터 증가 오류:", err); }
+  }
   return c.json(result);
 });
 
@@ -234,7 +260,6 @@ app.post("/next", async (c) => {
 // 서버 측 설치 UUID 검증은 구현계획 12장(Tier3) 이후로 보류한다.
 app.post("/recommend", async (c) => {
   const tier = readTier(c);
-  const userId = c.req.header("x-user-id") ?? "anonymous";
   const limits = buildLimits(c.env);
 
   // 보안 게이트(IP 레이트리밋). x-tier·x-user-id 스푸핑과 무관하게 IP 기준으로 남용을 막는다.
@@ -249,34 +274,10 @@ app.post("/recommend", async (c) => {
     );
   }
 
-  // free 티어 주간 한도 검사
-  if (tier === "free" && userId !== "anonymous") {
-    const counter = new UpstashUsageCounter({
-      url: c.env.UPSTASH_REDIS_REST_URL,
-      token: c.env.UPSTASH_REDIS_REST_TOKEN,
-    });
-    let count: number;
-    try {
-      count = await counter.incrAndGet(userId);
-    } catch (err) {
-      console.error("사용량 카운터 오류:", err);
-      // 카운터 오류 시 통과시킨다(서비스 우선, 보수적 접근).
-      count = 0;
-    }
-    if (count > limits.freeWeeklyLimit) {
-      return c.json(
-        {
-          error: "WEEKLY_LIMIT_EXCEEDED",
-          message: `무료 티어 주간 한도(${limits.freeWeeklyLimit}회)를 초과했습니다. 유료 플랜으로 업그레이드하면 무제한 이용할 수 있습니다.`,
-          count,
-          limit: limits.freeWeeklyLimit,
-        },
-        429
-      );
-    }
-    // anonymous userId는 게이팅 없이 통과한다.
-    // 익명 사용자 남용 방어는 Tier3(설치 UUID 바인딩) 이후에 추가한다.
-  }
+  // 주간 한도(free)는 이제 세션 생성 시점인 /classify에서 차감한다(D3). 여기서는 재과금하지 않는다.
+  // 이어서 진행(재개) 세션의 생성도 재과금 없이 통과한다. 비용 상한은 위의 전역 일일 캡이 담당한다.
+  // (참고: classify 없이 /recommend를 직접 호출하는 우회는 설치 UUID 바인딩 Tier3 전까지 구조적 잔존이며,
+  //  현재도 x-user-id 헤더 교체로 우회 가능한 수준과 동급이다. 전역 일일 캡이 비용 backstop.)
 
   const body = await c.req.json<RecommendInput>();
   if (oversized(body, limits)) return c.json({ error: "INPUT_TOO_LARGE", message: "입력이 너무 길어요. 줄여서 다시 시도해 주세요." }, 413);

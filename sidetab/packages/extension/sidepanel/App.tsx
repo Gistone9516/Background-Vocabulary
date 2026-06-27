@@ -4,12 +4,12 @@ import { useReducer, useRef, useEffect, useState, useCallback, useMemo } from "r
 import type { Tag, RecommendInput, OutputLocale } from "@sidetab/shared";
 import * as api from "./api.js";
 import { DEFAULT_CLIENT_LIMITS } from "./api.js";
-import { loadSessions, saveSession, deleteSession, type SessionRec, type KeptTerm } from "./history.js";
+import { loadSessions, saveSession, deleteSession, type SessionRec, type KeptTerm, type NarrowSnap } from "./history.js";
 import { t as tr, LOCALE_LABELS } from "./i18n.js";
 import { EXAMPLES, pickRandom } from "./examples.js";
 import { MIN_Q, THINK_KEYS, HIGHRISK, GALAXY_POS } from "./constants.js";
-import type { Screen, UITerm, State, Action } from "./types.js";
-import { sentLines, splitSentences, firstSentence, fmtDate, markTerms, commaLines } from "./text.js";
+import type { Screen, UITerm, State, Action, Difficulty } from "./types.js";
+import { sentLines, splitSentences, firstSentence, fmtDate, markTerms, commaLines, hasVal } from "./text.js";
 import { isTextFile, readTextFile } from "./file.js";
 import { Spark, Chev, LinkIcon, RefreshIcon, LockIcon, TrashIcon, BookmarkIcon, UserIcon, CopyIcon, ShareIcon, InfoIcon } from "./icons.js";
 
@@ -21,6 +21,29 @@ function savedPlan(): "flash" | "pro" {
 function savedReview(): boolean {
   try { return localStorage.getItem("sidetab:review") !== "off"; } catch { return true; }
 }
+// 아키네이터 턴 예산은 세션별이다(공유 localStorage 폐기). 새 탐색은 만충으로 시작하고,
+// 이어서 진행은 세션 스냅샷(narrow.turnsLeft)에서 복원한다. 매 턴 차감은 saveSession이 세션에 영속한다.
+function defaultTurns(plan: "flash" | "pro"): number {
+  return plan === "pro" ? DEFAULT_CLIENT_LIMITS.narrowMax.paid : DEFAULT_CLIENT_LIMITS.narrowMax.free;
+}
+// classify가 주간 한도 초과(429 WEEKLY_LIMIT_EXCEEDED)로 던진 에러인지. 그렇다면 새 탐색을 막고 안내한다.
+function weeklyErr(e: unknown): boolean {
+  const status = (e as { status?: number })?.status;
+  if (status !== 429) return false;
+  return (e instanceof Error ? e.message : "").includes("WEEKLY_LIMIT_EXCEEDED");
+}
+// "선택지 어려워요"의 내부 표식. answers에 넣어 턴만 진행시키고, 모델에 보내는 히스토리에선 걸러낸다.
+// 라벨 텍스트("선택지 내용이 어려워요")를 직접 넣으면 모델이 그 신호를 "둘 다 어려움" 같은 메타 선택지로 되받아치므로 sentinel을 쓴다.
+const TOO_HARD_MARK = "__too_hard__";
+// 받은 선택지에서 금지된 umbrella(둘 다·모두·both·all)·메타("어려움/모르겠음") 라벨을 한 번 더 걸러내는 안전망.
+// 모델이 규칙을 어겨도 화면엔 안 뜨게 한다. 너무 많이 걸러지면(2개 미만) 원본을 유지해 빈 화면을 막는다.
+const UMBRELLA_RE = /^(둘\s*다|모두|전부|both|all of the above|either|まとめて|全部|以上すべて|全部都|两者都)$/i;
+const META_RE = /(어려움|어려워|모르겠|잘\s*모름|don'?t\s*know|not sure|^skip$|건너뛰)/i;
+function cleanChoices<T extends { label?: string }>(choices: T[]): T[] {
+  if (!Array.isArray(choices)) return choices;
+  const kept = choices.filter((c) => { const l = (c?.label ?? "").trim(); return l !== "" && !UMBRELLA_RE.test(l) && !META_RE.test(l); });
+  return kept.length >= 2 ? kept : choices;
+}
 function initial(): State {
   const plan = savedPlan();
   return {
@@ -28,11 +51,11 @@ function initial(): State {
     attachedFile: null, dragging: false, attachNote: "",
     chipSeed: 0, tutorialOpen: false,
     classifyOut: null, questions: [], answers: [], sel: [], confidence: 0, pending: false, customText: "", customOpen: false,
-    usedUndo: false, tooHard: false, simplify: false, unchosen: [],
+    usedUndo: false, tooHard: false, simplify: false, unchosen: [], turnsLeft: defaultTurns(plan),
     terms: [], visibleCount: 0, openId: null, opening: null, query: "", groupView: false, detailCount: 0,
     moreLoading: false, moreLoaded: false, streaming: false, groupGenLoading: "", refining: false,
     ctxInput: "", copied: false, copyFailed: false, shareNote: false, aiSummary: "", aiSummaryLoading: false,
-    plan, remaining: plan === "pro" ? 99 : 5, prevScreen: "entry", limitHit: false, reviewOn: savedReview(), errorMsg: "",
+    plan, remaining: plan === "pro" ? 99 : DEFAULT_CLIENT_LIMITS.freeWeeklyLimit, prevScreen: "entry", limitHit: false, reviewOn: savedReview(), errorMsg: "",
     sessionId: "", history: [], histView: false, limits: DEFAULT_CLIENT_LIMITS, locale: "ko",
   };
 }
@@ -51,20 +74,20 @@ export function App() {
   const sref = useRef(state); sref.current = state;
   const abortRef = useRef<AbortController | null>(null);
   const delTimer = useRef<number | undefined>(undefined); // 이전 탐색 삭제 실행취소 타이머
+  const classifyingRef = useRef(false); // startNarrow 연타 가드(이중 finishNarrow·이중 차감 방지)
   const merge = useCallback((patch: Partial<State>) => dispatch({ type: "merge", patch }), []);
   const later = (fn: () => void, ms: number) => window.setTimeout(fn, ms);
 
   // ----- 진입 -----
   const go = (screen: Screen) => merge({ screen });
-  const goHome = () => dispatch({ type: "reset" });
-  // 진행 중 탐색을 두고 로고로 홈에 갈 때는 한 번 확인한다(무심코 전체 리셋 방지, c-0-2). 진입 화면이거나 진행이 없으면 바로 리셋.
+  // reset 직전 진행 중 스트리밍을 끊는다(orphan fetch·dispatch 방지). 모든 홈 복귀 경로가 이 함수를 거치게 한다.
+  const goHome = () => { abortRef.current?.abort(); dispatch({ type: "reset" }); };
+  // 확인은 아키네이터(narrow)에서만 — 진행한 턴이 이미 소모됐고 좁히기가 사라짐을 알린다. 그 외 화면은 바로 홈.
   const requestHome = () => {
-    const s = sref.current;
-    const inProgress = s.screen !== "entry" && (s.terms.length > 0 || s.answers.length > 0 || s.classifyOut != null);
-    if (inProgress) { merge({ confirmHome: true }); return; }
-    dispatch({ type: "reset" });
+    if (sref.current.screen === "narrow") { merge({ confirmHome: true }); return; }
+    goHome();
   };
-  const confirmHomeYes = () => { merge({ confirmHome: false }); dispatch({ type: "reset" }); };
+  const confirmHomeYes = () => { merge({ confirmHome: false }); goHome(); };
   // 이전 탐색 삭제: 즉시 지우되 잠깐 "실행취소"를 띄운다(무확인·무복구 제거, c-1-4).
   const deleteHistory = (id: string) => {
     const rec = sref.current.history.find((h) => h.id === id);
@@ -79,29 +102,50 @@ export function App() {
     void saveSession(rec).then((list) => merge({ history: list, pendingDel: null }));
   };
 
+  // 진행 중 좁히기 스냅샷을 세션에 upsert한다(기존 createdAt·담은 어휘는 보존, updatedAt 갱신).
+  // 이걸로 이탈·새로고침·크래시에도 좁히기를 이어서 진행할 수 있다. refine(비영속)은 호출하지 않는다.
+  const writeNarrowSession = useCallback((sid: string, snap: NarrowSnap, topic: string, area: string, locale: string) => {
+    const existing = sref.current.history.find((h) => h.id === sid);
+    const rec: SessionRec = { id: sid, topic, area, locale, createdAt: existing?.createdAt ?? Date.now(), updatedAt: Date.now(), terms: existing?.terms ?? [], narrow: snap };
+    void saveSession(rec).then((list) => merge({ history: list }));
+  }, [merge]);
+
   const startNarrow = useCallback(async (raw: string) => {
-    merge({ pending: true, screen: "narrow", answers: [], sel: [], questions: [], input: raw, refining: false, usedUndo: false, tooHard: false, simplify: false });
+    if (classifyingRef.current) return; // 연타 드롭: 이미 분류 중이면 무시(이중 진입 방지)
+    classifyingRef.current = true;
+    merge({ pending: true, screen: "narrow", answers: [], sel: [], questions: [], input: raw, refining: false, usedUndo: false, tooHard: false, simplify: false, resumedSession: false });
     try {
       const cond0 = sref.current.cond.trim();
       const p1 = await api.classify({ raw_input: raw, ...(sref.current.attachedFile ? { context_object: sref.current.attachedFile.text } : {}), ...(cond0 ? { user_condition: cond0 } : {}) });
-      if (p1.domain_risk === "high") { merge({ pending: false, screen: "refusal" }); return; }
-      // 분류 결과가 비정상(질문/선택지 형태가 깨짐)이면 좁히기를 건너뛰고 바로 추천으로. 렌더 중 throw로 인한 블랭크 크래시 방지.
-      if (typeof p1.question !== "string" || !Array.isArray(p1.choices) || p1.choices.length === 0) {
-        merge({ pending: false, classifyOut: p1 }); void runRecommend(); return;
-      }
-      merge({ pending: false, classifyOut: p1, questions: [{ question: p1.question, choices: p1.choices }] });
+      if (p1.domain_risk === "high") { merge({ pending: false, screen: "refusal" }); return; } // 고위험: 세션·과금 없음
+      // 정상 분류 = 세션 생성. classify가 곧 결제(D3)이므로 주간 1회 차감(클라 추정), 턴 예산 만충, narrow 첫 스냅샷 저장(0답도 저장).
+      const tier = sref.current.plan === "pro" ? "paid" : "free";
+      const full = sref.current.limits.narrowMax[tier];
+      const sid = crypto.randomUUID();
+      const badQ = typeof p1.question !== "string" || !Array.isArray(p1.choices) || p1.choices.length === 0;
+      const firstQ = badQ ? [] : [{ question: p1.question, choices: cleanChoices(p1.choices) }];
+      merge({ pending: false, classifyOut: p1, questions: firstQ, sessionId: sid, turnsLeft: full, ...(sref.current.plan !== "pro" ? { remaining: Math.max(0, sref.current.remaining - 1) } : {}) });
+      writeNarrowSession(sid, { classifyOut: p1, questions: firstQ, answers: [], unchosen: [], usedUndo: false, tooHard: false, simplify: false, refining: false, confidence: 0, turnsLeft: full, ...(cond0 ? { cond: cond0 } : {}) }, raw, p1.domain ?? "", p1.search_locale ?? "en");
+      if (badQ) finishNarrow(false); // 분류 형태가 깨지면 좁히기 건너뛰고 바로 추천(렌더 throw 방지)
     } catch (e) {
+      if (weeklyErr(e)) { merge({ pending: false, screen: "entry", remaining: 0, proNotice: "weekly" }); return; } // 주간 소진: 새 탐색 차단(재개는 가능)
       merge({ pending: false, screen: "terms", errorMsg: msg(e), streaming: false });
+    } finally {
+      classifyingRef.current = false;
     }
-  }, [merge]);
+  }, [merge, writeNarrowSession]);
 
+  // 무료에서 주간 추천이 0이면 새 탐색을 시작할 수 없다(classify가 곧 결제). 진입 시 페이월 안내로 보낸다.
+  // 진행 중 세션 재개(openHistory)는 이 게이트를 거치지 않아 영향 없다(재과금 없음).
+  const cannotStartNew = () => { const s = sref.current; return s.plan === "flash" && s.remaining <= 0; };
   const submitEntry = () => {
     const v = sref.current.input.trim();
     if (!v) { merge({ inputErr: true }); later(() => merge({ inputErr: false }), 2400); return; }
     if (HIGHRISK.test(v)) { go("refusal"); return; }
+    if (cannotStartNew()) { openPaywall(); return; }
     void startNarrow(v);
   };
-  const chip = (t: string) => { if (HIGHRISK.test(t)) { merge({ input: t, screen: "refusal" }); return; } void startNarrow(t); };
+  const chip = (t: string) => { if (HIGHRISK.test(t)) { merge({ input: t, screen: "refusal" }); return; } if (cannotStartNew()) { merge({ input: t }); openPaywall(); return; } void startNarrow(t); };
 
   // ----- 파일 첨부(pro 전용, 붙여넣은 문서 = context_object) -----
   // 텍스트 파일을 읽어 context_object로 담는다. 길면 maxContextChars로 잘라 보낸다(노트로 알림).
@@ -128,79 +172,115 @@ export function App() {
   };
   // 좁히기 한 턴 진행: 누적 답변으로 nextBranch를 호출해 다음 질문을 받거나, 충분하면 추천으로 넘긴다. nextStep과 조건 재탐색이 공유한다.
   // simplify는 sticky(세션 유지)지만 막 설정한 직후엔 sref가 stale일 수 있어 opts로 명시 전달한다.
-  const advanceNarrow = useCallback(async (answers: string[][], opts?: { simplify?: boolean }) => {
+  const advanceNarrow = useCallback(async (answers: string[][], opts?: { simplify?: boolean; turnsLeft?: number }) => {
     const s0 = sref.current;
-    const history = answers.flat().map((label) => ({ label, action: "선택" as const }));
+    const sid = s0.sessionId; // 이 좁히기의 세션. 응답 도착 시 reset/다른 세션으로 바뀌었으면 결과를 버린다(orphan·stale 가드).
+    const refining = s0.refining; // refine은 비영속이라 narrow를 저장하지 않는다.
+    const history = answers.flat().filter((label) => label !== TOO_HARD_MARK).map((label) => ({ label, action: "선택" as const }));
     const simplify = opts?.simplify ?? s0.simplify;
+    // 예산은 호출부에서 명시 전달(merge 직후 sref stale 방지). 미전달 시 현재값.
+    const turnsLeft = opts?.turnsLeft ?? s0.turnsLeft;
     try {
       const cond0 = s0.cond.trim();
       const p2 = await api.nextBranch({ domain: s0.classifyOut?.domain ?? "", job_type: s0.classifyOut?.job_type ?? [], history, ...(s0.attachedFile ? { context_object: s0.attachedFile.text } : {}), ...(cond0 ? { user_condition: cond0 } : {}), ...(simplify ? { simplify: true } : {}) });
+      if (sref.current.sessionId !== sid) return; // 세션이 바뀜(홈/다른 세션 열기) → 결과 폐기
       const s = sref.current;
+      const c = s.classifyOut;
       // 좁히기 최대 턴은 워커 한도(limits.narrowMax)에서 온다. free는 적게, paid는 의중이 갈릴 때만 더.
       const maxQ = s.plan === "pro" ? s.limits.narrowMax.paid : s.limits.narrowMax.free;
       const conf = Number.isFinite(p2.confidence) ? p2.confidence : s.confidence;
-      const enough = (answers.length >= MIN_Q && p2.enough) || answers.length >= maxQ;
+      // 종료: 충분(최소 MIN_Q 이상) 또는 절대 상한 또는 예산 소진(단 0답 생성 금지 위해 answers>=1 전제).
+      const enough = (answers.length >= MIN_Q && p2.enough) || answers.length >= maxQ || (answers.length >= 1 && turnsLeft <= 0);
       // 다음 질문이 비정상이면(off-topic 등으로 형태가 깨짐) 좁히기를 종료하고 추천으로. 렌더 중 throw로 인한 블랭크 크래시 방지.
       const badNext = typeof p2.question !== "string" || !Array.isArray(p2.choices) || p2.choices.length === 0;
-      if (enough || badNext) { merge({ pending: false, confidence: conf }); void runRecommend(sref.current.refining); return; }
-      merge({ pending: false, confidence: conf, questions: [...s.questions, { question: p2.question, choices: p2.choices }] });
+      if (enough || badNext) {
+        merge({ pending: false, confidence: conf });
+        // 생성 직전 최종 스냅샷 저장(생성 중 크래시·이탈에도 재개 가능). refine은 비영속.
+        if (!refining && c && sid) writeNarrowSession(sid, { classifyOut: c, questions: s.questions, answers, unchosen: s.unchosen, usedUndo: s.usedUndo, tooHard: s.tooHard, simplify, refining: false, confidence: conf, turnsLeft, ...(cond0 ? { cond: cond0 } : {}) }, s.input, c.domain ?? "", c.search_locale ?? "en");
+        finishNarrow(refining); return;
+      }
+      const newQuestions = [...s.questions, { question: p2.question, choices: cleanChoices(p2.choices) }];
+      merge({ pending: false, confidence: conf, questions: newQuestions });
+      // 매 턴 스냅샷 저장(다음 질문이 뜬 "답할 준비" 상태).
+      if (!refining && c && sid) writeNarrowSession(sid, { classifyOut: c, questions: newQuestions, answers, unchosen: s.unchosen, usedUndo: s.usedUndo, tooHard: s.tooHard, simplify, refining: false, confidence: conf, turnsLeft, ...(cond0 ? { cond: cond0 } : {}) }, s.input, c.domain ?? "", c.search_locale ?? "en");
     } catch (e) {
+      if (sref.current.sessionId !== sid) return;
       merge({ pending: false, screen: "terms", errorMsg: msg(e) });
     }
-  }, [merge]);
+  }, [merge, writeNarrowSession]);
   const nextStep = useCallback(async () => {
     const s = sref.current;
     // "선택지가 어려워요"를 고른 턴: 마커 한 칸을 답변으로 넣고 이후 난이도를 낮춘다(simplify sticky).
     if (s.tooHard) {
-      const answers = [...s.answers, [tr(s.locale, "narrow_hard")]];
-      merge({ answers, sel: [], customText: "", customOpen: false, tooHard: false, simplify: true, pending: true });
-      await advanceNarrow(answers, { simplify: true });
+      const newTurns = Math.max(0, s.turnsLeft - 1); // 답 커밋 = 턴 1 소모(merge·opts 동일 변수, sref 재읽기 금지)
+      const answers = [...s.answers, [TOO_HARD_MARK]]; // 라벨 텍스트가 아니라 sentinel(히스토리에서 걸러짐)
+      merge({ answers, sel: [], customText: "", customOpen: false, tooHard: false, simplify: true, pending: true, turnsLeft: newTurns });
+      await advanceNarrow(answers, { simplify: true, turnsLeft: newTurns });
       return;
     }
     const custom = s.customText.trim();
     const picked = custom ? [...s.sel, custom] : s.sel; // 칩 + 직접 입력 합산(둘 다 포함)
     if (picked.length === 0) return;
+    const newTurns = Math.max(0, s.turnsLeft - 1);
     const answers = [...s.answers, picked];
-    merge({ answers, sel: [], customText: "", customOpen: false, pending: true });
-    await advanceNarrow(answers);
+    merge({ answers, sel: [], customText: "", customOpen: false, pending: true, turnsLeft: newTurns });
+    await advanceNarrow(answers, { turnsLeft: newTurns });
   }, [merge, advanceNarrow]);
   // Terms에서 조건을 입력해 아키네이터로 재진입(다음 질문부터). pro 전용, 무료는 페이월. narrowMax 동일 적용.
   const refineFromTerms = useCallback(async (text: string) => {
     const s = sref.current;
     const t = text.trim();
     if (!t) return;
-    if (s.plan !== "pro") { merge({ proNotice: "refine" }); return; }
-    // 재탐색 조건은 새 턴이 아니라 직전 답변에 덧붙인다. 새 그룹으로 넣으면 턴 수가 한 칸 부풀어
-    // 다음 질문이 4턴이 아니라 5턴으로 밀린다(진행바도 같이 밀림). 덧붙이면 nextBranch 히스토리는 동일하다.
+    if (s.plan !== "pro") { merge({ proNotice: "refine" }); return; } // pro 전용
+    // refine은 라이브 일시 연장이라 세션 턴 예산을 쓰지 않고 진행도 저장하지 않는다(refining=true → advanceNarrow가 비영속 처리).
+    // 조건은 새 턴이 아니라 직전 답변에 덧붙인다(턴 수 부풀림·진행바 밀림 방지). nextBranch 히스토리는 동일하다.
     const answers = s.answers.length
       ? s.answers.map((g, i) => (i === s.answers.length - 1 ? [...g, t] : g))
       : [[t]];
     merge({ answers, sel: [], customText: "", customOpen: false, query: "", screen: "narrow", pending: true, refining: true });
-    await advanceNarrow(answers);
+    await advanceNarrow(answers, { turnsLeft: s.turnsLeft });
   }, [merge, advanceNarrow]);
   // 되돌리기는 세션당 1회. 누르면 곧장 1턴(첫 질문)으로 회귀하고 버튼은 비활성된다.
   const undoStep = () => {
     const s = sref.current;
     if (s.usedUndo || s.answers.length === 0) return;
-    merge({ answers: [], questions: s.questions.slice(0, 1), sel: [], customText: "", customOpen: false, tooHard: false, confidence: 0, usedUndo: true });
+    merge({ answers: [], questions: s.questions.slice(0, 1), sel: [], customText: "", customOpen: false, tooHard: false, confidence: 0, usedUndo: true, refining: false });
   };
-  const jumpToTerms = () => void runRecommend();
+  // "여기까지 보기"로 좁히기를 끝내기 직전, 현재 진행을 저장한다(사용자 클릭이라 sref가 최신). refine은 비영속.
+  const jumpToTerms = () => {
+    const s = sref.current; const c = s.classifyOut;
+    if (!s.refining && c && s.sessionId) writeNarrowSession(s.sessionId, { classifyOut: c, questions: s.questions, answers: s.answers, unchosen: s.unchosen, usedUndo: s.usedUndo, tooHard: s.tooHard, simplify: s.simplify, refining: false, confidence: s.confidence, turnsLeft: s.turnsLeft, ...(s.cond.trim() ? { cond: s.cond.trim() } : {}) }, s.input, c.domain ?? "", c.search_locale ?? "en");
+    finishNarrow(false);
+  };
 
   // ----- 추천(스트리밍) -----
-  const buildRecInput = (exclude?: string[]): RecommendInput => {
+  const buildRecInput = (exclude?: string[], diffOverride?: Difficulty): RecommendInput => {
     const s = sref.current; const c = s.classifyOut;
+    // 난이도는 막 고른 직후 sref가 stale일 수 있어, 호출부에서 명시 전달하면 그것을 우선한다.
+    const difficulty = diffOverride ?? s.difficulty;
     return {
       area: c?.domain ?? "", domain: c?.domain ?? "other", topic: s.input,
       locale: c?.search_locale ?? "en", job_type: c?.job_type ?? [], domain_risk: c?.domain_risk ?? "low",
       ...(exclude && exclude.length ? { exclude } : {}),
       ...(s.attachedFile ? { context_object: s.attachedFile.text } : {}),
       ...(s.cond.trim() ? { user_condition: s.cond.trim() } : {}), // 진입 조건을 어휘 선정에 반영(c-0-1)
+      ...(difficulty ? { difficulty } : {}), // 사용자가 고른 난이도(묶음4)
     };
   };
-  const runRecommend = useCallback(async (append = false) => {
+  // 생성이 끝나면(done) 진행 중 세션의 narrow를 제거해 완료로 전이한다. 담은 어휘 0개면 saveSession이 목록에서 제거한다(R1 기본값).
+  // done 전 크래시·이탈은 narrow를 보존해 재개 가능(완료 전이는 오직 done에서만 — 담기로는 narrow를 지우지 않는다).
+  const completeSession = useCallback(() => {
+    const s = sref.current; const sid = s.sessionId;
+    if (!sid) return;
+    const existing = s.history.find((h) => h.id === sid);
+    if (!existing || !existing.narrow) return; // 진행 중(narrow 보유) 세션만 전이
+    const kept: KeptTerm[] = s.terms.filter((t) => t.kept).map((t) => ({ term: t.term, kind: t.kind, one_line: t.one_line, why: t.why, priority: t.priority, ...(t.group ? { group: t.group } : {}), ...(t.detail ? { detail: t.detail } : {}) }));
+    void saveSession({ ...existing, terms: kept, narrow: undefined, updatedAt: Date.now() }).then((list) => merge({ history: list }));
+  }, [merge]);
+  const runRecommend = useCallback(async (append = false, diffOverride?: Difficulty) => {
     const s = sref.current;
     const tier = s.plan === "pro" ? "paid" : "free";
-    if (!append && s.remaining <= 0) { merge({ proNotice: "weekly" }); return; }
+    // 주간 차감은 classify(세션 생성)에서 끝났으므로 여기서 remaining으로 막지 않는다(결제한 탐색의 생성은 보장).
     abortRef.current?.abort();
     const ctrl = new AbortController(); abortRef.current = ctrl;
     if (append) {
@@ -219,16 +299,31 @@ export function App() {
       }, ctrl.signal).catch((e) => { if ((e as Error).name !== "AbortError") merge({ streaming: false, errorMsg: msg(e) }); });
       return;
     }
-    merge({ screen: "terms", terms: [], visibleCount: 0, openId: null, streaming: true, errorMsg: "", moreLoaded: false, query: "", remaining: Math.max(0, s.remaining - 1), sessionId: crypto.randomUUID(), histView: false, detailCount: 0, refining: false });
-    await api.streamRecommend(buildRecInput(), tier, (ev) => {
+    // 새 탐색 생성. sessionId·turnsLeft·remaining은 classify에서 이미 설정됨(여기서 재충전·재과금·sessionId 재발급 없음).
+    merge({ screen: "terms", terms: [], visibleCount: 0, openId: null, streaming: true, errorMsg: "", moreLoaded: false, query: "", histView: false, detailCount: 0, refining: false });
+    // done/error 없이 스트림이 멈추는 경우(연결 끊김·무한대기)를 대비한 watchdog. 이벤트마다 갱신한다.
+    let watchdog = window.setTimeout(() => { ctrl.abort(); merge({ streaming: false }); }, 45000);
+    const bump = () => { window.clearTimeout(watchdog); watchdog = window.setTimeout(() => { ctrl.abort(); merge({ streaming: false }); }, 45000); };
+    await api.streamRecommend(buildRecInput(undefined, diffOverride), tier, (ev) => {
+      bump();
       if (ev.type === "term") {
         const id = "t" + sref.current.terms.length;
         dispatch({ type: "addTerm", term: { ...ev.term, id, kept: false, _new: true } });
         later(() => dispatch({ type: "updateTerm", id, patch: { _new: false } }), 780);
-      } else if (ev.type === "done") merge({ streaming: false });
+      } else if (ev.type === "done") { merge({ streaming: false }); completeSession(); } // 생성 완료 → narrow 제거(완료 전이)
       else if (ev.type === "error") merge({ streaming: false, errorMsg: ev.message, ...(ev.code === "HIGH_RISK_REFUSED" ? { screen: "refusal" } : {}) });
-    }, ctrl.signal).catch((e) => { if ((e as Error).name !== "AbortError") merge({ streaming: false, errorMsg: msg(e) }); });
-  }, [merge]);
+    }, ctrl.signal)
+      .catch((e) => { if ((e as Error).name !== "AbortError") merge({ streaming: false, errorMsg: msg(e) }); })
+      .finally(() => { window.clearTimeout(watchdog); if (sref.current.streaming) merge({ streaming: false }); }); // done 없이 끝나도 streaming 해제(narrow는 보존=재개 가능)
+  }, [merge, completeSession]);
+
+  // 좁히기를 마치고 어휘로 넘어가기 직전. 초기 생성이면 난이도를 먼저 묻고(아직 안 골랐을 때), 조건 재탐색(append)은 기존 난이도로 바로 잇는다.
+  const finishNarrow = (append: boolean) => {
+    if (append || sref.current.difficulty) { void runRecommend(append); return; }
+    merge({ screen: "difficulty" });
+  };
+  // 난이도 선택 직후 곧장 생성한다. merge가 아직 반영 전이라 고른 값을 명시 전달한다(stale 방지).
+  const pickDifficulty = (level: Difficulty) => { merge({ difficulty: level }); void runRecommend(false, level); };
 
   const loadMore = useCallback(async () => {
     const s = sref.current;
@@ -286,7 +381,8 @@ export function App() {
     const rec: SessionRec = {
       id, topic: s.input, area: s.classifyOut?.domain ?? "",
       locale: s.classifyOut?.search_locale ?? "en",
-      createdAt: existing?.createdAt ?? Date.now(), terms: keptTerms,
+      createdAt: existing?.createdAt ?? Date.now(), updatedAt: Date.now(),
+      terms: keptTerms, ...(existing?.narrow ? { narrow: existing.narrow } : {}), // 담기로는 narrow를 지우지 않는다(완료 전이는 done에서만)
     };
     const list = await saveSession(rec);
     merge({ history: list });
@@ -363,13 +459,28 @@ export function App() {
 
   // ----- 히스토리(이전 탐색) -----
   const openHistory = (rec: SessionRec) => {
+    if (rec.narrow) {
+      // 진행 중 세션: 좁히기를 복원해 이어서 진행한다. 이전 세션의 잔여 State(첨부파일·고지·오류 등)는 깨끗이 비운다(교차 누출 방지).
+      const n = rec.narrow;
+      merge({
+        screen: "narrow", histView: false, resumedSession: true, sessionId: rec.id, input: rec.topic,
+        classifyOut: n.classifyOut, questions: n.questions, answers: n.answers, unchosen: n.unchosen,
+        usedUndo: n.usedUndo, tooHard: n.tooHard, simplify: n.simplify, refining: n.refining,
+        confidence: n.confidence, turnsLeft: n.turnsLeft, cond: n.cond ?? "",
+        sel: [], customText: "", customOpen: false, query: "", difficulty: undefined,
+        attachedFile: null, attachNote: "", dragging: false, prevScreen: "entry", showCond: false,
+        limitHit: false, proNotice: "", errorMsg: "", pending: false, streaming: false,
+      });
+      return;
+    }
     const terms: UITerm[] = rec.terms.map((k, i) => ({
       term: k.term, kind: k.kind, priority: k.priority, why: k.why, one_line: k.one_line, tag: "몰라",
       ...(k.group ? { group: k.group } : {}),
       id: "h" + i, kept: true, _new: false, ...(k.detail ? { detail: k.detail } : {}),
     }));
+    // 완료 세션: 담은 어휘 리스트로(세션을 닫지 않음). histView로 Terms를 읽기전용 처리.
     merge({
-      screen: "kept", histView: true, terms, visibleCount: terms.length, openId: null,
+      screen: "terms", histView: true, resumedSession: false, terms, visibleCount: terms.length, openId: null,
       sessionId: rec.id, input: rec.topic, ctxInput: "", aiSummary: "",
       classifyOut: { domain: rec.area, job_type: [], condition_required: false, question: "", choices: [], search_locale: rec.locale === "ko" ? "ko" : "en", domain_risk: "low" },
     });
@@ -379,8 +490,11 @@ export function App() {
   const closePaywall = () => merge({ screen: sref.current.prevScreen === "paywall" ? "entry" : sref.current.prevScreen });
   // pro 미리보기 토글. 켜기만 되던 버그를 고쳐, pro면 다시 flash로 끌 수 있게 양방향으로 만든다.
   const onUpgrade = () => {
-    const toPro = sref.current.plan !== "pro";
-    merge({ plan: toPro ? "pro" : "flash", remaining: toPro ? 99 : 5 });
+    const s = sref.current;
+    const toPro = s.plan !== "pro";
+    // 업그레이드(flash→pro)는 좁히기 예산 충전 보상, 다운그레이드(pro→flash)는 상한으로 클램프만(증가 금지).
+    const newTurns = toPro ? s.limits.narrowMax.paid : Math.min(s.turnsLeft, s.limits.narrowMax.free);
+    merge({ plan: toPro ? "pro" : "flash", remaining: toPro ? 99 : s.limits.freeWeeklyLimit, turnsLeft: newTurns });
     try { localStorage.setItem("sidetab:plan", toPro ? "pro" : "flash"); } catch { /* 무시 */ }
     later(closePaywall, 350);
   };
@@ -401,6 +515,24 @@ export function App() {
   useEffect(() => { if (state.screen === "entry") void loadSessions().then((list) => merge({ history: list })); }, [state.screen, merge]);
   // 워커 운영 한도(좁히기 턴·상세 횟수 등)를 한 번 읽어 게이팅에 쓴다. 실패 시 기본값 유지.
   useEffect(() => { void api.getConfig().then((l) => merge({ limits: l })); }, [merge]);
+  // 한도/플랜 변경 후 좁히기 예산을 실제 narrowMax로 하향 클램프(부풀림 금지, 소비분 보존).
+  useEffect(() => {
+    const max = state.plan === "pro" ? state.limits.narrowMax.paid : state.limits.narrowMax.free;
+    if (state.turnsLeft > max) merge({ turnsLeft: max });
+  }, [state.limits, state.plan, state.turnsLeft, merge]);
+  // 턴 0으로 재개된 좁히기는 더 진행할 수 없어 바로 난이도/생성으로 보낸다(B=0 스킵). state에서 직접 읽어 stale 없음, pending 가드로 사용자 조작과 중복 방지.
+  useEffect(() => {
+    if (state.screen === "narrow" && state.resumedSession && state.turnsLeft <= 0 && state.answers.length > 0 && !state.pending) finishNarrow(false);
+    // finishNarrow는 매 렌더 새로 생성되지만 의존성에서 제외한다(포함하면 매 렌더 발화). 조건이 전이 후 거짓이 되어 1회만 실행된다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.screen, state.resumedSession, state.turnsLeft, state.answers.length, state.pending]);
+  // 아키네이터(narrow)에서만 새로고침·닫기 시 브라우저 표준 경고(진행 중 좁히기 유실 안내). 화면 떠나면 해제(다른 화면 경고 누수 방지).
+  useEffect(() => {
+    if (state.screen !== "narrow") return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [state.screen]);
   // 출력/UI 언어: 저장된 선택을 우선, 없으면 브라우저/OS 감지. api와 상태에 반영.
   useEffect(() => {
     let l = api.detectLocale();
@@ -425,12 +557,13 @@ export function App() {
       <Header state={state} openPaywall={openPaywall} goHome={requestHome} changeLocale={changeLocale} openTutorial={() => merge({ tutorialOpen: true })} />
       {state.screen === "entry" && <Entry state={state} merge={merge} submitEntry={submitEntry} chip={chip} openHistory={openHistory} deleteHistory={deleteHistory} undoDelete={undoDelete} acceptFile={acceptFile} attachNotice={attachNotice} removeAttached={removeAttached} />}
       {state.screen === "narrow" && <Narrow state={state} merge={merge} toggleSel={toggleSel} nextStep={nextStep} undoStep={undoStep} jumpToTerms={jumpToTerms} />}
-      {state.screen === "terms" && <Terms state={state} merge={merge} loadMore={loadMore} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} go={go} refine={refineFromTerms} genGroup={genGroup} />}
+      {state.screen === "difficulty" && <DifficultyPick state={state} pick={pickDifficulty} />}
+      {state.screen === "terms" && <Terms state={state} merge={merge} loadMore={loadMore} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} go={go} goHome={goHome} refine={refineFromTerms} genGroup={genGroup} />}
       {state.screen === "kept" && <Kept state={state} merge={merge} go={go} goHome={goHome} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} buildSummary={buildSummary} onCopy={onCopy} onShare={onShare} aiRefine={aiRefine} />}
       {state.screen === "paywall" && <Paywall state={state} closePaywall={closePaywall} onUpgrade={onUpgrade} />}
       {state.screen === "refusal" && <Refusal state={state} goHome={goHome} />}
       {state.proNotice && <ProSheet locale={state.locale} reason={state.proNotice} />}
-      {state.confirmHome && <ConfirmHome locale={state.locale} onYes={confirmHomeYes} onNo={() => merge({ confirmHome: false })} />}
+      {state.confirmHome && <ConfirmHome locale={state.locale} answers={state.answers.length} onYes={confirmHomeYes} onNo={() => merge({ confirmHome: false })} />}
       {state.tutorialOpen && <Tutorial state={state} onClose={closeTutorial} />}
     </div>
   );
@@ -445,12 +578,12 @@ function ProSheet({ locale, reason }: { locale: OutputLocale; reason: string }) 
 }
 
 // 진행 중 탐색을 두고 처음으로 갈지 한 번 확인하는 작은 모달(c-0-2). 튜토리얼과 같은 카드 패턴.
-function ConfirmHome({ locale, onYes, onNo }: { locale: OutputLocale; onYes: () => void; onNo: () => void }) {
+function ConfirmHome({ locale, answers, onYes, onNo }: { locale: OutputLocale; answers: number; onYes: () => void; onNo: () => void }) {
   return (
     <div className="modalBackdrop" onClick={onNo}>
       <div className="modalCard" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         <h2>{tr(locale, "home_confirm_title")}</h2>
-        <p className="tutLead">{tr(locale, "home_confirm_sub")}</p>
+        <p className="tutLead">{tr(locale, "home_confirm_sub", { n: answers })}</p>
         <div className="row2">
           <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onNo}>{tr(locale, "home_confirm_no")}</button>
           <button className="btn btn-primary" style={{ flex: 1 }} onClick={onYes}>{tr(locale, "home_confirm_yes")}</button>
@@ -512,11 +645,13 @@ function Entry({ state, merge, submitEntry, chip, openHistory, deleteHistory, un
     <main className="scroll entryMain">
       {/* d-2: 재방문하면 지난번 멈춘 자리를 능동적으로 띄운다(회상 대신 재인). */}
       {recent && (
-        <button className="resume" onClick={() => openHistory(recent)}>
+        <button className={`resume ${recent.narrow ? "inprog" : ""}`} onClick={() => openHistory(recent)}>
           <span className="resumeText">
-            <span className="resumeEy">{tr(loc, "resume_eyebrow")}</span>
+            <span className="resumeEy">{recent.narrow ? <span className="inprogPill">{tr(loc, "resume_in_progress")}</span> : tr(loc, "resume_eyebrow")}</span>
             <b>{recent.area || recent.topic || tr(loc, "history_untitled")}</b>
-            <span className="resumeMeta">{tr(loc, "resume_meta", { n: recent.terms.length, date: fmtDate(recent.createdAt, loc) })}</span>
+            <span className="resumeMeta">{recent.narrow
+              ? tr(loc, "resume_narrow_meta", { n: recent.narrow.turnsLeft, date: fmtDate(recent.updatedAt, loc) })
+              : tr(loc, "resume_meta", { n: recent.terms.length, date: fmtDate(recent.createdAt, loc) })}</span>
           </span>
           <span className="resumeGo">{tr(loc, "resume_go")} →</span>
         </button>
@@ -551,6 +686,7 @@ function Entry({ state, merge, submitEntry, chip, openHistory, deleteHistory, un
         {state.attachNote && <div className="errmsg" style={{ textAlign: "center" }}>{tr(loc, state.attachNote)}</div>}
         {state.inputErr && <div className="errmsg" style={{ textAlign: "center" }}>{tr(loc, "entry_err")}</div>}
         {state.showCond && <input className="field condField" aria-label={tr(loc, "cond_aria")} placeholder={tr(loc, "cond_ph")} value={state.cond} onChange={(e) => merge({ cond: e.target.value })} />}
+        {state.plan !== "pro" && state.remaining > 0 && <p className="weeklyHint">{tr(loc, state.remaining === 1 ? "entry_weekly_last" : "entry_weekly_cost")}</p>}
         <div className="suggest">
           {picks.map((c, i) => <button key={c} className="sg" style={{ animationDelay: `${(i % 5) * 0.8}s` }} onClick={() => chip(c)}>{c}</button>)}
           <button className="shuffle" onClick={() => merge({ chipSeed: state.chipSeed + 1 })} aria-label={tr(loc, "shuffle")} title={tr(loc, "shuffle")}><RefreshIcon /></button>
@@ -615,6 +751,8 @@ function Narrow({ state, merge, toggleSel, nextStep, undoStep, jumpToTerms }: { 
   const extraPct = proPhase ? Math.round(Math.min(1, (idx - 2) / Math.max(1, maxPaid - 3)) * 100) : 0;
   // 종료 범위(c-2-3): 무료는 최대 3턴, pro는 3~8턴. AI가 충분하다고 보면 더 일찍 끝난다.
   const maxT = state.plan === "pro" ? maxPaid : state.limits.narrowMax.free;
+  // 공유 예산이 만충이면 종료 범위 안내, 차감됐으면 남은 턴 하나만 표시(이중 숫자 혼란 방지, C2).
+  const budgetFull = state.turnsLeft >= maxT;
   return (
     <main className="scroll"><div className="pad" style={{ display: "flex", flexDirection: "column" }}>
       <div className="aiwrap">
@@ -631,7 +769,10 @@ function Narrow({ state, merge, toggleSel, nextStep, undoStep, jumpToTerms }: { 
           : (state.plan !== "pro" && <span className="prolock" title={tr(loc, "prolock_title")}><LockIcon />{tr(loc, "prolock")}</span>)}
       </div>
       {/* c-2-3: 자동 종료 가변성을 진행바 옆에 범위로 알린다(언제 끝날지 예측 가능하게). */}
-      <p className="rangehint">{tr(loc, state.plan === "pro" ? "narrow_range_pro" : "narrow_range_free", { min: MIN_Q, max: maxT })}</p>
+      <p className="rangehint">{state.resumedSession && state.answers.length > 0
+        ? tr(loc, "narrow_resume_hint", { n: state.turnsLeft })
+        : budgetFull ? tr(loc, state.plan === "pro" ? "narrow_range_pro" : "narrow_range_free", { min: MIN_Q, max: maxT }) : tr(loc, "narrow_budget", { n: state.turnsLeft })}</p>
+      {state.refining && <p className="aihint refineNote">{tr(loc, "refine_ephemeral_note")}</p>}
       <h2 style={{ marginTop: 14 }}>{sentLines(cur?.question ?? "")}</h2>
       <p className="lead" style={{ margin: "6px 0 16px" }}>{tr(loc, "narrow_lead")}</p>
       {(cur?.choices ?? []).map((o) => {
@@ -657,6 +798,33 @@ function Narrow({ state, merge, toggleSel, nextStep, undoStep, jumpToTerms }: { 
   );
 }
 
+// 좁히기 종료 직전 어휘 깊이를 고르는 화면(묶음4). 단일 난이도라 리스트가 깔끔해진다. 정적 안내로 추가 호출 없음.
+function DifficultyPick({ state, pick }: { state: State; pick: (l: Difficulty) => void }) {
+  const loc = state.locale;
+  const levels: { key: Difficulty; nameKey: string; descKey: string }[] = [
+    { key: "기초", nameKey: "diff_basic", descKey: "diff_basic_desc" },
+    { key: "중급", nameKey: "diff_inter", descKey: "diff_inter_desc" },
+    { key: "심화", nameKey: "diff_adv", descKey: "diff_adv_desc" },
+  ];
+  return (
+    <main className="scroll"><div className="pad" style={{ display: "flex", flexDirection: "column" }}>
+      <div className="eyebrow">{tr(loc, "diff_eyebrow")}</div>
+      <h2>{tr(loc, "diff_title")}</h2>
+      <p className="lead" style={{ margin: "6px 0 14px" }}>{tr(loc, "diff_sub")}</p>
+      {/* 좁히기를 한 번도 안 했으면(예산 소진으로 스킵) 왜 질문이 없는지 알린다. */}
+      {state.answers.length === 0 && <p className="aihint" style={{ marginBottom: 16 }}>{tr(loc, "narrow_b0_skip")}</p>}
+      <div className="difflist">
+        {levels.map((lv) => (
+          <button key={lv.key} className="diffcard" onClick={() => pick(lv.key)}>
+            <span className="diffname">{tr(loc, lv.nameKey)}</span>
+            <span className="diffdesc">{tr(loc, lv.descKey)}</span>
+          </button>
+        ))}
+      </div>
+    </div></main>
+  );
+}
+
 function Detail({ t, locale, opening, jumpRelated, toggleKeep }: { t: UITerm; locale: OutputLocale; opening: boolean; jumpRelated: (n: string) => void; toggleKeep: (id: string) => void }) {
   if (t.detailLoading || !t.detail) return <div className="detail"><p className="dtext" style={{ color: "var(--muted)" }}>{tr(locale, "detail_loading")}</p></div>;
   const d = t.detail;
@@ -664,7 +832,8 @@ function Detail({ t, locale, opening, jumpRelated, toggleKeep }: { t: UITerm; lo
   const whatSents = splitSentences(d.what);
   const whatLead = whatSents[0] ?? d.what;
   const whatRest = whatSents.slice(1);
-  const howSteps = splitSentences(d.how);
+  // 활용 단계. LLM이 붙인 "1." "2." "-" 같은 마커를 떼고(숫자만 남은 빈 항목도 제거) 깨끗한 문장만 남긴다. UI가 번호를 매긴다.
+  const howSteps = splitSentences(d.how).map((s) => s.replace(/^\s*(\d+[.)]|[-•*·])\s*/, "").trim()).filter(Boolean);
   return (
     <div className={`detail${opening ? " animin" : ""}`}>
       <div className="dparts">
@@ -675,15 +844,15 @@ function Detail({ t, locale, opening, jumpRelated, toggleKeep }: { t: UITerm; lo
         <section className="dpart mine">
           <div className="dlabel">{tr(locale, "dlabel_mine")}</div>
           <div className="dtext">{sentLines(d.whymine)}</div>
-          {t.context_note && <div className="dsub"><b>{tr(locale, "detail_ctx")}</b>{sentLines(t.context_note)}</div>}
+          {hasVal(t.context_note) && <div className="dsub"><b>{tr(locale, "detail_ctx")}</b>{sentLines(t.context_note as string)}</div>}
         </section>
         <section className="dpart">
           <div className="dlabel">{tr(locale, "dlabel_how")}</div>
           <ul className="dsteps">{howSteps.map((s, i) => <li key={i}>{s}</li>)}</ul>
-          {t.direction && <div className="dsub"><b>{tr(locale, "detail_dir")}</b>{sentLines(t.direction)}</div>}
-          {t.use_example && <div className="dsub"><b>{tr(locale, "detail_ex")}</b>{sentLines(t.use_example)}</div>}
+          {hasVal(t.direction) && <div className="dsub"><b>{tr(locale, "detail_dir")}</b>{sentLines(t.direction as string)}</div>}
+          {hasVal(t.use_example) && <div className="dsub"><b>{tr(locale, "detail_ex")}</b>{sentLines(t.use_example as string)}</div>}
         </section>
-        {d.misc && <p className="dmemo"><InfoIcon />{sentLines(d.misc)}</p>}
+        {hasVal(d.misc) && <p className="dmemo"><InfoIcon />{sentLines(d.misc as string)}</p>}
       </div>
       <div className="dsec" style={{ marginTop: 16 }}>{tr(locale, "detail_sec2")}</div>
       {d.related.length > 0 && <div className="related">{d.related.map((r) => <button key={r} className="relbtn" onClick={() => jumpRelated(r)}>{r} ↗</button>)}</div>}
@@ -729,7 +898,9 @@ function Card({ t, i, state, toggleKeep, toggleDetail, jumpRelated }: { t: UITer
   );
 }
 
-function Terms({ state, merge, loadMore, toggleKeep, toggleDetail, jumpRelated, go, refine, genGroup }: { state: State; merge: (p: Partial<State>) => void; loadMore: () => void; toggleKeep: (id: string) => void; toggleDetail: (id: string) => void; jumpRelated: (n: string) => void; go: (s: Screen) => void; refine: (text: string) => void; genGroup: (group: string) => void }) {
+function Terms({ state, merge, loadMore, toggleKeep, toggleDetail, jumpRelated, go, goHome, refine, genGroup }: { state: State; merge: (p: Partial<State>) => void; loadMore: () => void; toggleKeep: (id: string) => void; toggleDetail: (id: string) => void; jumpRelated: (n: string) => void; go: (s: Screen) => void; goHome: () => void; refine: (text: string) => void; genGroup: (group: string) => void }) {
+  // 이전 탐색을 불러온 읽기전용 보기. stub classifyOut라 생성 액션(재탐색·더보기·그룹생성)을 막고, 막다른 길이 안 되게 처음으로 버튼을 둔다.
+  const ro = state.histView;
   const loc = state.locale;
   const revealed = state.terms.slice(0, state.visibleCount);
   let active = [...revealed];
@@ -741,9 +912,10 @@ function Terms({ state, merge, loadMore, toggleKeep, toggleDetail, jumpRelated, 
   return (
     <>
       <main className="scroll"><div style={{ padding: "13px 13px 14px" }}>
-        <div className="tagrow"><span className="minitag">{state.classifyOut?.domain ?? tr(loc, "terms_domain_fallback")}</span><small>{tr(loc, "terms_domain_label")}</small></div>
-        {/* 검색이 아니라 조건을 더해 다시 탐색(AI 재생성). 돋보기 대신 스파클로 "필터가 아니라 생성"임을 알리고, 무료엔 잠금을 미리 보인다(눌러야 페이월 방지). */}
-        <div className="searchwrap"><Spark /><input className={`search${state.plan === "pro" ? "" : " locked"}`} aria-label={tr(loc, "terms_refine_label")} placeholder={tr(loc, state.plan === "pro" ? "terms_refine_ph" : "terms_refine_free")} value={state.query} onChange={(e) => merge({ query: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); refine(state.query); } }} />{state.plan !== "pro" && <span className="searchlock"><LockIcon /></span>}</div>
+        {ro && <button className="link" style={{ alignSelf: "flex-start", color: "var(--muted)", marginBottom: 12 }} onClick={goHome}>{tr(loc, "kept_back_home")}</button>}
+        <div className="tagrow"><span className="minitag">{state.classifyOut?.domain ?? tr(loc, "terms_domain_fallback")}</span><small>{tr(loc, ro ? "terms_domain_saved" : "terms_domain_label")}</small></div>
+        {/* 조건 재탐색 검색창. 이전 탐색(읽기전용)에선 숨긴다 — stub classifyOut로 엉뚱한 도메인 생성·복원 어휘 교체 방지. */}
+        {!ro && <div className="searchwrap"><Spark /><input className={`search${state.plan === "pro" ? "" : " locked"}`} aria-label={tr(loc, "terms_refine_label")} placeholder={tr(loc, state.plan === "pro" ? "terms_refine_ph" : "terms_refine_free")} value={state.query} onChange={(e) => merge({ query: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); refine(state.query); } }} />{state.plan !== "pro" && <span className="searchlock"><LockIcon /></span>}</div>}
         <div className="toolrow"><span className="hint">{tr(loc, "terms_count", { max: state.plan === "pro" ? state.limits.maxTotal.paid : state.limits.maxTotal.free, n: state.terms.length })}</span><button className={`toggle ${state.groupView ? "on" : ""}`} onClick={() => merge({ groupView: !state.groupView })}>{state.groupView ? tr(loc, "group_off") : tr(loc, "group_on")}</button></div>
         {/* 한 줄 맥락 안내: 그룹뷰면 그룹별 생성 힌트(c-3-4), 아니면 추천 정렬 기준(c-3-5) + 무료 상세 잔여(c-4-1). */}
         <div className="listnote">
@@ -753,14 +925,14 @@ function Terms({ state, merge, loadMore, toggleKeep, toggleDetail, jumpRelated, 
         </div>
         {state.errorMsg && <div className="taghint" style={{ color: "var(--warn-ink)" }}><span>{state.errorMsg}</span></div>}
         {active.length > 0 ? active.map((t, i) => {
-          const head = state.groupView && t.group !== lastG ? <div key={"g" + t.id} className="grouphead"><b>{t.group}</b><i /><button className="groupgen" onClick={() => genGroup(t.group as string)} disabled={!!state.groupGenLoading}>{state.groupGenLoading === t.group ? tr(loc, "group_gen_loading") : tr(loc, "group_gen", { n: state.plan === "pro" ? state.limits.groupGen.paid : state.limits.groupGen.free })}</button></div> : null;
+          const head = state.groupView && t.group !== lastG ? <div key={"g" + t.id} className="grouphead"><b>{t.group}</b><i />{!ro && <button className="groupgen" onClick={() => genGroup(t.group as string)} disabled={!!state.groupGenLoading}>{state.groupGenLoading === t.group ? tr(loc, "group_gen_loading") : tr(loc, "group_gen", { n: state.plan === "pro" ? state.limits.groupGen.paid : state.limits.groupGen.free })}</button>}</div> : null;
           lastG = t.group;
           return <div key={t.id}>{head}<Card t={t} i={i} state={state} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} /></div>;
         }) : <p className="note" style={{ margin: "24px 0" }}>{state.streaming ? tr(loc, "terms_loading") : tr(loc, "terms_nomatch")}</p>}
-        {state.moreLoaded
+        {!ro && (state.moreLoaded
           ? <button className="more done">{tr(loc, "more_done")}</button>
-          : <button className="more" onClick={loadMore}>{state.moreLoading ? tr(loc, "more_loading") : state.plan === "pro" ? tr(loc, "more_load") : <>{tr(loc, "more_load_locked")}<LockIcon /></>}</button>}
-        <p className="note" style={{ marginTop: 13 }}>{tr(loc, "terms_foot_note")}</p>
+          : <button className="more" onClick={loadMore}>{state.moreLoading ? tr(loc, "more_loading") : state.plan === "pro" ? tr(loc, "more_load") : <>{tr(loc, "more_load_locked")}<LockIcon /></>}</button>)}
+        <p className="note" style={{ marginTop: 13 }}>{tr(loc, ro ? "terms_foot_saved" : "terms_foot_note")}</p>
       </div></main>
       <div className="foot">
         <div style={{ flex: 1, fontSize: 12.5, color: "var(--muted)" }}>{tr(loc, "kept_count", { n: keptCount })}</div>
@@ -776,7 +948,8 @@ function Kept({ state, merge, go, goHome, toggleKeep, toggleDetail, jumpRelated,
   const kept = state.terms.filter((t) => t.kept);
   return (
     <main className="scroll"><div className="pad" style={{ display: "flex", flexDirection: "column" }}>
-      <button className="link" style={{ alignSelf: "flex-start", color: "var(--muted)", marginBottom: 13 }} onClick={() => (state.histView ? goHome() : go("terms"))}>{state.histView ? tr(loc, "kept_back_home") : tr(loc, "kept_back_terms")}</button>
+      {/* 어휘가 있으면 리스트로 돌아가고(이어서보기·일반 세션 공통), 없을 때만 처음으로. prevScreen은 openHistory에서 안 바뀌어 쓰지 않는다. */}
+      <button className="link" style={{ alignSelf: "flex-start", color: "var(--muted)", marginBottom: 13 }} onClick={() => (state.terms.length > 0 ? go("terms") : goHome())}>{state.terms.length > 0 ? tr(loc, "kept_back_terms") : tr(loc, "kept_back_home")}</button>
       <h2>{tr(loc, "kept_title")}{state.input ? ` · ${state.input}` : ""}</h2>
       <p className="lead" style={{ margin: "4px 0 14px" }}>{kept.length ? tr(loc, "kept_some", { n: kept.length }) : tr(loc, "kept_none")}</p>
       {kept.map((t, i) => <Card key={t.id} t={t} i={i} state={state} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} />)}

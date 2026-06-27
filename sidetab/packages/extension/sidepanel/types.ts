@@ -29,6 +29,7 @@ export interface State {
   usedUndo: boolean; tooHard: boolean; simplify: boolean; // 되돌리기 1회·이번턴 "어려워요" 선택·세션 난이도 하향
   unchosen: string[][]; // 좁히기 매 턴 고르지 않은 가지(다른 갈래도 보기)
   difficulty?: Difficulty; // 고른 어휘 난이도(기초/중급/심화)
+  turnsLeft: number; // 아키네이터 좁히기 턴 공유 예산(세션 간 영속, 생성 완료 시 재충전)
   terms: UITerm[]; visibleCount: number; openId: string | null; opening: string | null;
   query: string; groupView: boolean; detailCount: number;
   moreLoading: boolean; moreLoaded: boolean; streaming: boolean; groupGenLoading: string; refining: boolean;
@@ -43,6 +44,7 @@ export interface State {
   reviewDismissed?: boolean; // 이번 진입에서 복습 배너를 닫음
   errorMsg: string;
   sessionId: string; history: SessionRec[]; histView: boolean;
+  resumedSession?: boolean; // 이전 탐색을 이어서 진행 중(narrow 복원). 좁히기 화면의 "이어서 진행 중" 안내 분기에 쓴다.
   limits: ClientLimits; locale: OutputLocale;
 }
 

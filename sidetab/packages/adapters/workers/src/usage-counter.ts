@@ -119,4 +119,17 @@ export class UpstashUsageCounter {
 
     return count;
   }
+
+  // 주간 카운트를 올리지 않고 현재 값만 읽는다(키 없으면 0).
+  // /classify 게이트가 INCR 전에 한도를 확인하는 데 쓴다. 선증가 후 차단(한도 초과 재시도마다 카운트가 계속 오르는 문제)을 막는다.
+  async getCount(userId: string): Promise<number> {
+    const key = `sub:${userId}:week`;
+    const res = await fetch(`${this.url}/get/${encodeURIComponent(key)}`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${this.token}` },
+    });
+    if (!res.ok) throw new Error(`Upstash GET 실패: ${res.status}`);
+    const body = (await res.json()) as { result: string | null };
+    return body.result == null ? 0 : Number(body.result) || 0;
+  }
 }

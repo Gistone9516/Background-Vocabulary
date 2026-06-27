@@ -5,10 +5,11 @@ import { LOCALE_TAG } from "./constants.js";
 
 // 문장 단위 줄바꿈. 끊는 지점은 세 가지다. 개행 문자, 전각 종결부호(。！？) 바로 뒤,
 // 그리고 반각 종결부호(.!?) 뒤에 공백이 오는 자리. 소수점이나 약어처럼 종결부호 뒤가
-// 공백이 아니면 끊지 않는다. 끊은 문장 사이에 <br/>를 넣는다.
+// 공백이 아니면 끊지 않는다. 또한 "1." "2." 같은 목록 번호(숫자 바로 뒤 마침표)는 끊지 않는다.
+// 끊은 문장 사이에 <br/>를 넣는다.
 export function sentLines(t: string): ReactNode[] {
   const segs = String(t ?? "")
-    .split(/\n+|(?<=[。！？])|(?<=[.!?])(?=\s)/)
+    .split(/\n+|(?<=[。！？])|(?<=[^\d][.!?])(?=\s)/)
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
   const out: ReactNode[] = [];
@@ -19,13 +20,21 @@ export function sentLines(t: string): ReactNode[] {
   return out;
 }
 
-// 문장 배열로 쪼갠다. sentLines와 같은 분할 규칙(개행, 전각 종결부호, 반각 종결부호+공백).
-// 활용 단계 리스트와 개념 핵심/나머지 분리에 쓴다.
+// 문장 배열로 쪼갠다. sentLines와 같은 분할 규칙(개행, 전각 종결부호, 반각 종결부호+공백,
+// 단 숫자 뒤 마침표 "1." "2."는 목록 번호라 안 끊음). 활용 단계 리스트와 개념 핵심/나머지 분리에 쓴다.
 export function splitSentences(t: string): string[] {
   return String(t ?? "")
-    .split(/\n+|(?<=[。！？])|(?<=[.!?])(?=\s)/)
+    .split(/\n+|(?<=[。！？])|(?<=[^\d][.!?])(?=\s)/)
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
+}
+
+// 조건부 필드(판단 기준·예·내 상황에선 등)를 노출할 값이 실제로 있는지. LLM이 false·"없음"·"N/A"·"-" 같은
+// 플레이스홀더를 줄 때가 있어 그런 값은 빈 것으로 본다. 타입은 string이 계약이지만 boolean false가 올 수 있어 방어한다.
+export function hasVal(s: string | boolean | null | undefined): boolean {
+  if (typeof s === "boolean") return s;
+  const t = String(s ?? "").trim();
+  return t !== "" && !["false", "null", "없음", "N/A", "해당없음", "해당 없음", "-"].includes(t);
 }
 
 // 첫 문장만 남긴다. 추천 이유처럼 한 문장만 보여줄 때 두 번째 문장 이후를 잘라 깔끔하게 한다.

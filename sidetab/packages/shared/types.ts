@@ -123,6 +123,7 @@ export interface Term {
   relates_to?: string[]; // 같이 묶어 봐야 하는 핵심 term 참조. gap_type b에서 켬.
   order?: number; // 관계 순서. gap_type b에서 켬.
   gap_type?: GapType; // 어휘별 유형. 있으면 세션 기본값 대신 이 값으로 필드를 켠다(기획 P30).
+  difficulty?: "기초" | "중급" | "심화"; // 사용자가 고른 어휘 깊이. 리스트 전체가 이 난이도로 생성된다.
 }
 
 // 출처. 어휘 상세(P5)에서 노출. site는 URL 호스트에서 파생한다(어댑터/core 책임).
@@ -189,6 +190,7 @@ export interface Prompt3In {
   context_object?: string;
   gap_type?: GapType[]; // 프롬프트1과 2가 추론한 세션 기본값. 복합이면 배열.
   topic?: string; // 사용자 원래 요청. 앵커(이미 아는 용어) 식별용. 추천에서 제외(P31 개정).
+  difficulty?: "기초" | "중급" | "심화"; // 좁히기 종료 직전 사용자가 고른 어휘 깊이. 추천 전체를 이 깊이로 편향.
 }
 export interface Prompt3Out {
   terms: Term[]; // priority 오름차순
