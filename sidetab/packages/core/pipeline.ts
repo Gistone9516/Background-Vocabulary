@@ -12,6 +12,8 @@ import type {
   Prompt4Out,
   Prompt5In,
   Prompt5Out,
+  PreviewIn,
+  PreviewOut,
   StreamEvent,
 } from "@sidetab/shared";
 import { prompts } from "@sidetab/shared";
@@ -62,6 +64,16 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
     async nextBranch(input: Prompt2In, outputLocale: OutputLocale): Promise<Prompt2Out> {
       const messages = prompts.buildPrompt2({ ...input, outputLocale });
       return deps.llm.complete<Prompt2Out>({
+        model: MODEL_FLASH,
+        messages,
+        maxTokens: limits.maxTokens.next,
+      });
+    },
+
+    // 프리뷰: 난이도 선택 직전 깊이별 대표 어휘 1개씩(RAG 없이 LLM 1회). next와 같은 작은 토큰 상한을 재사용한다.
+    async preview(input: PreviewIn, outputLocale: OutputLocale): Promise<PreviewOut> {
+      const messages = prompts.buildPreview({ ...input, outputLocale });
+      return deps.llm.complete<PreviewOut>({
         model: MODEL_FLASH,
         messages,
         maxTokens: limits.maxTokens.next,

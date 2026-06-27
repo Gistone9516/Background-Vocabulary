@@ -12,6 +12,8 @@ import type {
   Prompt4Out,
   Prompt5In,
   Prompt5Out,
+  PreviewIn,
+  PreviewOut,
   StreamEvent,
   Locale,
   DomainRisk,
@@ -49,6 +51,8 @@ export interface Pipeline {
   summarize(input: Prompt4In, outputLocale: OutputLocale): Promise<Prompt4Out>;
   // tier에 따라 출력 토큰 상한이 갈린다. 출처 RAG는 양 티어 동일.
   detail(input: Prompt5In, tier: Tier, outputLocale: OutputLocale): Promise<Prompt5Out>;
+  // 난이도 선택 직전 깊이별 대표 어휘 프리뷰. RAG 없이 LLM 1회, 한도 미집계(좁히기와 같은 비용 등급).
+  preview(input: PreviewIn, outputLocale: OutputLocale): Promise<PreviewOut>;
 }
 
 // 팩토리 시그니처. core/pipeline.ts가 구현한다.

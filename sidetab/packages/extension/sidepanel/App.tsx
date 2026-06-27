@@ -1,7 +1,7 @@
 // 배경노트(Vock note) 사이드패널 — panel.html(UI 정본) 화면을 React로 이식하고 실 API에 배선.
 // UI 문자열은 i18n.ts의 t()(여기선 tr)로 가져온다. LLM 콘텐츠는 워커가 출력 언어로 만든다(별개).
 import { useReducer, useRef, useEffect, useState, useCallback, useMemo } from "react";
-import type { Tag, RecommendInput, OutputLocale } from "@sidetab/shared";
+import type { Tag, RecommendInput, OutputLocale, PreviewOut } from "@sidetab/shared";
 import * as api from "./api.js";
 import { DEFAULT_CLIENT_LIMITS } from "./api.js";
 import { loadSessions, saveSession, deleteSession, type SessionRec, type KeptTerm, type NarrowSnap } from "./history.js";
@@ -20,6 +20,13 @@ function savedPlan(): "flash" | "pro" {
 // 복습 알림 설정. 기본은 켜짐이고 사용자가 끄면 "off"를 저장한다(설정에서 토글).
 function savedReview(): boolean {
   try { return localStorage.getItem("sidetab:review") !== "off"; } catch { return true; }
+}
+// 난이도 예시 캐시(localStorage). 같은 세션·같은 답변이면 새로고침·재진입에도 재생성하지 않고 이전 텍스트를 그대로 보여준다.
+function savedPreview(): { sid: string; key: string; preview: PreviewOut } | null {
+  try { const v = localStorage.getItem("sidetab:preview"); return v ? (JSON.parse(v) as { sid: string; key: string; preview: PreviewOut }) : null; } catch { return null; }
+}
+function persistPreview(sid: string, key: string, preview: PreviewOut): void {
+  try { localStorage.setItem("sidetab:preview", JSON.stringify({ sid, key, preview })); } catch { /* 무시 */ }
 }
 // 아키네이터 턴 예산은 세션별이다(공유 localStorage 폐기). 새 탐색은 만충으로 시작하고,
 // 이어서 진행은 세션 스냅샷(narrow.turnsLeft)에서 복원한다. 매 턴 차감은 saveSession이 세션에 영속한다.
@@ -73,6 +80,7 @@ export function App() {
   const [state, dispatch] = useReducer(reducer, undefined, initial);
   const sref = useRef(state); sref.current = state;
   const abortRef = useRef<AbortController | null>(null);
+  const previewAbortRef = useRef<AbortController | null>(null); // 난이도 예시 fetch 취소(race 가드)
   const delTimer = useRef<number | undefined>(undefined); // 이전 탐색 삭제 실행취소 타이머
   const classifyingRef = useRef(false); // startNarrow 연타 가드(이중 finishNarrow·이중 차감 방지)
   const merge = useCallback((patch: Partial<State>) => dispatch({ type: "merge", patch }), []);
@@ -274,8 +282,10 @@ export function App() {
     if (!sid) return;
     const existing = s.history.find((h) => h.id === sid);
     if (!existing || !existing.narrow) return; // 진행 중(narrow 보유) 세션만 전이
-    const kept: KeptTerm[] = s.terms.filter((t) => t.kept).map((t) => ({ term: t.term, kind: t.kind, one_line: t.one_line, why: t.why, priority: t.priority, ...(t.group ? { group: t.group } : {}), ...(t.detail ? { detail: t.detail } : {}) }));
-    void saveSession({ ...existing, terms: kept, narrow: undefined, updatedAt: Date.now() }).then((list) => merge({ history: list }));
+    const toKept = (t: UITerm): KeptTerm => ({ term: t.term, kind: t.kind, one_line: t.one_line, why: t.why, priority: t.priority, ...(t.group ? { group: t.group } : {}), ...(t.detail ? { detail: t.detail } : {}) });
+    const generated = s.terms.map(toKept); // 생성한 전체 리스트(0담기여도 되돌아가서 다시 보기용)
+    const kept = s.terms.filter((t) => t.kept).map(toKept);
+    void saveSession({ ...existing, terms: kept, generated, narrow: undefined, updatedAt: Date.now() }).then((list) => merge({ history: list }));
   }, [merge]);
   const runRecommend = useCallback(async (append = false, diffOverride?: Difficulty) => {
     const s = sref.current;
@@ -317,13 +327,41 @@ export function App() {
       .finally(() => { window.clearTimeout(watchdog); if (sref.current.streaming) merge({ streaming: false }); }); // done 없이 끝나도 streaming 해제(narrow는 보존=재개 가능)
   }, [merge, completeSession]);
 
-  // 좁히기를 마치고 어휘로 넘어가기 직전. 초기 생성이면 난이도를 먼저 묻고(아직 안 골랐을 때), 조건 재탐색(append)은 기존 난이도로 바로 잇는다.
+  // 난이도 화면 진입 시 좁혀진 주제의 깊이별 대표 어휘를 미리 생성한다(한도 미집계). 화면을 떠났거나 새 프리뷰가 시작되면 결과를 버린다(race 가드).
+  const startPreview = useCallback(() => {
+    const s = sref.current; const c = s.classifyOut;
+    if (!c) return;
+    const history = s.answers.flat().filter((l) => l !== TOO_HARD_MARK);
+    const key = JSON.stringify(history);
+    // 같은 세션·같은 답변이면 이전에 생성한 예시를 그대로 재사용(새로고침·재진입 시 재생성 방지).
+    const cached = savedPreview();
+    if (cached && cached.sid === s.sessionId && cached.key === key) { merge({ previews: cached.preview, previewLoading: false }); return; }
+    previewAbortRef.current?.abort();
+    const ctrl = new AbortController(); previewAbortRef.current = ctrl;
+    const sid = s.sessionId;
+    merge({ previews: null, previewLoading: true });
+    api.preview({ area: c.domain ?? "", job_type: c.job_type ?? [], history, ...(s.input ? { topic: s.input } : {}) })
+      .then((p) => {
+        if (ctrl.signal.aborted || sref.current.screen !== "difficulty") return;
+        merge({ previews: p, previewLoading: false });
+        persistPreview(sid, key, p); // 세션·답변 키로 캐시
+      })
+      .catch(() => { if (!ctrl.signal.aborted && sref.current.screen === "difficulty") merge({ previewLoading: false }); }); // 폴백: 예시 없이 정적 안내만
+  }, [merge]);
+  // 좁히기를 마치고 어휘로 넘어가기 직전. 초기 생성이면 난이도를 먼저 묻고(아직 안 골랐을 때) 예시도 생성, 조건 재탐색(append)은 기존 난이도로 바로 잇는다.
   const finishNarrow = (append: boolean) => {
     if (append || sref.current.difficulty) { void runRecommend(append); return; }
     merge({ screen: "difficulty" });
+    startPreview();
   };
-  // 난이도 선택 직후 곧장 생성한다. merge가 아직 반영 전이라 고른 값을 명시 전달한다(stale 방지).
-  const pickDifficulty = (level: Difficulty) => { merge({ difficulty: level }); void runRecommend(false, level); };
+  // 난이도 선택 직후 곧장 생성한다. 프리뷰 fetch는 버리고, merge가 아직 반영 전이라 고른 값을 명시 전달한다(stale 방지).
+  const pickDifficulty = (level: Difficulty) => { previewAbortRef.current?.abort(); merge({ difficulty: level }); void runRecommend(false, level); };
+  // 난이도 화면 뒤로: 답이 있으면 좁히기로 복귀, 없으면(B0 스킵) 처음으로. 프리뷰 fetch는 버린다.
+  const backFromDifficulty = () => {
+    previewAbortRef.current?.abort();
+    if (sref.current.answers.length > 0) merge({ screen: "narrow", previews: null, previewLoading: false });
+    else goHome();
+  };
 
   const loadMore = useCallback(async () => {
     const s = sref.current;
@@ -382,7 +420,7 @@ export function App() {
       id, topic: s.input, area: s.classifyOut?.domain ?? "",
       locale: s.classifyOut?.search_locale ?? "en",
       createdAt: existing?.createdAt ?? Date.now(), updatedAt: Date.now(),
-      terms: keptTerms, ...(existing?.narrow ? { narrow: existing.narrow } : {}), // 담기로는 narrow를 지우지 않는다(완료 전이는 done에서만)
+      terms: keptTerms, ...(existing?.generated ? { generated: existing.generated } : {}), ...(existing?.narrow ? { narrow: existing.narrow } : {}), // 담기로는 narrow·생성리스트를 지우지 않는다
     };
     const list = await saveSession(rec);
     merge({ history: list });
@@ -473,12 +511,16 @@ export function App() {
       });
       return;
     }
-    const terms: UITerm[] = rec.terms.map((k, i) => ({
+    // 완료 세션: 생성한 전체 리스트(generated)가 있으면 그걸로 복원하되 kept 상태는 terms 멤버십으로(0담기여도 만든 리스트를 다시 본다). 구버전 레코드는 terms(담은 것)만.
+    const useGen = !!(rec.generated && rec.generated.length > 0);
+    const keptSet = new Set(rec.terms.map((t) => t.term));
+    const src = useGen ? rec.generated! : rec.terms;
+    const terms: UITerm[] = src.map((k, i) => ({
       term: k.term, kind: k.kind, priority: k.priority, why: k.why, one_line: k.one_line, tag: "몰라",
       ...(k.group ? { group: k.group } : {}),
-      id: "h" + i, kept: true, _new: false, ...(k.detail ? { detail: k.detail } : {}),
+      id: "h" + i, kept: useGen ? keptSet.has(k.term) : true, _new: false, ...(k.detail ? { detail: k.detail } : {}),
     }));
-    // 완료 세션: 담은 어휘 리스트로(세션을 닫지 않음). histView로 Terms를 읽기전용 처리.
+    // 완료 세션: 담은/생성 어휘 리스트로(세션을 닫지 않음). histView로 Terms를 읽기전용 처리.
     merge({
       screen: "terms", histView: true, resumedSession: false, terms, visibleCount: terms.length, openId: null,
       sessionId: rec.id, input: rec.topic, ctxInput: "", aiSummary: "",
@@ -557,7 +599,7 @@ export function App() {
       <Header state={state} openPaywall={openPaywall} goHome={requestHome} changeLocale={changeLocale} openTutorial={() => merge({ tutorialOpen: true })} />
       {state.screen === "entry" && <Entry state={state} merge={merge} submitEntry={submitEntry} chip={chip} openHistory={openHistory} deleteHistory={deleteHistory} undoDelete={undoDelete} acceptFile={acceptFile} attachNotice={attachNotice} removeAttached={removeAttached} />}
       {state.screen === "narrow" && <Narrow state={state} merge={merge} toggleSel={toggleSel} nextStep={nextStep} undoStep={undoStep} jumpToTerms={jumpToTerms} />}
-      {state.screen === "difficulty" && <DifficultyPick state={state} pick={pickDifficulty} />}
+      {state.screen === "difficulty" && <DifficultyPick state={state} pick={pickDifficulty} back={backFromDifficulty} />}
       {state.screen === "terms" && <Terms state={state} merge={merge} loadMore={loadMore} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} go={go} goHome={goHome} refine={refineFromTerms} genGroup={genGroup} />}
       {state.screen === "kept" && <Kept state={state} merge={merge} go={go} goHome={goHome} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} buildSummary={buildSummary} onCopy={onCopy} onShare={onShare} aiRefine={aiRefine} />}
       {state.screen === "paywall" && <Paywall state={state} closePaywall={closePaywall} onUpgrade={onUpgrade} />}
@@ -651,7 +693,9 @@ function Entry({ state, merge, submitEntry, chip, openHistory, deleteHistory, un
             <b>{recent.area || recent.topic || tr(loc, "history_untitled")}</b>
             <span className="resumeMeta">{recent.narrow
               ? tr(loc, "resume_narrow_meta", { n: recent.narrow.turnsLeft, date: fmtDate(recent.updatedAt, loc) })
-              : tr(loc, "resume_meta", { n: recent.terms.length, date: fmtDate(recent.createdAt, loc) })}</span>
+              : recent.terms.length > 0
+                ? tr(loc, "resume_meta", { n: recent.terms.length, date: fmtDate(recent.createdAt, loc) })
+                : tr(loc, "resume_gen_meta", { n: recent.generated?.length ?? 0, date: fmtDate(recent.createdAt, loc) })}</span>
           </span>
           <span className="resumeGo">{tr(loc, "resume_go")} →</span>
         </button>
@@ -699,7 +743,11 @@ function Entry({ state, merge, submitEntry, chip, openHistory, deleteHistory, un
               <div key={h.id} className="histitem">
                 <button className="histmain" onClick={() => openHistory(h)}>
                   <span className="histtopic">{h.topic || tr(loc, "history_untitled")}</span>
-                  <span className="histmeta">{tr(loc, "history_meta", { n: h.terms.length, date: fmtDate(h.createdAt, loc) })}</span>
+                  <span className="histmeta">{h.narrow
+                    ? tr(loc, "resume_narrow_meta", { n: h.narrow.turnsLeft, date: fmtDate(h.updatedAt, loc) })
+                    : h.terms.length > 0
+                      ? tr(loc, "history_meta", { n: h.terms.length, date: fmtDate(h.createdAt, loc) })
+                      : tr(loc, "resume_gen_meta", { n: h.generated?.length ?? 0, date: fmtDate(h.createdAt, loc) })}</span>
                 </button>
                 <button className="histdel" onClick={() => deleteHistory(h.id)} aria-label={tr(loc, "history_delete")} title={tr(loc, "history_delete")}><TrashIcon /></button>
               </div>
@@ -798,26 +846,44 @@ function Narrow({ state, merge, toggleSel, nextStep, undoStep, jumpToTerms }: { 
   );
 }
 
-// 좁히기 종료 직전 어휘 깊이를 고르는 화면(묶음4). 단일 난이도라 리스트가 깔끔해진다. 정적 안내로 추가 호출 없음.
-function DifficultyPick({ state, pick }: { state: State; pick: (l: Difficulty) => void }) {
+// 좁히기 종료 직전 어휘 깊이를 고르는 화면(묶음4 + Item1). 깊이별 대표 어휘 예시(LLM 생성)를 카드에 보여 감으로 고르게 한다.
+function DifficultyPick({ state, pick, back }: { state: State; pick: (l: Difficulty) => void; back: () => void }) {
   const loc = state.locale;
-  const levels: { key: Difficulty; nameKey: string; descKey: string }[] = [
-    { key: "기초", nameKey: "diff_basic", descKey: "diff_basic_desc" },
-    { key: "중급", nameKey: "diff_inter", descKey: "diff_inter_desc" },
-    { key: "심화", nameKey: "diff_adv", descKey: "diff_adv_desc" },
+  const p = state.previews;
+  const loading = state.previewLoading;
+  const topic = state.classifyOut?.domain || state.input;
+  const isB0 = state.answers.length === 0;
+  const levels: { key: Difficulty; depth: number; nameKey: string; descKey: string; ex?: { term: string; line: string } }[] = [
+    { key: "기초", depth: 1, nameKey: "diff_basic", descKey: "diff_basic_desc", ex: p?.basic },
+    { key: "중급", depth: 2, nameKey: "diff_inter", descKey: "diff_inter_desc", ex: p?.inter },
+    { key: "심화", depth: 3, nameKey: "diff_adv", descKey: "diff_adv_desc", ex: p?.adv },
   ];
   return (
     <main className="scroll"><div className="pad" style={{ display: "flex", flexDirection: "column" }}>
-      <div className="eyebrow">{tr(loc, "diff_eyebrow")}</div>
-      <h2>{tr(loc, "diff_title")}</h2>
-      <p className="lead" style={{ margin: "6px 0 14px" }}>{tr(loc, "diff_sub")}</p>
-      {/* 좁히기를 한 번도 안 했으면(예산 소진으로 스킵) 왜 질문이 없는지 알린다. */}
-      {state.answers.length === 0 && <p className="aihint" style={{ marginBottom: 16 }}>{tr(loc, "narrow_b0_skip")}</p>}
+      <button className="link backlink" onClick={back}>← {tr(loc, isB0 ? "diff_back_home" : "diff_back_narrow")}</button>
+      <div className="diffintro">
+        <div className="eyebrow">{tr(loc, "diff_eyebrow")}</div>
+        <h2>{tr(loc, "diff_title")}</h2>
+        {topic && <span className="topicchip">{topic}</span>}
+        <p className="lead" style={{ margin: "8px 0 0" }}>{tr(loc, "diff_sub")}</p>
+        {/* 좁히기를 한 번도 안 했으면(예산 소진으로 스킵) 왜 질문이 없는지 알린다. */}
+        {isB0 && <p className="aihint" style={{ margin: "10px 0 0" }}>{tr(loc, "narrow_b0_skip")}</p>}
+      </div>
       <div className="difflist">
         {levels.map((lv) => (
-          <button key={lv.key} className="diffcard" onClick={() => pick(lv.key)}>
-            <span className="diffname">{tr(loc, lv.nameKey)}</span>
+          <button key={lv.key} className={`diffcard d${lv.depth}`} onClick={() => pick(lv.key)}>
+            <span className="diffhead">
+              <span className="diffname">{tr(loc, lv.nameKey)}</span>
+              <span className="diffbars" aria-hidden="true"><i className="on" /><i className={lv.depth >= 2 ? "on" : ""} /><i className={lv.depth >= 3 ? "on" : ""} /></span>
+            </span>
             <span className="diffdesc">{tr(loc, lv.descKey)}</span>
+            {(loading || lv.ex) && (
+              <span className="diffex">
+                {lv.ex
+                  ? <><b className="diffexTerm">{lv.ex.term}</b><span className="diffexLine">{lv.ex.line}</span></>
+                  : <span className="diffexSkel" aria-hidden="true"><i /><i /></span>}
+              </span>
+            )}
           </button>
         ))}
       </div>

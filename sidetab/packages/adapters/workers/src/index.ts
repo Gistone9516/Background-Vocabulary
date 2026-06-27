@@ -22,6 +22,7 @@ import type {
   Prompt2In,
   Prompt4In,
   Prompt5In,
+  PreviewIn,
   StreamEvent,
 } from "@sidetab/shared";
 import type { RecommendInput, Tier, Limits, ClientLimits, OutputLocale } from "@sidetab/shared";
@@ -250,6 +251,18 @@ app.post("/next", async (c) => {
   if (oversized(body, limits)) return c.json({ error: "INPUT_TOO_LARGE", message: "입력이 너무 길어요. 줄여서 다시 시도해 주세요." }, 413);
   const pipeline = buildPipeline(c.env);
   const result = await pipeline.nextBranch(body, readLocale(c));
+  return c.json(result);
+});
+
+// POST /preview
+// PreviewIn -> pipeline.preview -> JSON. 난이도 선택 직전 깊이별 대표 어휘. 레이트리밋만, 주간·전역 캡 미집계(좁히기와 같은 비용 등급).
+app.post("/preview", async (c) => {
+  const limits = buildLimits(c.env);
+  const blocked = await securityBlock(c, c.env, limits); if (blocked) return blocked;
+  const body = await c.req.json<PreviewIn>();
+  if (oversized(body, limits)) return c.json({ error: "INPUT_TOO_LARGE", message: "입력이 너무 길어요. 줄여서 다시 시도해 주세요." }, 413);
+  const pipeline = buildPipeline(c.env);
+  const result = await pipeline.preview(body, readLocale(c));
   return c.json(result);
 });
 

@@ -234,3 +234,17 @@ export interface Prompt5Out {
   related: string[];
   sources: Source[]; // 출처 필수. 확신 가는 귀속만, 애매하면 빈 배열(프론트 폴백).
 }
+
+// 난이도 프리뷰. 좁히기 종료 직전 난이도(기초/중급/심화)를 고르기 전에, 좁혀진 주제의 깊이별 대표 어휘를
+// 하나씩 미리 보여 줘 사용자가 감으로 고르게 돕는다. RAG 없이 1회 생성, 한도 미집계(좁히기와 같은 비용 등급).
+export interface PreviewIn {
+  area: string;
+  job_type: JobType[];
+  history: string[]; // 좁히기에서 고른 답 라벨들
+  topic?: string; // 사용자 원래 요청(앵커 회피용)
+}
+export interface PreviewOut {
+  basic: { term: string; line: string };
+  inter: { term: string; line: string };
+  adv: { term: string; line: string };
+}

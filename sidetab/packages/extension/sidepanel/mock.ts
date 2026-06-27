@@ -3,6 +3,7 @@
 import type {
   Prompt1In, Prompt1Out, Prompt2In, Prompt2Out,
   Prompt4In, Prompt4Out, Prompt5In, Prompt5Out,
+  PreviewIn, PreviewOut,
   RecommendInput, StreamEvent, Term,
 } from "@sidetab/shared";
 import { HIGHRISK } from "./constants.js";
@@ -110,6 +111,15 @@ export async function detail(input: Prompt5In): Promise<Prompt5Out> {
   return {
     what: `${input.term}에 대한 개념 설명입니다.`, whymine: "이 상황에서 왜 중요한지 설명입니다.",
     how: "어떻게 적용하는지 설명입니다.", related: [], sources: [],
+  };
+}
+
+export async function preview(_input: PreviewIn): Promise<PreviewOut> {
+  await delay(500);
+  return {
+    basic: { term: "과적합", line: "모델이 학습 데이터에만 맞춰져 새 데이터에서 성능이 떨어지는 현상이에요." },
+    inter: { term: "정규화", line: "모델이 너무 복잡해지지 않게 제약을 걸어 과적합을 막는 기법이에요." },
+    adv: { term: "feature leakage", line: "정답 정보가 학습 입력에 새어 들어가 평가가 부풀려지는 함정이에요." },
   };
 }
 

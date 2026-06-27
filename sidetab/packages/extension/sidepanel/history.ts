@@ -37,7 +37,8 @@ export interface SessionRec {
   locale: string;
   createdAt: number;
   updatedAt: number;
-  terms: KeptTerm[];
+  terms: KeptTerm[];          // 담은(kept) 어휘
+  generated?: KeptTerm[];     // 생성한 전체 어휘 리스트(되돌아가서 다시 보기용). 각 어휘의 kept 여부는 terms 멤버십으로 판단한다.
   narrow?: NarrowSnap;
 }
 
@@ -65,7 +66,7 @@ export async function loadSessions(): Promise<SessionRec[]> {
 export async function saveSession(rec: SessionRec): Promise<SessionRec[]> {
   const list = await loadSessions();
   const rest = list.filter((s) => s.id !== rec.id);
-  const keep = rec.narrow != null || rec.terms.length > 0;
+  const keep = rec.narrow != null || rec.terms.length > 0 || (rec.generated?.length ?? 0) > 0;
   const merged = keep ? [rec, ...rest] : rest;
   const sorted = merged.sort((a, b) => (b.updatedAt ?? b.createdAt) - (a.updatedAt ?? a.createdAt));
   const capped = capToLimit(sorted, CAP);

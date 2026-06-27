@@ -1,5 +1,5 @@
 // 사이드패널 상태·화면 타입. App.tsx의 reducer와 화면 컴포넌트가 공유한다.
-import type { Prompt1Out, Choice, Term, Prompt5Out, ClientLimits, OutputLocale } from "@sidetab/shared";
+import type { Prompt1Out, Choice, Term, Prompt5Out, PreviewOut, ClientLimits, OutputLocale } from "@sidetab/shared";
 import type { SessionRec } from "./history.js";
 
 export type Screen = "entry" | "narrow" | "difficulty" | "terms" | "kept" | "paywall" | "refusal";
@@ -29,6 +29,8 @@ export interface State {
   usedUndo: boolean; tooHard: boolean; simplify: boolean; // 되돌리기 1회·이번턴 "어려워요" 선택·세션 난이도 하향
   unchosen: string[][]; // 좁히기 매 턴 고르지 않은 가지(다른 갈래도 보기)
   difficulty?: Difficulty; // 고른 어휘 난이도(기초/중급/심화)
+  previews?: PreviewOut | null; // 난이도 화면의 깊이별 대표 어휘 예시(LLM 생성). null=미생성/폴백.
+  previewLoading?: boolean; // 난이도 예시 생성 중(스켈레톤 표시)
   turnsLeft: number; // 아키네이터 좁히기 턴 공유 예산(세션 간 영속, 생성 완료 시 재충전)
   terms: UITerm[]; visibleCount: number; openId: string | null; opening: string | null;
   query: string; groupView: boolean; detailCount: number;

@@ -3,6 +3,7 @@
 import type {
   Prompt1In, Prompt1Out, Prompt2In, Prompt2Out,
   Prompt4In, Prompt4Out, Prompt5In, Prompt5Out,
+  PreviewIn, PreviewOut,
   RecommendInput, StreamEvent, ClientLimits, OutputLocale,
 } from "@sidetab/shared";
 import { DEFAULT_LIMITS, OUTPUT_LOCALES } from "@sidetab/shared";
@@ -92,6 +93,12 @@ export async function classify(input: Prompt1In): Promise<Prompt1Out> {
 export async function nextBranch(input: Prompt2In): Promise<Prompt2Out> {
   if (USE_MOCK) return mock.nextBranch(input);
   return postJson<Prompt2In, Prompt2Out>("/next", input, "free");
+}
+
+// 난이도 선택 직전 깊이별 대표 어휘 프리뷰. 한도 미집계라 free 티어로 보낸다.
+export async function preview(input: PreviewIn): Promise<PreviewOut> {
+  if (USE_MOCK) return mock.preview(input);
+  return postJson<PreviewIn, PreviewOut>("/preview", input, "free");
 }
 
 export async function detail(input: Prompt5In, tier: Tier): Promise<Prompt5Out> {

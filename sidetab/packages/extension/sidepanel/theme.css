@@ -496,11 +496,33 @@ textarea.field{line-height:1.55}
 @media (prefers-reduced-motion:reduce){.proSheet{animation:none}}
 
 /* ───── 난이도 선택(묶음4). 세 깊이 카드. 차분하게, 오로라 없이(특별 기능 아님). opt와 같은 결. ───── */
-.difflist{display:flex;flex-direction:column;gap:10px}
-.diffcard{display:flex;flex-direction:column;align-items:flex-start;gap:5px;width:100%;text-align:left;background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:14px 15px;transition:.12s}
-.diffcard:hover{border-color:var(--accent);background:var(--accent-soft)}
-.diffcard:active{transform:scale(.99)}
+.diffintro{margin-bottom:16px}
+.difflist{display:flex;flex-direction:column;gap:11px}
+.diffcard{display:flex;flex-direction:column;align-items:flex-start;gap:6px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:15px 16px;box-shadow:var(--shadow);transition:border-color .14s,box-shadow .14s,transform .12s}
+.diffcard:hover{border-color:var(--accent);box-shadow:var(--shadow-lg)}
+.diffcard:active{transform:scale(.992)}
+.diffhead{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%}
 .diffname{font-size:15.5px;font-weight:700;color:var(--text)}
 .diffcard:hover .diffname{color:var(--accent-ink)}
 .diffdesc{font-size:12.5px;line-height:1.55;color:var(--muted)}
-.diffcard:hover .diffdesc{color:var(--accent-ink);opacity:.85}
+/* 깊이 미터: 신호 세기처럼 1/2/3칸을 채워 난이도 진행을 한눈에 보여준다. */
+.diffbars{display:flex;align-items:flex-end;gap:3px;height:14px;flex:0 0 auto}
+.diffbars i{width:4px;border-radius:2px;background:var(--border)}
+.diffbars i:nth-child(1){height:6px}
+.diffbars i:nth-child(2){height:10px}
+.diffbars i:nth-child(3){height:14px}
+.diffbars i.on{background:var(--accent)}
+/* 카드 안 레벨별 대표 어휘 예시(LLM 생성). 옅은 구분선 + term + 한 줄. 로딩 중엔 shim 스켈레톤. */
+.diffex{display:flex;flex-direction:column;gap:2px;width:100%;margin-top:8px;padding-top:9px;border-top:1px solid var(--border)}
+.diffcard:hover .diffex{border-color:var(--rule)}
+.diffexTerm{font-size:13.5px;font-weight:700;color:var(--accent-ink)}
+.diffexLine{font-size:11.5px;line-height:1.5;color:var(--muted)}
+.diffexSkel{display:flex;flex-direction:column;gap:6px;width:100%;margin-top:2px}
+.diffexSkel i{height:10px;border-radius:5px;background:linear-gradient(90deg,var(--surface-2) 25%,var(--border) 50%,var(--surface-2) 75%);background-size:200% 100%;animation:shim 1.4s infinite}
+.diffexSkel i:first-child{width:34%}
+.diffexSkel i:last-child{width:80%}
+/* 좁혀진 주제 칩(난이도 화면 상단). 조용한 accent-soft 알약. */
+.topicchip{display:inline-block;align-self:flex-start;font-size:11.5px;font-weight:600;color:var(--accent-ink);background:var(--accent-soft);border:1px solid var(--accent);border-radius:99px;padding:2px 10px;margin-top:8px}
+/* 뒤로가기 텍스트 링크(난이도 화면 상단). */
+.backlink{align-self:flex-start;margin-bottom:12px;color:var(--muted)}
+.backlink:hover{color:var(--accent-ink)}
