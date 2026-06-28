@@ -4,14 +4,14 @@ import { useReducer, useRef, useEffect, useState, useCallback, useMemo } from "r
 import type { Tag, RecommendInput, OutputLocale, PreviewOut } from "@sidetab/shared";
 import * as api from "./api.js";
 import { DEFAULT_CLIENT_LIMITS } from "./api.js";
-import { loadSessions, saveSession, deleteSession, type SessionRec, type KeptTerm, type NarrowSnap } from "./history.js";
+import { loadSessions, saveSession, deleteSession, loadProjects, createProject, deleteProject, type SessionRec, type KeptTerm, type NarrowSnap } from "./history.js";
 import { t as tr, LOCALE_LABELS } from "./i18n.js";
 import { EXAMPLES, pickRandom } from "./examples.js";
 import { MIN_Q, THINK_KEYS, HIGHRISK, GALAXY_POS } from "./constants.js";
 import type { Screen, UITerm, State, Action, Difficulty } from "./types.js";
 import { sentLines, splitSentences, firstSentence, fmtDate, dateBucket, markTerms, commaLines, hasVal } from "./text.js";
 import { isTextFile, readTextFile } from "./file.js";
-import { Spark, Chev, LinkIcon, RefreshIcon, LockIcon, TrashIcon, BookmarkIcon, UserIcon, CopyIcon, ShareIcon, InfoIcon, ListIcon } from "./icons.js";
+import { Spark, Chev, LinkIcon, RefreshIcon, LockIcon, TrashIcon, BookmarkIcon, UserIcon, CopyIcon, ShareIcon, InfoIcon, ListIcon, FolderIcon } from "./icons.js";
 
 // pro 여부를 localStorage에 저장해 화면 전환과 새로고침에도 유지한다. reset이 initial을 다시 부르므로 여기서 복원하면 goHome 후에도 pro가 남는다.
 function savedPlan(): "flash" | "pro" {
@@ -63,7 +63,7 @@ function initial(): State {
     moreLoading: false, moreLoaded: false, streaming: false, groupGenLoading: "", refining: false,
     ctxInput: "", copied: false, copyFailed: false, shareNote: false, aiSummary: "", aiSummaryLoading: false,
     plan, remaining: plan === "pro" ? 99 : DEFAULT_CLIENT_LIMITS.freeWeeklyLimit, prevScreen: "entry", limitHit: false, reviewOn: savedReview(), errorMsg: "",
-    sessionId: "", history: [], histView: false, limits: DEFAULT_CLIENT_LIMITS, locale: "ko",
+    sessionId: "", history: [], histView: false, projects: [], limits: DEFAULT_CLIENT_LIMITS, locale: "ko",
   };
 }
 
@@ -115,12 +115,22 @@ export function App() {
     if (!rec) return;
     void saveSession({ ...rec, pinned: !rec.pinned }).then((list) => merge({ history: list }));
   };
+  // 프로젝트(폴더) 만들기·지우기·세션 배정. 전부 chrome.storage.local, 서버 무관.
+  const addProject = (name: string) => { if (!name.trim()) return; void createProject(name).then((projects) => merge({ projects })); };
+  const removeProject = (id: string) => { void deleteProject(id).then(({ projects, sessions }) => merge({ projects, history: sessions, activeProject: undefined })); };
+  // 세션을 프로젝트에 넣거나 뺀다(미분류 세션 재배정용). projectId=undefined면 미분류로.
+  const assignProject = (id: string, projectId: string | undefined) => {
+    const rec = sref.current.history.find((h) => h.id === id);
+    if (!rec) return;
+    void saveSession({ ...rec, projectId }).then((list) => merge({ history: list }));
+  };
 
   // 진행 중 좁히기 스냅샷을 세션에 upsert한다(기존 createdAt·담은 어휘는 보존, updatedAt 갱신).
   // 이걸로 이탈·새로고침·크래시에도 좁히기를 이어서 진행할 수 있다. refine(비영속)은 호출하지 않는다.
   const writeNarrowSession = useCallback((sid: string, snap: NarrowSnap, topic: string, area: string, locale: string) => {
     const existing = sref.current.history.find((h) => h.id === sid);
-    const rec: SessionRec = { id: sid, topic, area, locale, createdAt: existing?.createdAt ?? Date.now(), updatedAt: Date.now(), terms: existing?.terms ?? [], narrow: snap };
+    const projectId = existing?.projectId ?? sref.current.activeProject; // 스코프 홈에서 시작한 새 세션은 그 프로젝트에 속한다
+    const rec: SessionRec = { id: sid, topic, area, locale, createdAt: existing?.createdAt ?? Date.now(), updatedAt: Date.now(), terms: existing?.terms ?? [], narrow: snap, ...(projectId ? { projectId } : {}) };
     void saveSession(rec).then((list) => merge({ history: list }));
   }, [merge]);
 
@@ -560,7 +570,7 @@ export function App() {
 
   useEffect(() => () => { abortRef.current?.abort(); window.clearTimeout(delTimer.current); }, []);
   // 진입 화면에 들어설 때마다 저장된 이전 탐색을 다시 읽어 리스트를 채운다(reset 후에도 갱신).
-  useEffect(() => { if (state.screen === "entry" || state.screen === "sessions") void loadSessions().then((list) => merge({ history: list })); }, [state.screen, merge]);
+  useEffect(() => { if (state.screen === "entry" || state.screen === "sessions") { void loadSessions().then((list) => merge({ history: list })); void loadProjects().then((projects) => merge({ projects })); } }, [state.screen, merge]);
   // 세션 화면에서 ESC를 누르면 진입 화면으로 돌아간다(검색어도 비운다).
   useEffect(() => {
     if (state.screen !== "sessions") return;
@@ -609,7 +619,7 @@ export function App() {
   return (
     <div id="app" className={live ? "live" : ""} role="application" aria-label="Vock note">
       {state.pending && <div className="bar" role="status"><i /></div>}
-      <Header state={state} openPaywall={openPaywall} goHome={requestHome} changeLocale={changeLocale} openTutorial={() => merge({ tutorialOpen: true })} openSessions={() => merge({ screen: "sessions" })} />
+      <Header state={state} openPaywall={openPaywall} goHome={requestHome} changeLocale={changeLocale} openTutorial={() => merge({ tutorialOpen: true })} openDrawer={() => merge({ drawerOpen: true })} />
       {state.screen === "entry" && <Entry state={state} merge={merge} submitEntry={submitEntry} chip={chip} openHistory={openHistory} acceptFile={acceptFile} attachNotice={attachNotice} removeAttached={removeAttached} />}
       {state.screen === "narrow" && <Narrow state={state} merge={merge} toggleSel={toggleSel} nextStep={nextStep} undoStep={undoStep} jumpToTerms={jumpToTerms} />}
       {state.screen === "difficulty" && <DifficultyPick state={state} pick={pickDifficulty} back={backFromDifficulty} />}
@@ -617,7 +627,9 @@ export function App() {
       {state.screen === "kept" && <Kept state={state} merge={merge} go={go} goHome={goHome} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} buildSummary={buildSummary} onCopy={onCopy} onShare={onShare} aiRefine={aiRefine} />}
       {state.screen === "paywall" && <Paywall state={state} closePaywall={closePaywall} onUpgrade={onUpgrade} />}
       {state.screen === "refusal" && <Refusal state={state} goHome={goHome} />}
-      {state.screen === "sessions" && <SessionsScreen state={state} merge={merge} openHistory={openHistory} deleteHistory={deleteHistory} undoDelete={undoDelete} togglePin={togglePin} goHome={goHome} />}
+      {state.screen === "sessions" && <SessionsScreen state={state} merge={merge} openHistory={openHistory} deleteHistory={deleteHistory} undoDelete={undoDelete} togglePin={togglePin} goHome={goHome} assignProject={assignProject} />}
+      {state.screen === "projects" && <ProjectsScreen state={state} merge={merge} addProject={addProject} removeProject={removeProject} />}
+      {state.drawerOpen && <Drawer state={state} merge={merge} openHistory={openHistory} />}
       {state.proNotice && <ProSheet locale={state.locale} reason={state.proNotice} />}
       {state.confirmHome && <ConfirmHome locale={state.locale} answers={state.answers.length} onYes={confirmHomeYes} onNo={() => merge({ confirmHome: false })} />}
       {state.tutorialOpen && <Tutorial state={state} onClose={closeTutorial} />}
@@ -652,15 +664,16 @@ function ConfirmHome({ locale, answers, onYes, onNo }: { locale: OutputLocale; a
 function msg(e: unknown): string { return e instanceof Error ? e.message : String(e); }
 
 // ---------- 화면 컴포넌트 ----------
-function Header({ state, openPaywall, goHome, changeLocale, openTutorial, openSessions }: { state: State; openPaywall: () => void; goHome: () => void; changeLocale: (l: OutputLocale) => void; openTutorial: () => void; openSessions: () => void }) {
+function Header({ state, openPaywall, goHome, changeLocale, openTutorial, openDrawer }: { state: State; openPaywall: () => void; goHome: () => void; changeLocale: (l: OutputLocale) => void; openTutorial: () => void; openDrawer: () => void }) {
   const warn = state.plan !== "pro" && state.remaining <= 2;
   const brandName = state.locale === "ko" ? "배경노트" : "Vock note";
   const brandSub = state.locale === "ko" ? "Vock note" : "Voca·back·note";
+  const navScreen = state.screen === "entry" || state.screen === "sessions" || state.screen === "projects";
   return (
     <header>
-      {/* 좌상단 세션 목록 트리거. 진입 화면에서만 노출(탐색 중에는 흐름 유지). */}
-      {state.screen === "entry" && (
-        <button className="iconbtn" onClick={openSessions} aria-label={tr(state.locale, "sessions_open")} title={tr(state.locale, "sessions_open")}><ListIcon /></button>
+      {/* 좌상단 버거. 메인 화면들(홈·세션검색·프로젝트)에서 플로팅 선택 패널을 연다. 탐색 흐름 중엔 숨긴다. */}
+      {navScreen && (
+        <button className="iconbtn" onClick={openDrawer} aria-label={tr(state.locale, "sessions_open")} title={tr(state.locale, "sessions_open")}><ListIcon /></button>
       )}
       <button className="brand" onClick={goHome}>
         <span className="logo"><img src="icons/icon-32.png" alt="" width={24} height={24} /></span>
@@ -684,8 +697,11 @@ function Header({ state, openPaywall, goHome, changeLocale, openTutorial, openSe
 
 function Entry({ state, merge, submitEntry, chip, openHistory, acceptFile, attachNotice, removeAttached }: { state: State; merge: (p: Partial<State>) => void; submitEntry: () => void; chip: (t: string) => void; openHistory: (rec: SessionRec) => void; acceptFile: (f: File) => void; attachNotice: () => void; removeAttached: () => void }) {
   const loc = state.locale;
-  // 가장 최근 세션을 "이어서 보기" 카드로 승격(d-2). 목록 아래엔 나머지를 둔다(중복 방지).
+  // 가장 최근 세션을 "이어서 보기" 카드로 승격(d-2).
   const recent = state.history[0];
+  // 프로젝트 스코프 홈: 프로젝트에서 들어오면 그 프로젝트가 명시되고 새 세션이 거기에 속한다.
+  const scopedProj = state.activeProject ? state.projects.find((p) => p.id === state.activeProject) : null;
+  const projSessions = scopedProj ? state.history.filter((h) => h.projectId === scopedProj.id) : [];
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const grow = () => { const el = taRef.current; if (el) { el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight, 160) + "px"; } };
@@ -702,6 +718,12 @@ function Entry({ state, merge, submitEntry, chip, openHistory, acceptFile, attac
   const FILE_ACCEPT = "text/*,.txt,.md,.markdown,.csv,.json,.yml,.yaml,.xml,.html,.log,.tex";
   return (
     <main className="scroll entryMain screenIn" style={{ position: "relative" }}>
+      {scopedProj && (
+        <div className="filechip" style={{ alignSelf: "flex-start", marginTop: 0, marginBottom: 6 }}>
+          <span className="fn">📁 {scopedProj.name}</span>
+          <button onClick={() => merge({ activeProject: undefined })} aria-label="×" title="×">×</button>
+        </div>
+      )}
       {/* 입력 컴포저는 중앙에서 위로 올린다(사용자 요청 90px). 하단 고정 묶음·안내문엔 영향 없음. */}
       <div className="hero" style={{ transform: "translateY(-90px)" }}>
         <h1 className="heroTitle">{tr(loc, "entry_title")}</h1>
@@ -740,39 +762,62 @@ function Entry({ state, merge, submitEntry, chip, openHistory, acceptFile, attac
         </div>
         </div>
       </div>
-      {/* 컴포저는 항상 중앙(hero가 flex로 전체 높이를 채운다). 이어서 보기·모두 보기·안내문은 흐름에서 빼 하단에 고정해 컴포저 중앙 정렬을 건드리지 않는다. */}
-      {recent && (
-        <div style={{ position: "absolute", left: 16, right: 16, bottom: 205, display: "flex", flexDirection: "column" }}>
-          <button className={`resume ${recent.narrow ? "inprog" : ""}`} onClick={() => openHistory(recent)}>
-            <span className="resumeText">
-              <span className="resumeEy">{recent.narrow ? <span className="inprogPill">{tr(loc, "resume_in_progress")}</span> : tr(loc, "resume_eyebrow")}</span>
-              <b>{recent.area || recent.topic || tr(loc, "history_untitled")}</b>
-              <span className="resumeMeta">{recent.narrow
-                ? tr(loc, "resume_narrow_meta", { n: recent.narrow.turnsLeft, date: fmtDate(recent.updatedAt, loc) })
-                : recent.terms.length > 0
-                  ? tr(loc, "resume_meta", { n: recent.terms.length, date: fmtDate(recent.createdAt, loc) })
-                  : tr(loc, "resume_gen_meta", { n: recent.generated?.length ?? 0, date: fmtDate(recent.createdAt, loc) })}</span>
-            </span>
-            <span className="resumeGo">{tr(loc, "resume_go")} →</span>
-          </button>
-          {state.history.length > 1 && (
-            <button className="link" style={{ alignSelf: "flex-end", fontSize: "12.5px" }} onClick={() => merge({ screen: "sessions" })}>
-              {tr(loc, "sessions_all", { n: state.history.length })} →
-            </button>
-          )}
+      {/* 컴포저는 항상 중앙(hero가 flex로 전체 높이를 채운다). 하단 고정 영역은 흐름에서 빼 컴포저 중앙 정렬을 건드리지 않는다.
+          스코프 홈이면 그 프로젝트의 세션 리스트를, 아니면 이어서 보기·모두 보기·안내문을 둔다. */}
+      {scopedProj ? (
+        <div className="scroll" style={{ position: "absolute", left: 16, right: 16, bottom: 14, maxHeight: "46vh", overflowY: "auto", display: "flex", flexDirection: "column", gap: 7 }}>
+          {projSessions.length === 0 ? (
+            <p className="note" style={{ margin: 0 }}>{tr(loc, "project_empty_hint")}</p>
+          ) : projSessions.map((h) => (
+            <div key={h.id} className="histitem">
+              <button className="histmain" onClick={() => openHistory(h)}>
+                <span className="histtopic">{h.topic || tr(loc, "history_untitled")}</span>
+                <span className="histmeta">{h.narrow
+                  ? tr(loc, "resume_narrow_meta", { n: h.narrow.turnsLeft, date: fmtDate(h.updatedAt, loc) })
+                  : h.terms.length > 0
+                    ? tr(loc, "history_meta", { n: h.terms.length, date: fmtDate(h.createdAt, loc) })
+                    : tr(loc, "resume_gen_meta", { n: h.generated?.length ?? 0, date: fmtDate(h.createdAt, loc) })}</span>
+              </button>
+            </div>
+          ))}
         </div>
+      ) : (
+        <>
+          {recent && (
+            <div style={{ position: "absolute", left: 16, right: 16, bottom: 205, display: "flex", flexDirection: "column" }}>
+              <button className={`resume ${recent.narrow ? "inprog" : ""}`} onClick={() => openHistory(recent)}>
+                <span className="resumeText">
+                  <span className="resumeEy">{recent.narrow ? <span className="inprogPill">{tr(loc, "resume_in_progress")}</span> : tr(loc, "resume_eyebrow")}</span>
+                  <b>{recent.area || recent.topic || tr(loc, "history_untitled")}</b>
+                  <span className="resumeMeta">{recent.narrow
+                    ? tr(loc, "resume_narrow_meta", { n: recent.narrow.turnsLeft, date: fmtDate(recent.updatedAt, loc) })
+                    : recent.terms.length > 0
+                      ? tr(loc, "resume_meta", { n: recent.terms.length, date: fmtDate(recent.createdAt, loc) })
+                      : tr(loc, "resume_gen_meta", { n: recent.generated?.length ?? 0, date: fmtDate(recent.createdAt, loc) })}</span>
+                </span>
+                <span className="resumeGo">{tr(loc, "resume_go")} →</span>
+              </button>
+              {state.history.length > 1 && (
+                <button className="link" style={{ alignSelf: "flex-end", fontSize: "12.5px" }} onClick={() => merge({ screen: "sessions" })}>
+                  {tr(loc, "sessions_all", { n: state.history.length })} →
+                </button>
+              )}
+            </div>
+          )}
+          <p className="note entryNote" style={{ position: "absolute", left: 16, right: 16, bottom: 14, marginTop: 0 }}>{tr(loc, "entry_note")}</p>
+        </>
       )}
-      <p className="note entryNote" style={{ position: "absolute", left: 16, right: 16, bottom: 14, marginTop: 0 }}>{tr(loc, "entry_note")}</p>
     </main>
   );
 }
 
 // 세션 정돈 화면. 좌상단 버거로 진입(좌 슬라이드). 검색·고정·날짜 버킷으로 과거 탐색에 빠르게 복귀한다.
 // 입력 화면이 아니라 선택·탐색 화면이라, 메인 진입(Entry)과 분리해 깔끔하게 둔다.
-function SessionsScreen({ state, merge, openHistory, deleteHistory, undoDelete, togglePin, goHome }: { state: State; merge: (p: Partial<State>) => void; openHistory: (rec: SessionRec) => void; deleteHistory: (id: string) => void; undoDelete: () => void; togglePin: (id: string) => void; goHome: () => void }) {
+function SessionsScreen({ state, merge, openHistory, deleteHistory, undoDelete, togglePin, goHome, assignProject }: { state: State; merge: (p: Partial<State>) => void; openHistory: (rec: SessionRec) => void; deleteHistory: (id: string) => void; undoDelete: () => void; togglePin: (id: string) => void; goHome: () => void; assignProject: (id: string, projectId: string | undefined) => void }) {
   const loc = state.locale;
   const searchRef = useRef<HTMLInputElement>(null);
   useEffect(() => { searchRef.current?.focus(); }, []);
+  const [assignId, setAssignId] = useState<string | null>(null);
   const q = (state.sessionsQuery ?? "").trim().toLowerCase();
   const filtered = q ? state.history.filter((h) => `${h.topic} ${h.area}`.toLowerCase().includes(q)) : state.history;
   const pinned = filtered.filter((h) => h.pinned);
@@ -783,13 +828,26 @@ function SessionsScreen({ state, merge, openHistory, deleteHistory, undoDelete, 
       ? tr(loc, "history_meta", { n: h.terms.length, date: fmtDate(h.createdAt, loc) })
       : tr(loc, "resume_gen_meta", { n: h.generated?.length ?? 0, date: fmtDate(h.createdAt, loc) });
   const row = (h: SessionRec) => (
-    <div key={h.id} className="histitem">
-      <button className="histmain" onClick={() => openHistory(h)}>
-        <span className="histtopic">{h.topic || tr(loc, "history_untitled")}</span>
-        <span className="histmeta">{meta(h)}</span>
-      </button>
-      <button className={`keepmini ${h.pinned ? "on" : ""}`} onClick={() => togglePin(h.id)} aria-label={tr(loc, h.pinned ? "pin_on" : "pin_off")} title={tr(loc, h.pinned ? "pin_on" : "pin_off")}><BookmarkIcon /></button>
-      <button className="histdel" onClick={() => deleteHistory(h.id)} aria-label={tr(loc, "history_delete")} title={tr(loc, "history_delete")}><TrashIcon /></button>
+    <div key={h.id}>
+      <div className="histitem">
+        <button className="histmain" onClick={() => openHistory(h)}>
+          <span className="histtopic">{h.topic || tr(loc, "history_untitled")}</span>
+          <span className="histmeta">{meta(h)}</span>
+        </button>
+        {state.projects.length > 0 && (
+          <button className="keepmini" style={h.projectId ? { color: "var(--accent-ink)" } : undefined} onClick={() => setAssignId(assignId === h.id ? null : h.id)} aria-label={tr(loc, "project_assign")} title={tr(loc, "project_assign")}><FolderIcon /></button>
+        )}
+        <button className={`keepmini ${h.pinned ? "on" : ""}`} onClick={() => togglePin(h.id)} aria-label={tr(loc, h.pinned ? "pin_on" : "pin_off")} title={tr(loc, h.pinned ? "pin_on" : "pin_off")}><BookmarkIcon /></button>
+        <button className="histdel" onClick={() => deleteHistory(h.id)} aria-label={tr(loc, "history_delete")} title={tr(loc, "history_delete")}><TrashIcon /></button>
+      </div>
+      {assignId === h.id && (
+        <div className="chips" style={{ margin: "0 0 8px 4px" }}>
+          {state.projects.map((p) => (
+            <button key={p.id} className={`chip ${h.projectId === p.id ? "sel" : ""}`} onClick={() => { assignProject(h.id, p.id); setAssignId(null); }}>{p.name}</button>
+          ))}
+          {h.projectId && <button className="chip" onClick={() => { assignProject(h.id, undefined); setAssignId(null); }}>{tr(loc, "project_remove")}</button>}
+        </div>
+      )}
     </div>
   );
   const buckets: { key: "today" | "week" | "older"; label: string }[] = [
@@ -832,6 +890,71 @@ function SessionsScreen({ state, merge, openHistory, deleteHistory, undoDelete, 
         <div className="snackbar" role="status">
           <span>{tr(loc, "hist_deleted")}</span>
           <button className="link" onClick={undoDelete}>{tr(loc, "hist_undo")}</button>
+        </div>
+      )}
+    </div></main>
+  );
+}
+
+// 좌상단 버거로 여는 플로팅 선택 패널. 입력 없이 모드 전환과 최근 세션 점프만. 좁은 패널이라 작게 떠 있고 바깥을 누르면 닫힌다.
+function Drawer({ state, merge, openHistory }: { state: State; merge: (p: Partial<State>) => void; openHistory: (rec: SessionRec) => void }) {
+  const loc = state.locale;
+  const close = () => merge({ drawerOpen: false });
+  const recent = state.history.slice(0, 7);
+  const meta = (h: SessionRec) => h.narrow
+    ? tr(loc, "resume_narrow_meta", { n: h.narrow.turnsLeft, date: fmtDate(h.updatedAt, loc) })
+    : h.terms.length > 0
+      ? tr(loc, "history_meta", { n: h.terms.length, date: fmtDate(h.createdAt, loc) })
+      : tr(loc, "resume_gen_meta", { n: h.generated?.length ?? 0, date: fmtDate(h.createdAt, loc) });
+  return (
+    <div className="drawerWrap" onClick={close}>
+      <div className="drawerPanel" onClick={(e) => e.stopPropagation()} role="menu">
+        <button className={`drawerItem ${state.screen === "projects" ? "sel" : ""}`} onClick={() => merge({ screen: "projects", activeProject: undefined, drawerOpen: false })}><FolderIcon /><span className="di">{tr(loc, "drawer_projects")}</span></button>
+        <button className={`drawerItem ${state.screen === "sessions" ? "sel" : ""}`} onClick={() => merge({ screen: "sessions", drawerOpen: false })}><Spark /><span className="di">{tr(loc, "drawer_search")}</span></button>
+        {recent.length > 0 && (
+          <>
+            <div className="drawerDiv" />
+            <div className="drawerHead">{tr(loc, "drawer_recent")}</div>
+            {recent.map((h) => (
+              <button key={h.id} className="drawerItem" onClick={() => { merge({ drawerOpen: false }); openHistory(h); }}>
+                <span className="di">{h.topic || tr(loc, "history_untitled")}</span>
+                <span className="dm">{meta(h)}</span>
+              </button>
+            ))}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// 프로젝트 탐색 화면(드로어 "프로젝트" 모드). 프로젝트를 만들고 지운다. 프로젝트를 누르면 그 프로젝트로 스코프된 홈으로 간다.
+function ProjectsScreen({ state, merge, addProject, removeProject }: { state: State; merge: (p: Partial<State>) => void; addProject: (name: string) => void; removeProject: (id: string) => void }) {
+  const loc = state.locale;
+  const [name, setName] = useState("");
+  const create = () => { if (name.trim()) { addProject(name); setName(""); } };
+  const count = (id: string) => state.history.filter((h) => h.projectId === id).length;
+  return (
+    <main className="scroll screenInLeft"><div className="pad" style={{ display: "flex", flexDirection: "column" }}>
+      <button className="link backlink" onClick={() => merge({ screen: "entry" })}>← {tr(loc, "sessions_back")}</button>
+      <h2 style={{ marginBottom: 12 }}>{tr(loc, "drawer_projects")}</h2>
+      <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+        <input className="search" style={{ paddingLeft: 11 }} placeholder={tr(loc, "project_new_ph")} value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") create(); }} />
+        <button className="pillbtn primary" onClick={create}>{tr(loc, "project_create")}</button>
+      </div>
+      {state.projects.length === 0 ? (
+        <p className="note">{tr(loc, "projects_empty")}</p>
+      ) : (
+        <div className="history">
+          {state.projects.map((p) => (
+            <div key={p.id} className="histitem">
+              <button className="histmain" onClick={() => merge({ screen: "entry", activeProject: p.id })}>
+                <span className="histtopic">{p.name}</span>
+                <span className="histmeta">{tr(loc, "project_count", { n: count(p.id) })}</span>
+              </button>
+              <button className="histdel" onClick={() => removeProject(p.id)} aria-label={tr(loc, "project_delete")} title={tr(loc, "project_delete")}><TrashIcon /></button>
+            </div>
+          ))}
         </div>
       )}
     </div></main>

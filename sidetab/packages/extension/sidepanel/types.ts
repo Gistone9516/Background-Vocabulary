@@ -1,8 +1,8 @@
 // 사이드패널 상태·화면 타입. App.tsx의 reducer와 화면 컴포넌트가 공유한다.
 import type { Prompt1Out, Choice, Term, Prompt5Out, PreviewOut, ClientLimits, OutputLocale } from "@sidetab/shared";
-import type { SessionRec } from "./history.js";
+import type { SessionRec, Project } from "./history.js";
 
-export type Screen = "entry" | "narrow" | "difficulty" | "terms" | "kept" | "paywall" | "refusal" | "sessions";
+export type Screen = "entry" | "narrow" | "difficulty" | "terms" | "kept" | "paywall" | "refusal" | "sessions" | "projects";
 
 // 어휘 난이도. 아키네이터 종료 직전 사용자가 고르며, 리스트 전체가 이 깊이로 생성된다.
 export type Difficulty = "기초" | "중급" | "심화";
@@ -47,6 +47,8 @@ export interface State {
   errorMsg: string;
   sessionId: string; history: SessionRec[]; histView: boolean;
   sessionsQuery?: string; // 세션 화면 검색어(topic·area 필터)
+  projects: Project[]; activeProject?: string; // 프로젝트(폴더) 목록과 현재 스코프(undefined=전체)
+  drawerOpen?: boolean; // 좌상단 버거로 여는 플로팅 선택 패널 열림
   resumedSession?: boolean; // 이전 탐색을 이어서 진행 중(narrow 복원). 좁히기 화면의 "이어서 진행 중" 안내 분기에 쓴다.
   limits: ClientLimits; locale: OutputLocale;
 }

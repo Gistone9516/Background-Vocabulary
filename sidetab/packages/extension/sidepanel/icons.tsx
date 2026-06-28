@@ -14,3 +14,5 @@ export const ShareIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="cur
 export const InfoIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 11v5" /><path d="M12 8h.01" /></svg>);
 // 세션 목록 트리거(헤더 좌상단). 3단 목록 글리프로 "이전 탐색 모음"을 암시한다.
 export const ListIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M4 12h12M4 18h14" /></svg>);
+// 세션을 프로젝트(폴더)에 넣는 행 액션.
+export const FolderIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>);

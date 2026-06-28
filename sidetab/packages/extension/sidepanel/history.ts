@@ -41,6 +41,14 @@ export interface SessionRec {
   generated?: KeptTerm[];     // 생성한 전체 어휘 리스트(되돌아가서 다시 보기용). 각 어휘의 kept 여부는 terms 멤버십으로 판단한다.
   narrow?: NarrowSnap;
   pinned?: boolean;           // 세션 고정(핀). 세션 화면 상단 고정 버킷에 모이고 CAP 정리에서 보호된다.
+  projectId?: string;         // 속한 프로젝트(폴더) id. 없으면 미분류.
+}
+
+// 프로젝트(폴더). 사용자가 직접 만들고 세션을 담는다. 세션 화면 필터 칩으로 쓰인다.
+export interface Project {
+  id: string;
+  name: string;
+  createdAt: number;
 }
 
 const KEY = "sidetab:sessions";
@@ -117,4 +125,47 @@ function normalize(v: unknown): SessionRec[] {
 function safeParse(s: string | null): unknown {
   if (!s) return [];
   try { return JSON.parse(s); } catch { return []; }
+}
+
+// ----- 프로젝트(폴더) 저장소. 세션과 같은 chrome.storage.local 패턴, 별도 키. -----
+const PKEY = "sidetab:projects";
+
+export async function loadProjects(): Promise<Project[]> {
+  const cl = chromeLocal();
+  if (cl) {
+    return new Promise((resolve) => {
+      cl.get(PKEY, (r: Record<string, unknown>) => resolve(normalizeProjects(r[PKEY])));
+    });
+  }
+  return normalizeProjects(safeParse(localStorage.getItem(PKEY)));
+}
+
+async function writeProjects(list: Project[]): Promise<void> {
+  const cl = chromeLocal();
+  if (cl) {
+    return new Promise((resolve) => cl.set({ [PKEY]: list }, () => resolve()));
+  }
+  localStorage.setItem(PKEY, JSON.stringify(list));
+}
+
+// 새 프로젝트를 추가하고 전체 목록을 반환한다.
+export async function createProject(name: string): Promise<Project[]> {
+  const list = await loadProjects();
+  const next = [...list, { id: crypto.randomUUID(), name: name.trim(), createdAt: Date.now() }];
+  await writeProjects(next);
+  return next;
+}
+
+// 프로젝트를 지운다. 소속 세션은 삭제하지 않고 projectId만 해제해 미분류로 되돌린다.
+export async function deleteProject(id: string): Promise<{ projects: Project[]; sessions: SessionRec[] }> {
+  const projects = (await loadProjects()).filter((p) => p.id !== id);
+  await writeProjects(projects);
+  const sessions = (await loadSessions()).map((s) => (s.projectId === id ? { ...s, projectId: undefined } : s));
+  await writeAll(sessions);
+  return { projects, sessions };
+}
+
+function normalizeProjects(v: unknown): Project[] {
+  if (!Array.isArray(v)) return [];
+  return (v as Project[]).filter((p) => p && typeof p.id === "string" && typeof p.name === "string");
 }
