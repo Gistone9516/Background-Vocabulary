@@ -9,9 +9,9 @@ import { t as tr, LOCALE_LABELS } from "./i18n.js";
 import { EXAMPLES, pickRandom } from "./examples.js";
 import { MIN_Q, THINK_KEYS, HIGHRISK, GALAXY_POS } from "./constants.js";
 import type { Screen, UITerm, State, Action, Difficulty } from "./types.js";
-import { sentLines, splitSentences, firstSentence, fmtDate, markTerms, commaLines, hasVal } from "./text.js";
+import { sentLines, splitSentences, firstSentence, fmtDate, dateBucket, markTerms, commaLines, hasVal } from "./text.js";
 import { isTextFile, readTextFile } from "./file.js";
-import { Spark, Chev, LinkIcon, RefreshIcon, LockIcon, TrashIcon, BookmarkIcon, UserIcon, CopyIcon, ShareIcon, InfoIcon } from "./icons.js";
+import { Spark, Chev, LinkIcon, RefreshIcon, LockIcon, TrashIcon, BookmarkIcon, UserIcon, CopyIcon, ShareIcon, InfoIcon, ListIcon } from "./icons.js";
 
 // pro 여부를 localStorage에 저장해 화면 전환과 새로고침에도 유지한다. reset이 initial을 다시 부르므로 여기서 복원하면 goHome 후에도 pro가 남는다.
 function savedPlan(): "flash" | "pro" {
@@ -108,6 +108,12 @@ export function App() {
     const rec = sref.current.pendingDel; if (!rec) return;
     window.clearTimeout(delTimer.current);
     void saveSession(rec).then((list) => merge({ history: list, pendingDel: null }));
+  };
+  // 세션 고정 토글. saveSession upsert로 pinned만 갱신해 목록에 즉시 반영한다. 고정 세션은 CAP 보호 대상이라 오래됐다고 밀리지 않는다.
+  const togglePin = (id: string) => {
+    const rec = sref.current.history.find((h) => h.id === id);
+    if (!rec) return;
+    void saveSession({ ...rec, pinned: !rec.pinned }).then((list) => merge({ history: list }));
   };
 
   // 진행 중 좁히기 스냅샷을 세션에 upsert한다(기존 createdAt·담은 어휘는 보존, updatedAt 갱신).
@@ -554,7 +560,14 @@ export function App() {
 
   useEffect(() => () => { abortRef.current?.abort(); window.clearTimeout(delTimer.current); }, []);
   // 진입 화면에 들어설 때마다 저장된 이전 탐색을 다시 읽어 리스트를 채운다(reset 후에도 갱신).
-  useEffect(() => { if (state.screen === "entry") void loadSessions().then((list) => merge({ history: list })); }, [state.screen, merge]);
+  useEffect(() => { if (state.screen === "entry" || state.screen === "sessions") void loadSessions().then((list) => merge({ history: list })); }, [state.screen, merge]);
+  // 세션 화면에서 ESC를 누르면 진입 화면으로 돌아간다(검색어도 비운다).
+  useEffect(() => {
+    if (state.screen !== "sessions") return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") merge({ screen: "entry", sessionsQuery: "" }); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [state.screen, merge]);
   // 워커 운영 한도(좁히기 턴·상세 횟수 등)를 한 번 읽어 게이팅에 쓴다. 실패 시 기본값 유지.
   useEffect(() => { void api.getConfig().then((l) => merge({ limits: l })); }, [merge]);
   // 한도/플랜 변경 후 좁히기 예산을 실제 narrowMax로 하향 클램프(부풀림 금지, 소비분 보존).
@@ -596,14 +609,15 @@ export function App() {
   return (
     <div id="app" className={live ? "live" : ""} role="application" aria-label="Vock note">
       {state.pending && <div className="bar" role="status"><i /></div>}
-      <Header state={state} openPaywall={openPaywall} goHome={requestHome} changeLocale={changeLocale} openTutorial={() => merge({ tutorialOpen: true })} />
-      {state.screen === "entry" && <Entry state={state} merge={merge} submitEntry={submitEntry} chip={chip} openHistory={openHistory} deleteHistory={deleteHistory} undoDelete={undoDelete} acceptFile={acceptFile} attachNotice={attachNotice} removeAttached={removeAttached} />}
+      <Header state={state} openPaywall={openPaywall} goHome={requestHome} changeLocale={changeLocale} openTutorial={() => merge({ tutorialOpen: true })} openSessions={() => merge({ screen: "sessions" })} />
+      {state.screen === "entry" && <Entry state={state} merge={merge} submitEntry={submitEntry} chip={chip} openHistory={openHistory} acceptFile={acceptFile} attachNotice={attachNotice} removeAttached={removeAttached} />}
       {state.screen === "narrow" && <Narrow state={state} merge={merge} toggleSel={toggleSel} nextStep={nextStep} undoStep={undoStep} jumpToTerms={jumpToTerms} />}
       {state.screen === "difficulty" && <DifficultyPick state={state} pick={pickDifficulty} back={backFromDifficulty} />}
       {state.screen === "terms" && <Terms state={state} merge={merge} loadMore={loadMore} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} go={go} goHome={goHome} refine={refineFromTerms} genGroup={genGroup} />}
       {state.screen === "kept" && <Kept state={state} merge={merge} go={go} goHome={goHome} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} buildSummary={buildSummary} onCopy={onCopy} onShare={onShare} aiRefine={aiRefine} />}
       {state.screen === "paywall" && <Paywall state={state} closePaywall={closePaywall} onUpgrade={onUpgrade} />}
       {state.screen === "refusal" && <Refusal state={state} goHome={goHome} />}
+      {state.screen === "sessions" && <SessionsScreen state={state} merge={merge} openHistory={openHistory} deleteHistory={deleteHistory} undoDelete={undoDelete} togglePin={togglePin} goHome={goHome} />}
       {state.proNotice && <ProSheet locale={state.locale} reason={state.proNotice} />}
       {state.confirmHome && <ConfirmHome locale={state.locale} answers={state.answers.length} onYes={confirmHomeYes} onNo={() => merge({ confirmHome: false })} />}
       {state.tutorialOpen && <Tutorial state={state} onClose={closeTutorial} />}
@@ -638,12 +652,16 @@ function ConfirmHome({ locale, answers, onYes, onNo }: { locale: OutputLocale; a
 function msg(e: unknown): string { return e instanceof Error ? e.message : String(e); }
 
 // ---------- 화면 컴포넌트 ----------
-function Header({ state, openPaywall, goHome, changeLocale, openTutorial }: { state: State; openPaywall: () => void; goHome: () => void; changeLocale: (l: OutputLocale) => void; openTutorial: () => void }) {
+function Header({ state, openPaywall, goHome, changeLocale, openTutorial, openSessions }: { state: State; openPaywall: () => void; goHome: () => void; changeLocale: (l: OutputLocale) => void; openTutorial: () => void; openSessions: () => void }) {
   const warn = state.plan !== "pro" && state.remaining <= 2;
   const brandName = state.locale === "ko" ? "배경노트" : "Vock note";
   const brandSub = state.locale === "ko" ? "Vock note" : "Voca·back·note";
   return (
     <header>
+      {/* 좌상단 세션 목록 트리거. 진입 화면에서만 노출(탐색 중에는 흐름 유지). */}
+      {state.screen === "entry" && (
+        <button className="iconbtn" onClick={openSessions} aria-label={tr(state.locale, "sessions_open")} title={tr(state.locale, "sessions_open")}><ListIcon /></button>
+      )}
       <button className="brand" onClick={goHome}>
         <span className="logo"><img src="icons/icon-32.png" alt="" width={24} height={24} /></span>
         <span><b>{brandName}</b><span>{brandSub}</span></span>
@@ -664,11 +682,10 @@ function Header({ state, openPaywall, goHome, changeLocale, openTutorial }: { st
   );
 }
 
-function Entry({ state, merge, submitEntry, chip, openHistory, deleteHistory, undoDelete, acceptFile, attachNotice, removeAttached }: { state: State; merge: (p: Partial<State>) => void; submitEntry: () => void; chip: (t: string) => void; openHistory: (rec: SessionRec) => void; deleteHistory: (id: string) => void; undoDelete: () => void; acceptFile: (f: File) => void; attachNotice: () => void; removeAttached: () => void }) {
+function Entry({ state, merge, submitEntry, chip, openHistory, acceptFile, attachNotice, removeAttached }: { state: State; merge: (p: Partial<State>) => void; submitEntry: () => void; chip: (t: string) => void; openHistory: (rec: SessionRec) => void; acceptFile: (f: File) => void; attachNotice: () => void; removeAttached: () => void }) {
   const loc = state.locale;
   // 가장 최근 세션을 "이어서 보기" 카드로 승격(d-2). 목록 아래엔 나머지를 둔다(중복 방지).
   const recent = state.history[0];
-  const rest = state.history.slice(1, 8);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const grow = () => { const el = taRef.current; if (el) { el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight, 160) + "px"; } };
@@ -684,23 +701,9 @@ function Entry({ state, merge, submitEntry, chip, openHistory, deleteHistory, un
   };
   const FILE_ACCEPT = "text/*,.txt,.md,.markdown,.csv,.json,.yml,.yaml,.xml,.html,.log,.tex";
   return (
-    <main className="scroll entryMain">
-      {/* d-2: 재방문하면 지난번 멈춘 자리를 능동적으로 띄운다(회상 대신 재인). */}
-      {recent && (
-        <button className={`resume ${recent.narrow ? "inprog" : ""}`} onClick={() => openHistory(recent)}>
-          <span className="resumeText">
-            <span className="resumeEy">{recent.narrow ? <span className="inprogPill">{tr(loc, "resume_in_progress")}</span> : tr(loc, "resume_eyebrow")}</span>
-            <b>{recent.area || recent.topic || tr(loc, "history_untitled")}</b>
-            <span className="resumeMeta">{recent.narrow
-              ? tr(loc, "resume_narrow_meta", { n: recent.narrow.turnsLeft, date: fmtDate(recent.updatedAt, loc) })
-              : recent.terms.length > 0
-                ? tr(loc, "resume_meta", { n: recent.terms.length, date: fmtDate(recent.createdAt, loc) })
-                : tr(loc, "resume_gen_meta", { n: recent.generated?.length ?? 0, date: fmtDate(recent.createdAt, loc) })}</span>
-          </span>
-          <span className="resumeGo">{tr(loc, "resume_go")} →</span>
-        </button>
-      )}
-      <div className="hero">
+    <main className="scroll entryMain screenIn" style={{ position: "relative" }}>
+      {/* 입력 컴포저는 중앙에서 위로 올린다(사용자 요청 90px). 하단 고정 묶음·안내문엔 영향 없음. */}
+      <div className="hero" style={{ transform: "translateY(-90px)" }}>
         <h1 className="heroTitle">{tr(loc, "entry_title")}</h1>
         <p className="heroSub">{sentLines(tr(loc, state.plan === "pro" ? "entry_sub_pro" : "entry_sub"))}</p>
         <div className="heroGlow">
@@ -736,34 +739,102 @@ function Entry({ state, merge, submitEntry, chip, openHistory, deleteHistory, un
           <button className="shuffle" onClick={() => merge({ chipSeed: state.chipSeed + 1 })} aria-label={tr(loc, "shuffle")} title={tr(loc, "shuffle")}><RefreshIcon /></button>
         </div>
         </div>
-        {rest.length > 0 && (
-          <div className="history">
-            <div className="histhead">{tr(loc, "history_head")}</div>
-            {rest.map((h) => (
-              <div key={h.id} className="histitem">
-                <button className="histmain" onClick={() => openHistory(h)}>
-                  <span className="histtopic">{h.topic || tr(loc, "history_untitled")}</span>
-                  <span className="histmeta">{h.narrow
-                    ? tr(loc, "resume_narrow_meta", { n: h.narrow.turnsLeft, date: fmtDate(h.updatedAt, loc) })
-                    : h.terms.length > 0
-                      ? tr(loc, "history_meta", { n: h.terms.length, date: fmtDate(h.createdAt, loc) })
-                      : tr(loc, "resume_gen_meta", { n: h.generated?.length ?? 0, date: fmtDate(h.createdAt, loc) })}</span>
-                </button>
-                <button className="histdel" onClick={() => deleteHistory(h.id)} aria-label={tr(loc, "history_delete")} title={tr(loc, "history_delete")}><TrashIcon /></button>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
-      {/* c-1-4: 삭제는 즉시 하되 잠깐 되돌릴 수 있게 한다(확인 다이얼로그보다 마찰이 낮다). */}
+      {/* 컴포저는 항상 중앙(hero가 flex로 전체 높이를 채운다). 이어서 보기·모두 보기·안내문은 흐름에서 빼 하단에 고정해 컴포저 중앙 정렬을 건드리지 않는다. */}
+      {recent && (
+        <div style={{ position: "absolute", left: 16, right: 16, bottom: 205, display: "flex", flexDirection: "column" }}>
+          <button className={`resume ${recent.narrow ? "inprog" : ""}`} onClick={() => openHistory(recent)}>
+            <span className="resumeText">
+              <span className="resumeEy">{recent.narrow ? <span className="inprogPill">{tr(loc, "resume_in_progress")}</span> : tr(loc, "resume_eyebrow")}</span>
+              <b>{recent.area || recent.topic || tr(loc, "history_untitled")}</b>
+              <span className="resumeMeta">{recent.narrow
+                ? tr(loc, "resume_narrow_meta", { n: recent.narrow.turnsLeft, date: fmtDate(recent.updatedAt, loc) })
+                : recent.terms.length > 0
+                  ? tr(loc, "resume_meta", { n: recent.terms.length, date: fmtDate(recent.createdAt, loc) })
+                  : tr(loc, "resume_gen_meta", { n: recent.generated?.length ?? 0, date: fmtDate(recent.createdAt, loc) })}</span>
+            </span>
+            <span className="resumeGo">{tr(loc, "resume_go")} →</span>
+          </button>
+          {state.history.length > 1 && (
+            <button className="link" style={{ alignSelf: "flex-end", fontSize: "12.5px" }} onClick={() => merge({ screen: "sessions" })}>
+              {tr(loc, "sessions_all", { n: state.history.length })} →
+            </button>
+          )}
+        </div>
+      )}
+      <p className="note entryNote" style={{ position: "absolute", left: 16, right: 16, bottom: 14, marginTop: 0 }}>{tr(loc, "entry_note")}</p>
+    </main>
+  );
+}
+
+// 세션 정돈 화면. 좌상단 버거로 진입(좌 슬라이드). 검색·고정·날짜 버킷으로 과거 탐색에 빠르게 복귀한다.
+// 입력 화면이 아니라 선택·탐색 화면이라, 메인 진입(Entry)과 분리해 깔끔하게 둔다.
+function SessionsScreen({ state, merge, openHistory, deleteHistory, undoDelete, togglePin, goHome }: { state: State; merge: (p: Partial<State>) => void; openHistory: (rec: SessionRec) => void; deleteHistory: (id: string) => void; undoDelete: () => void; togglePin: (id: string) => void; goHome: () => void }) {
+  const loc = state.locale;
+  const searchRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { searchRef.current?.focus(); }, []);
+  const q = (state.sessionsQuery ?? "").trim().toLowerCase();
+  const filtered = q ? state.history.filter((h) => `${h.topic} ${h.area}`.toLowerCase().includes(q)) : state.history;
+  const pinned = filtered.filter((h) => h.pinned);
+  const loose = filtered.filter((h) => !h.pinned);
+  const meta = (h: SessionRec) => h.narrow
+    ? tr(loc, "resume_narrow_meta", { n: h.narrow.turnsLeft, date: fmtDate(h.updatedAt, loc) })
+    : h.terms.length > 0
+      ? tr(loc, "history_meta", { n: h.terms.length, date: fmtDate(h.createdAt, loc) })
+      : tr(loc, "resume_gen_meta", { n: h.generated?.length ?? 0, date: fmtDate(h.createdAt, loc) });
+  const row = (h: SessionRec) => (
+    <div key={h.id} className="histitem">
+      <button className="histmain" onClick={() => openHistory(h)}>
+        <span className="histtopic">{h.topic || tr(loc, "history_untitled")}</span>
+        <span className="histmeta">{meta(h)}</span>
+      </button>
+      <button className={`keepmini ${h.pinned ? "on" : ""}`} onClick={() => togglePin(h.id)} aria-label={tr(loc, h.pinned ? "pin_on" : "pin_off")} title={tr(loc, h.pinned ? "pin_on" : "pin_off")}><BookmarkIcon /></button>
+      <button className="histdel" onClick={() => deleteHistory(h.id)} aria-label={tr(loc, "history_delete")} title={tr(loc, "history_delete")}><TrashIcon /></button>
+    </div>
+  );
+  const buckets: { key: "today" | "week" | "older"; label: string }[] = [
+    { key: "today", label: tr(loc, "sessions_today") },
+    { key: "week", label: tr(loc, "sessions_week") },
+    { key: "older", label: tr(loc, "sessions_older") },
+  ];
+  const empty = state.history.length === 0;
+  const noResult = !empty && filtered.length === 0;
+  return (
+    <main className="scroll screenInLeft"><div className="pad" style={{ display: "flex", flexDirection: "column" }}>
+      <button className="link backlink" onClick={() => merge({ screen: "entry", sessionsQuery: "" })}>← {tr(loc, "sessions_back")}</button>
+      {empty ? (
+        <div className="center">
+          <div className="mark"><ListIcon /></div>
+          <p className="lead">{tr(loc, "sessions_empty")}</p>
+          <button className="btn btn-primary" onClick={goHome}>{tr(loc, "sessions_empty_cta")}</button>
+        </div>
+      ) : (
+        <>
+          <div className="searchwrap"><Spark /><input ref={searchRef} className="search" placeholder={tr(loc, "sessions_search_ph")} value={state.sessionsQuery ?? ""} onChange={(e) => merge({ sessionsQuery: e.target.value })} /></div>
+          {noResult && <p className="note">{tr(loc, "sessions_noresult")}</p>}
+          {pinned.length > 0 && <>
+            <div className="grouphead"><b>{tr(loc, "sessions_pinned")}</b><i /></div>
+            {pinned.map(row)}
+          </>}
+          {buckets.map((b) => {
+            const items = loose.filter((h) => dateBucket(h.updatedAt ?? h.createdAt) === b.key);
+            if (!items.length) return null;
+            return (
+              <div key={b.key}>
+                <div className="grouphead"><b>{b.label}</b><i /></div>
+                {items.map(row)}
+              </div>
+            );
+          })}
+        </>
+      )}
       {state.pendingDel && (
         <div className="snackbar" role="status">
           <span>{tr(loc, "hist_deleted")}</span>
           <button className="link" onClick={undoDelete}>{tr(loc, "hist_undo")}</button>
         </div>
       )}
-      <p className="note entryNote">{tr(loc, "entry_note")}</p>
-    </main>
+    </div></main>
   );
 }
 
@@ -781,7 +852,7 @@ function Narrow({ state, merge, toggleSel, nextStep, undoStep, jumpToTerms }: { 
   // 입력 길이에 따라 높이가 늘어나는 적응형 입력(최대 140px 후 내부 스크롤).
   const growCustom = () => { const el = customRef.current; if (el) { el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight, 140) + "px"; } };
   if (state.pending) {
-    return (<main className="scroll entryMain"><div className="thinking">
+    return (<main className="scroll entryMain screenIn"><div className="thinking">
       <div className="aiav"><Spark /></div>
       <div className="msg">{sentLines(tr(loc, THINK_KEYS[tick]))}</div>
       <div className="dots3"><i /><i /><i /></div>
@@ -802,7 +873,7 @@ function Narrow({ state, merge, toggleSel, nextStep, undoStep, jumpToTerms }: { 
   // 공유 예산이 만충이면 종료 범위 안내, 차감됐으면 남은 턴 하나만 표시(이중 숫자 혼란 방지, C2).
   const budgetFull = state.turnsLeft >= maxT;
   return (
-    <main className="scroll"><div className="pad" style={{ display: "flex", flexDirection: "column" }}>
+    <main className="scroll screenIn"><div className="pad" style={{ display: "flex", flexDirection: "column" }}>
       <div className="aiwrap">
         <span className="aimeta">{tr(loc, "narrow_ai", { n: idx + 1 })}{state.confidence >= 0.75 ? tr(loc, "narrow_almost") : ""}</span>
         {(state.answers.length > 0 || state.usedUndo) && <button className="link" style={{ marginLeft: "auto" }} disabled={state.usedUndo} onClick={undoStep} title={tr(loc, "undo_title")}>{tr(loc, "undo")}</button>}
@@ -859,7 +930,7 @@ function DifficultyPick({ state, pick, back }: { state: State; pick: (l: Difficu
     { key: "심화", depth: 3, nameKey: "diff_adv", descKey: "diff_adv_desc", ex: p?.adv },
   ];
   return (
-    <main className="scroll"><div className="pad" style={{ display: "flex", flexDirection: "column" }}>
+    <main className="scroll screenIn"><div className="pad" style={{ display: "flex", flexDirection: "column" }}>
       <button className="link backlink" onClick={back}>← {tr(loc, isB0 ? "diff_back_home" : "diff_back_narrow")}</button>
       <div className="diffintro">
         <div className="eyebrow">{tr(loc, "diff_eyebrow")}</div>
@@ -977,7 +1048,7 @@ function Terms({ state, merge, loadMore, toggleKeep, toggleDetail, jumpRelated, 
   let lastG: string | undefined;
   return (
     <>
-      <main className="scroll"><div style={{ padding: "13px 13px 14px" }}>
+      <main className="scroll screenIn"><div style={{ padding: "13px 13px 14px" }}>
         {ro && <button className="link" style={{ alignSelf: "flex-start", color: "var(--muted)", marginBottom: 12 }} onClick={goHome}>{tr(loc, "kept_back_home")}</button>}
         <div className="tagrow"><span className="minitag">{state.classifyOut?.domain ?? tr(loc, "terms_domain_fallback")}</span><small>{tr(loc, ro ? "terms_domain_saved" : "terms_domain_label")}</small></div>
         {/* 조건 재탐색 검색창. 이전 탐색(읽기전용)에선 숨긴다 — stub classifyOut로 엉뚱한 도메인 생성·복원 어휘 교체 방지. */}
@@ -1013,7 +1084,7 @@ function Kept({ state, merge, go, goHome, toggleKeep, toggleDetail, jumpRelated,
   const copyLabel = state.copied ? tr(loc, "copy_done") : tr(loc, "copy");
   const kept = state.terms.filter((t) => t.kept);
   return (
-    <main className="scroll"><div className="pad" style={{ display: "flex", flexDirection: "column" }}>
+    <main className="scroll screenIn"><div className="pad" style={{ display: "flex", flexDirection: "column" }}>
       {/* 어휘가 있으면 리스트로 돌아가고(이어서보기·일반 세션 공통), 없을 때만 처음으로. prevScreen은 openHistory에서 안 바뀌어 쓰지 않는다. */}
       <button className="link" style={{ alignSelf: "flex-start", color: "var(--muted)", marginBottom: 13 }} onClick={() => (state.terms.length > 0 ? go("terms") : goHome())}>{state.terms.length > 0 ? tr(loc, "kept_back_terms") : tr(loc, "kept_back_home")}</button>
       <h2>{tr(loc, "kept_title")}{state.input ? ` · ${state.input}` : ""}</h2>
@@ -1045,7 +1116,7 @@ function Kept({ state, merge, go, goHome, toggleKeep, toggleDetail, jumpRelated,
 function Paywall({ state, closePaywall, onUpgrade }: { state: State; closePaywall: () => void; onUpgrade: () => void }) {
   const loc = state.locale;
   return (
-    <main className="scroll"><div className="pad" style={{ display: "flex", flexDirection: "column" }}>
+    <main className="scroll screenIn"><div className="pad" style={{ display: "flex", flexDirection: "column" }}>
       <button className="link" style={{ alignSelf: "flex-start", color: "var(--muted)", marginBottom: 14 }} onClick={closePaywall}>{tr(loc, "pw_close")}</button>
       <h2>{tr(loc, "pw_using", { plan: state.plan === "pro" ? "pro" : "flash" })}</h2>
       <p className="lead" style={{ margin: "4px 0 16px" }}>{state.plan === "pro" ? tr(loc, "plan_unlimited") : tr(loc, "plan_free_left", { n: state.remaining })}</p>

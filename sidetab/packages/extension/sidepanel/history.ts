@@ -40,6 +40,7 @@ export interface SessionRec {
   terms: KeptTerm[];          // 담은(kept) 어휘
   generated?: KeptTerm[];     // 생성한 전체 어휘 리스트(되돌아가서 다시 보기용). 각 어휘의 kept 여부는 terms 멤버십으로 판단한다.
   narrow?: NarrowSnap;
+  pinned?: boolean;           // 세션 고정(핀). 세션 화면 상단 고정 버킷에 모이고 CAP 정리에서 보호된다.
 }
 
 const KEY = "sidetab:sessions";
@@ -74,14 +75,15 @@ export async function saveSession(rec: SessionRec): Promise<SessionRec[]> {
   return capped;
 }
 
-// CAP 적용 시 진행 중(narrow 있음) 세션을 보호한다. 진행 중 세션은 주간 한도를 이미 차감한 결제분이라
-// 오래됐다는 이유로 조용히 사라지면 안 된다. 그래서 초과분은 완료 세션부터 오래된 순으로 먼저 덜어낸다.
-// 진행 중 세션만으로 CAP를 넘기는 비현실적 경우에만 오래된 진행 중 세션을 덜어낸다.
+// CAP 적용 시 진행 중(narrow 있음)·고정(pinned) 세션을 보호한다. 진행 중 세션은 주간 한도를 이미 차감한
+// 결제분이고 고정 세션은 사용자가 의도적으로 남긴 것이라, 오래됐다는 이유로 조용히 사라지면 안 된다.
+// 그래서 초과분은 보호 대상이 아닌 완료 세션부터 오래된 순으로 먼저 덜어낸다.
+// 보호 세션만으로 CAP를 넘기는 비현실적 경우에만 오래된 보호 세션을 덜어낸다.
 function capToLimit(sorted: SessionRec[], cap: number): SessionRec[] {
   if (sorted.length <= cap) return sorted;
   const overflow = sorted.length - cap;
-  // sorted는 최신순이므로, 완료 세션을 오래된 순(역순)으로 모아 초과분만큼 제거 대상에 담는다.
-  const completedOldestFirst = sorted.filter((s) => s.narrow == null).slice().reverse();
+  // sorted는 최신순이므로, 보호 대상이 아닌 완료 세션을 오래된 순(역순)으로 모아 초과분만큼 제거 대상에 담는다.
+  const completedOldestFirst = sorted.filter((s) => s.narrow == null && s.pinned !== true).slice().reverse();
   const dropIds = new Set(completedOldestFirst.slice(0, overflow).map((s) => s.id));
   let result = sorted.filter((s) => !dropIds.has(s.id));
   if (result.length > cap) result = result.slice(0, cap); // 진행 중만 초과하면 오래된 진행 중을 덜어낸다.

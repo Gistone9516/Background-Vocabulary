@@ -526,3 +526,11 @@ textarea.field{line-height:1.55}
 /* 뒤로가기 텍스트 링크(난이도 화면 상단). */
 .backlink{align-self:flex-start;margin-bottom:12px;color:var(--muted)}
 .backlink:hover{color:var(--accent-ink)}
+
+/* 화면 전환. 짧은 페이드와 미세 상승만 둬서 화면이 많아도 뚝뚝 끊기지 않게 한다. 역동적이지 않고 조용하게. */
+@keyframes screenIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.screenIn{animation:screenIn .2s ease-out both}
+/* 세션 화면만 드로어가 왼쪽에서 열리는 느낌을 살짝 준다. 가로 이동은 작게 둔다. */
+@keyframes screenInLeft{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+.screenInLeft{animation:screenInLeft .2s ease-out both}
+/* prefers-reduced-motion은 파일 위쪽 전역 규칙이 이미 모든 애니메이션을 끈다. */

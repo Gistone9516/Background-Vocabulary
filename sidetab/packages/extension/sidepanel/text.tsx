@@ -48,6 +48,15 @@ export function fmtDate(ms: number, locale: OutputLocale): string {
   return new Date(ms).toLocaleDateString(LOCALE_TAG[locale], { month: "short", day: "numeric" });
 }
 
+// 세션 목록 날짜 버킷. 오늘 자정 이후면 today, 최근 7일이면 week, 그보다 오래면 older.
+export function dateBucket(ms: number): "today" | "week" | "older" {
+  const now = new Date();
+  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  if (ms >= startToday) return "today";
+  if (ms >= startToday - 6 * 86400000) return "week";
+  return "older";
+}
+
 // 텍스트에서 주어진 용어를 찾아 <em>로 감싼다(튜토리얼 1스텝의 전문 용어 강조용).
 export function markTerms(text: string, terms: string[]): ReactNode[] {
   const list = terms.map((t) => t.trim()).filter(Boolean);

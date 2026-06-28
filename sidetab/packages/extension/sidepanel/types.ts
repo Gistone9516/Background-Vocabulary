@@ -2,7 +2,7 @@
 import type { Prompt1Out, Choice, Term, Prompt5Out, PreviewOut, ClientLimits, OutputLocale } from "@sidetab/shared";
 import type { SessionRec } from "./history.js";
 
-export type Screen = "entry" | "narrow" | "difficulty" | "terms" | "kept" | "paywall" | "refusal";
+export type Screen = "entry" | "narrow" | "difficulty" | "terms" | "kept" | "paywall" | "refusal" | "sessions";
 
 // 어휘 난이도. 아키네이터 종료 직전 사용자가 고르며, 리스트 전체가 이 깊이로 생성된다.
 export type Difficulty = "기초" | "중급" | "심화";
@@ -46,6 +46,7 @@ export interface State {
   reviewDismissed?: boolean; // 이번 진입에서 복습 배너를 닫음
   errorMsg: string;
   sessionId: string; history: SessionRec[]; histView: boolean;
+  sessionsQuery?: string; // 세션 화면 검색어(topic·area 필터)
   resumedSession?: boolean; // 이전 탐색을 이어서 진행 중(narrow 복원). 좁히기 화면의 "이어서 진행 중" 안내 분기에 쓴다.
   limits: ClientLimits; locale: OutputLocale;
 }
