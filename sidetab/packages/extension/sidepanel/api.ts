@@ -85,9 +85,10 @@ export async function getConfig(): Promise<ClientLimits> {
   }
 }
 
-export async function classify(input: Prompt1In): Promise<Prompt1Out> {
+// 분류 호출. tier를 실제 플랜대로 보낸다(pro는 paid). free로 고정하면 pro 사용자도 주간 한도에 집계돼 7회 뒤 새 탐색이 막히던 버그가 난다.
+export async function classify(input: Prompt1In, tier: Tier = "free"): Promise<Prompt1Out> {
   if (USE_MOCK) return mock.classify(input);
-  return postJson<Prompt1In, Prompt1Out>("/classify", input, "free");
+  return postJson<Prompt1In, Prompt1Out>("/classify", input, tier);
 }
 
 export async function nextBranch(input: Prompt2In): Promise<Prompt2Out> {

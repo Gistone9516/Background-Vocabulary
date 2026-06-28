@@ -74,7 +74,7 @@ export function buildPrompt1(raw_input: string, outputLocale: OutputLocale, cont
 export function buildPrompt2(input: {
   domain: string;
   job_type: JobType[];
-  history: { label: string; action: "선택" | "더깊이" }[];
+  history: { label: string; action: "선택" }[];
   remaining_tags?: string[];
   context_object?: string;
   user_condition?: string;
@@ -87,7 +87,6 @@ export function buildPrompt2(input: {
     langInstruction(input.outputLocale),
     SECURITY_GUARD,
     CHOICE_RULES,
-    "If action is '더깊이' (go deeper), create sub-branches or derived choices of the immediately preceding branch (do not update the intent distribution).",
     "If context_object or user_condition is given, narrow the choices to fit that context.",
     input.project_context ? "A project context label is given (the broad area the user works in across this project). Use it only as a gentle prior; if the user's selections so far clearly diverge from it, follow the selections, not the label." : "",
     input.simplify ? "The user signaled the previous choices were too hard to understand. From now on write the question and every choice in the simplest everyday language with concrete familiar examples, and avoid technical jargon and abbreviations. Treat any 'too hard' marker in the history as this simplification request, not as a content preference." : "",

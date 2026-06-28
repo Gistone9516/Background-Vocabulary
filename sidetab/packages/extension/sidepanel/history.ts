@@ -1,6 +1,6 @@
 // 담은 어휘(Keep) 세션 저장소. chrome.storage.local 우선, 없으면(개발 브라우저) localStorage 폴백.
 // 저장 패턴은 api.ts getUserId를 그대로 본떴다. 서버 변경 없이 클라이언트에만 영속한다.
-import type { Prompt5Out, Prompt1Out, Choice } from "@sidetab/shared";
+import type { Prompt5Out, Prompt1Out, Choice, JobType, DomainRisk } from "@sidetab/shared";
 
 // 카드 핵심 + 상세 캐시(있으면). 한 세션이 담은 어휘 하나.
 export interface KeptTerm {
@@ -42,6 +42,8 @@ export interface SessionRec {
   narrow?: NarrowSnap;
   pinned?: boolean;           // 세션 고정(핀). 세션 화면 상단 고정 버킷에 모이고 CAP 정리에서 보호된다.
   projectId?: string;         // 속한 프로젝트(폴더) id. 없으면 미분류.
+  job_type?: JobType[];       // 분류 시점 작업유형. 완료 세션을 다시 열 때 상세·요약 프롬프트 품질 유지용(없으면 빈 배열 폴백).
+  domain_risk?: DomainRisk;   // 분류 시점 위험도. 완료 세션 복원 때 그대로 쓴다(없으면 low 폴백).
 }
 
 // 프로젝트(폴더). 사용자가 직접 만들고 세션을 담는다. 세션 화면 필터 칩으로 쓰인다.
@@ -59,6 +61,15 @@ function chromeLocal() {
   return g?.storage?.local ?? null;
 }
 
+// 저장 작업 직렬화. saveSession·deleteSession 등은 loadSessions(읽기) 후 writeAll(쓰기)을 한다.
+// 동시 호출이 겹치면 나중 쓰기가 먼저 쓰기를 덮어 레코드가 유실된다(last-writer-wins). 한 줄로 큐에 태워 막는다.
+let opChain: Promise<unknown> = Promise.resolve();
+function serialize<T>(fn: () => Promise<T>): Promise<T> {
+  const run = opChain.then(fn, fn); // 이전 작업의 성공이나 실패와 무관하게 다음을 잇는다
+  opChain = run.catch(() => {});
+  return run;
+}
+
 // 전체 세션을 최신순으로 반환한다.
 export async function loadSessions(): Promise<SessionRec[]> {
   const cl = chromeLocal();
@@ -73,14 +84,16 @@ export async function loadSessions(): Promise<SessionRec[]> {
 // 한 세션을 id 기준 upsert 후 전체를 다시 반환한다.
 // 진행 중(narrow 있음)이거나 담은 어휘가 있으면 보존하고, 둘 다 비면 제거한다.
 export async function saveSession(rec: SessionRec): Promise<SessionRec[]> {
-  const list = await loadSessions();
-  const rest = list.filter((s) => s.id !== rec.id);
-  const keep = rec.narrow != null || rec.terms.length > 0 || (rec.generated?.length ?? 0) > 0;
-  const merged = keep ? [rec, ...rest] : rest;
-  const sorted = merged.sort((a, b) => (b.updatedAt ?? b.createdAt) - (a.updatedAt ?? a.createdAt));
-  const capped = capToLimit(sorted, CAP);
-  await writeAll(capped);
-  return capped;
+  return serialize(async () => {
+    const list = await loadSessions();
+    const rest = list.filter((s) => s.id !== rec.id);
+    const keep = rec.narrow != null || rec.terms.length > 0 || (rec.generated?.length ?? 0) > 0;
+    const merged = keep ? [rec, ...rest] : rest;
+    const sorted = merged.sort((a, b) => (b.updatedAt ?? b.createdAt) - (a.updatedAt ?? a.createdAt));
+    const capped = capToLimit(sorted, CAP);
+    await writeAll(capped);
+    return capped;
+  });
 }
 
 // CAP 적용 시 진행 중(narrow 있음)·고정(pinned) 세션을 보호한다. 진행 중 세션은 주간 한도를 이미 차감한
@@ -100,10 +113,12 @@ function capToLimit(sorted: SessionRec[], cap: number): SessionRec[] {
 
 // 한 세션을 id로 삭제하고 남은 전체를 반환한다.
 export async function deleteSession(id: string): Promise<SessionRec[]> {
-  const list = await loadSessions();
-  const next = list.filter((s) => s.id !== id);
-  await writeAll(next);
-  return next;
+  return serialize(async () => {
+    const list = await loadSessions();
+    const next = list.filter((s) => s.id !== id);
+    await writeAll(next);
+    return next;
+  });
 }
 
 async function writeAll(list: SessionRec[]): Promise<void> {
@@ -150,19 +165,23 @@ async function writeProjects(list: Project[]): Promise<void> {
 
 // 새 프로젝트를 추가하고 전체 목록을 반환한다.
 export async function createProject(name: string): Promise<Project[]> {
-  const list = await loadProjects();
-  const next = [...list, { id: crypto.randomUUID(), name: name.trim(), createdAt: Date.now() }];
-  await writeProjects(next);
-  return next;
+  return serialize(async () => {
+    const list = await loadProjects();
+    const next = [...list, { id: crypto.randomUUID(), name: name.trim(), createdAt: Date.now() }];
+    await writeProjects(next);
+    return next;
+  });
 }
 
 // 프로젝트를 지운다. 소속 세션은 삭제하지 않고 projectId만 해제해 미분류로 되돌린다.
 export async function deleteProject(id: string): Promise<{ projects: Project[]; sessions: SessionRec[] }> {
-  const projects = (await loadProjects()).filter((p) => p.id !== id);
-  await writeProjects(projects);
-  const sessions = (await loadSessions()).map((s) => (s.projectId === id ? { ...s, projectId: undefined } : s));
-  await writeAll(sessions);
-  return { projects, sessions };
+  return serialize(async () => {
+    const projects = (await loadProjects()).filter((p) => p.id !== id);
+    await writeProjects(projects);
+    const sessions = (await loadSessions()).map((s) => (s.projectId === id ? { ...s, projectId: undefined } : s));
+    await writeAll(sessions);
+    return { projects, sessions };
+  });
 }
 
 function normalizeProjects(v: unknown): Project[] {

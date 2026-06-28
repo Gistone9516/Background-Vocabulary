@@ -102,12 +102,8 @@ export async function runRag(
     searchFailed = true;
   }
 
-  // 검색 실패 경로: 캐시 폴백 재시도(stale라도 사용)
-  const staleCached = await deps.cache.get(cacheKey);
-  if (staleCached !== null) {
-    return { grounding: staleCached, limited: true };
-  }
-
-  // 캐시도 없으면 limited 반환. 파이프라인이 진행 여부를 결정한다.
+  // 검색 실패 + 캐시도 없으면 limited 반환. 파이프라인이 진행 여부를 결정한다.
+  // (검색 실패 시 stale 캐시 재조회는 제거했다. CacheStore.get은 TTL 만료나 부재 모두 null이라 같은 키 재조회가 항상 null이고,
+  //  앞서 한 번 null을 받았으므로 추가 라운드트립만 낭비였다. stale 사용이 필요하면 별도 getStale 인터페이스가 있어야 한다.)
   return { grounding: "", limited: true };
 }

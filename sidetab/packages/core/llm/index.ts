@@ -136,10 +136,11 @@ export class DeepSeekLlmClient implements LlmClient {
 
         if (!res.ok) {
           const text = await res.text().catch(() => "");
+          console.error(`DeepSeek HTTP ${res.status}:`, text.slice(0, 500)); // 업스트림 본문은 서버 로그에만 남긴다(클라 누출 차단)
           controller.enqueue({
             type: "error",
             code: `HTTP_${res.status}`,
-            message: text.slice(0, 300),
+            message: "AI 응답 생성에 실패했어요. 잠시 후 다시 시도해 주세요.",
           });
           controller.close();
           return;

@@ -138,7 +138,7 @@ export function App() {
     const existing = sref.current.history.find((h) => h.id === sid);
     // 이어서 연 기존 세션은 소속(projectId)을 바꾸지 않는다. 새로 시작한 세션만 현재 스코프 프로젝트에 편입한다.
     const projectId = existing ? existing.projectId : sref.current.activeProject;
-    const rec: SessionRec = { id: sid, topic, area, locale, createdAt: existing?.createdAt ?? Date.now(), updatedAt: Date.now(), terms: existing?.terms ?? [], narrow: snap, ...(projectId ? { projectId } : {}) };
+    const rec: SessionRec = { id: sid, topic, area, locale, createdAt: existing?.createdAt ?? Date.now(), updatedAt: Date.now(), terms: existing?.terms ?? [], narrow: snap, ...(projectId ? { projectId } : {}), ...(existing?.pinned ? { pinned: existing.pinned } : {}), ...(snap.classifyOut.job_type?.length ? { job_type: snap.classifyOut.job_type } : {}), ...(snap.classifyOut.domain_risk ? { domain_risk: snap.classifyOut.domain_risk } : {}) };
     void saveSession(rec).then((list) => merge({ history: list }));
   }, [merge]);
 
@@ -149,7 +149,7 @@ export function App() {
     try {
       const cond0 = sref.current.cond.trim();
       const projName = projectName(); // 프로젝트 제목을 첫 질문부터 부드러운 사전으로
-      const p1 = await api.classify({ raw_input: raw, ...(sref.current.attachedFile ? { context_object: sref.current.attachedFile.text } : {}), ...(cond0 ? { user_condition: cond0 } : {}), ...(projName ? { project_context: projName } : {}) });
+      const p1 = await api.classify({ raw_input: raw, ...(sref.current.attachedFile ? { context_object: sref.current.attachedFile.text } : {}), ...(cond0 ? { user_condition: cond0 } : {}), ...(projName ? { project_context: projName } : {}) }, sref.current.plan === "pro" ? "paid" : "free");
       if (p1.domain_risk === "high") { merge({ pending: false, screen: "refusal" }); return; } // 고위험: 세션·과금 없음
       // 정상 분류 = 세션 생성. classify가 곧 결제(D3)이므로 주간 1회 차감(클라 추정), 턴 예산 만충, narrow 첫 스냅샷 저장(0답도 저장).
       const tier = sref.current.plan === "pro" ? "paid" : "free";
@@ -361,7 +361,8 @@ export function App() {
           later(() => dispatch({ type: "updateTerm", id, patch: { _new: false } }), 780);
         } else if (ev.type === "done") merge({ streaming: false });
         else if (ev.type === "error") merge({ streaming: false, errorMsg: ev.message, ...(ev.code === "HIGH_RISK_REFUSED" ? { screen: "refusal" } : {}) });
-      }, ctrl.signal).catch((e) => { if ((e as Error).name !== "AbortError") merge({ streaming: false, errorMsg: msg(e) }); });
+      }, ctrl.signal).catch((e) => { if ((e as Error).name !== "AbortError") merge({ streaming: false, errorMsg: msg(e) }); })
+        .finally(() => { if (sref.current.streaming) merge({ streaming: false }); }); // abort·done 누락에도 스피너 해제(append 경로 영구 로딩 차단)
       return;
     }
     // 새 탐색 생성. sessionId·turnsLeft·remaining은 classify에서 이미 설정됨(여기서 재충전·재과금·sessionId 재발급 없음).
@@ -415,7 +416,7 @@ export function App() {
       const history = s.answers.flat().filter((l) => l !== TOO_HARD_MARK);
       const out = await api.relate({ area: c.domain ?? "", job_type: c.job_type ?? [], history, ...(s.input ? { topic: s.input } : {}), kept: kept.slice(0, RELATE_KEPT_CAP) });
       if (sref.current.sessionId !== sid) return; // 세션 바뀜(홈·다른 세션) → 결과 폐기
-      if (!out.relevant || !out.choices?.length) { merge({ screen: "difficulty", relateLoading: false, relateOut: null }); startPreview(); return; } // 연결 없음 → 스킵
+      if (!out.relevant || !out.choices?.length || !out.question) { merge({ screen: "difficulty", relateLoading: false, relateOut: null }); startPreview(); return; } // 연결 없음 또는 질문 비었음 시 스킵(빈 h2 렌더 방지)
       merge({ relateOut: out, relateLoading: false });
     } catch {
       if (sref.current.sessionId !== sid) return;
@@ -426,7 +427,8 @@ export function App() {
   const pickRelate = (label: string) => {
     const out = sref.current.relateOut;
     const terms = out?.related_terms ?? [];
-    const cond = `이미 알고 있는 어휘: ${terms.join(", ")}. 이번 작업 방향: ${label}. 이 어휘들은 다시 설명하지 말고 그 위에서 인접하거나 더 깊은 어휘를 추천해줘.`;
+    // 프라이밍 문구를 출력 로케일로 만든다(한국어 고정 시 en·ja·zh 추천에 언어 충돌과 품질 저하).
+    const cond = tr(sref.current.locale, "relate_cond", { terms: terms.join(", "), label });
     merge({ relateCond: cond, screen: "difficulty", relateOut: null });
     startPreview();
   };
@@ -451,20 +453,23 @@ export function App() {
     if (s.moreLoaded || s.moreLoading) return;
     // 더 보기는 유료 전용. 무료는 페이월로 보낸다(추가 추천 호출 절감).
     if (s.plan !== "pro") { merge({ proNotice: "more" }); return; }
-    if (s.terms.length >= s.limits.maxTotal.paid) { merge({ moreLoaded: true }); return; } // 누적 상한(maxTotal) 도달
+    const cap = s.limits.maxTotal.paid;
+    if (s.terms.length >= cap) { merge({ moreLoaded: true }); return; } // 누적 상한(maxTotal) 도달
     merge({ moreLoading: true });
     const exclude = s.terms.map((t) => t.term);
-    let got = 0;
+    let got = 0; let failed = false;
     const ctrl = new AbortController();
-    await api.streamRecommend(buildRecInput(exclude), s.plan === "pro" ? "paid" : "free", (ev) => {
+    await api.streamRecommend(buildRecInput(exclude), "paid", (ev) => {
       if (ev.type === "term") {
+        if (sref.current.terms.length >= cap) { ctrl.abort(); return; } // 스트리밍 중 누적 상한 재확인(초과 생성 차단)
         // 카드 번호는 기존 개수에 이어서 매긴다(더보기 시 1부터 재시작 버그 수정).
         got++; const n = sref.current.terms.length; const id = "m" + n;
         dispatch({ type: "addTerm", term: { ...ev.term, priority: n + 1, id, kept: false, _new: true } });
         later(() => dispatch({ type: "updateTerm", id, patch: { _new: false } }), 780);
-      }
-    }, ctrl.signal).catch(() => {});
-    merge({ moreLoading: false, moreLoaded: got === 0 });
+      } else if (ev.type === "error") { failed = true; merge({ errorMsg: ev.message }); }
+    }, ctrl.signal).catch((e) => { if ((e as Error).name !== "AbortError") { failed = true; merge({ errorMsg: msg(e) }); } });
+    // 실패면 moreLoaded를 세우지 않는다(에러를 "더 없음"으로 오인해 더보기 버튼이 영구 비활성화되던 버그 차단).
+    merge({ moreLoading: false, ...(failed ? {} : { moreLoaded: got === 0 }) });
   }, [merge]);
 
   // 그룹 보기에서 해당 그룹 어휘만 추가 생성한다(무료 2·유료 4 고정). maxTotal 누적 상한을 적용한다.
@@ -472,7 +477,8 @@ export function App() {
     const s = sref.current;
     if (s.groupGenLoading) return;
     const tier: "free" | "paid" = s.plan === "pro" ? "paid" : "free";
-    if (s.terms.length >= s.limits.maxTotal[tier]) { merge({ proNotice: "cap" }); return; }
+    const cap = s.limits.maxTotal[tier];
+    if (s.terms.length >= cap) { merge({ proNotice: "cap" }); return; }
     merge({ groupGenLoading: group });
     const want = s.limits.groupGen[tier];
     const exclude = s.terms.map((t) => t.term);
@@ -480,12 +486,13 @@ export function App() {
     const ctrl = new AbortController();
     await api.streamRecommend({ ...buildRecInput(exclude), user_condition: `Only suggest vocabulary that belongs to the group "${group}".${s.cond.trim() ? " " + s.cond.trim() : ""}` }, tier, (ev) => {
       if (ev.type === "term" && got < want) {
+        if (sref.current.terms.length >= cap) { ctrl.abort(); return; } // 동시 생성 경로와 합산해 누적 상한 초과 차단
         got++; const n = sref.current.terms.length; const id = "g" + n;
         dispatch({ type: "addTerm", term: { ...ev.term, group, priority: n + 1, id, kept: false, _new: true } });
         later(() => dispatch({ type: "updateTerm", id, patch: { _new: false } }), 780);
         if (got >= want) ctrl.abort();
-      }
-    }, ctrl.signal).catch(() => {});
+      } else if (ev.type === "error") merge({ errorMsg: ev.message });
+    }, ctrl.signal).catch((e) => { if ((e as Error).name !== "AbortError") merge({ errorMsg: msg(e) }); });
     merge({ groupGenLoading: "" });
   }, [merge]);
 
@@ -500,10 +507,11 @@ export function App() {
     }));
     const existing = s.history.find((h) => h.id === id);
     const rec: SessionRec = {
-      id, topic: s.input, area: s.classifyOut?.domain ?? "",
-      locale: s.classifyOut?.search_locale ?? "en",
+      ...(existing ?? {}), // 기존 레코드의 projectId·pinned·job_type·domain_risk·generated·narrow를 보존한다(담기 한 번에 프로젝트 소속·핀이 사라지던 버그 차단)
+      id, topic: s.input, area: s.classifyOut?.domain ?? existing?.area ?? "",
+      locale: s.classifyOut?.search_locale ?? existing?.locale ?? "en",
       createdAt: existing?.createdAt ?? Date.now(), updatedAt: Date.now(),
-      terms: keptTerms, ...(existing?.generated ? { generated: existing.generated } : {}), ...(existing?.narrow ? { narrow: existing.narrow } : {}), // 담기로는 narrow·생성리스트를 지우지 않는다
+      terms: keptTerms,
     };
     const list = await saveSession(rec);
     merge({ history: list });
@@ -529,7 +537,6 @@ export function App() {
     later(() => { if (sref.current.opening === id) merge({ opening: null }); }, 340);
     if (t && willFetch) {
       dispatch({ type: "updateTerm", id, patch: { detailLoading: true } });
-      if (s.plan !== "pro") merge({ detailCount: s.detailCount + 1 });
       try {
         // 연결 턴에서 정렬을 확정했을 때만(relateCond 있음) 프로젝트 제목과 아는 어휘를 상세에 약하게 전달한다.
         const rc = (s.relateCond ?? "").trim();
@@ -537,9 +544,10 @@ export function App() {
         const hint = rc ? [pn ? `프로젝트 맥락: ${pn}.` : "", rc].filter(Boolean).join(" ") : "";
         const d = await api.detail({ term: t.term, kind: t.kind, area: s.classifyOut?.domain ?? "", job_type: s.classifyOut?.job_type ?? [], domain: s.classifyOut?.domain ?? "other", topic: s.input, locale: s.classifyOut?.search_locale ?? "en", ...(hint ? { connection_hint: hint } : {}) }, s.plan === "pro" ? "paid" : "free");
         dispatch({ type: "updateTerm", id, patch: { detail: d, detailLoading: false } });
+        if (s.plan !== "pro") merge({ detailCount: sref.current.detailCount + 1 }); // 성공한 열람만 무료 횟수 차감(실패 시 차감하지 않는다)
         const withDetail = sref.current.terms.map((x) => (x.id === id ? { ...x, detail: d } : x));
         if (withDetail.find((x) => x.id === id)?.kept) void persist(withDetail);
-      } catch { dispatch({ type: "updateTerm", id, patch: { detailLoading: false } }); }
+      } catch (e) { dispatch({ type: "updateTerm", id, patch: { detailLoading: false } }); merge({ openId: null, errorMsg: msg(e) }); } // 실패 시 카드 접고 오류 표시(무한 로딩·무신호 차단)
     }
   }, [merge]);
   const jumpRelated = (name: string) => { const t = sref.current.terms.find((x) => x.term === name); if (t) void toggleDetail(t.id); };
@@ -592,7 +600,7 @@ export function App() {
         classifyOut: n.classifyOut, questions: n.questions, answers: n.answers, unchosen: n.unchosen,
         usedUndo: n.usedUndo, tooHard: n.tooHard, simplify: n.simplify, refining: n.refining,
         confidence: n.confidence, turnsLeft: n.turnsLeft, cond: n.cond ?? "",
-        sel: [], customText: "", customOpen: false, query: "", difficulty: undefined,
+        sel: [], customText: "", customOpen: false, query: "", difficulty: undefined, relateCond: "", relateOut: null,
         attachedFile: null, attachNote: "", dragging: false, prevScreen: "entry", showCond: false,
         limitHit: false, proNotice: "", errorMsg: "", pending: false, streaming: false,
       });
@@ -610,8 +618,8 @@ export function App() {
     // 완료 세션: 담은/생성 어휘 리스트로(세션을 닫지 않음). histView로 Terms를 읽기전용 처리.
     merge({
       screen: "terms", histView: true, resumedSession: false, terms, visibleCount: terms.length, openId: null,
-      sessionId: rec.id, input: rec.topic, ctxInput: "", aiSummary: "",
-      classifyOut: { domain: rec.area, job_type: [], condition_required: false, question: "", choices: [], search_locale: rec.locale === "ko" ? "ko" : "en", domain_risk: "low" },
+      sessionId: rec.id, input: rec.topic, ctxInput: "", aiSummary: "", relateCond: "", relateOut: null, difficulty: undefined,
+      classifyOut: { domain: rec.area, job_type: rec.job_type ?? [], condition_required: false, question: "", choices: [], search_locale: rec.locale === "ko" ? "ko" : "en", domain_risk: rec.domain_risk ?? "low" },
     });
   };
 
@@ -717,12 +725,26 @@ function ProSheet({ locale, reason }: { locale: OutputLocale; reason: string }) 
   );
 }
 
+// 모달 공통 훅. 마운트 시 첫 포커스를 안으로 옮기고 Escape로 닫는다(키보드 접근). onClose는 ref로 잡아 매 렌더 재등록을 막는다.
+function useModalClose(onClose: () => void) {
+  const ref = useRef<HTMLDivElement>(null);
+  const cb = useRef(onClose); cb.current = onClose;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") cb.current(); };
+    window.addEventListener("keydown", onKey);
+    ref.current?.querySelector<HTMLElement>("button, [href], input, textarea, select, [tabindex]")?.focus();
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+  return ref;
+}
+
 // 진행 중 탐색을 두고 처음으로 갈지 한 번 확인하는 작은 모달(c-0-2). 튜토리얼과 같은 카드 패턴.
 function ConfirmHome({ locale, answers, onYes, onNo }: { locale: OutputLocale; answers: number; onYes: () => void; onNo: () => void }) {
+  const ref = useModalClose(onNo);
   return (
     <div className="modalBackdrop" onClick={onNo}>
-      <div className="modalCard" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-        <h2>{tr(locale, "home_confirm_title")}</h2>
+      <div className="modalCard" ref={ref} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="confirmHomeTitle">
+        <h2 id="confirmHomeTitle">{tr(locale, "home_confirm_title")}</h2>
         <p className="tutLead">{tr(locale, "home_confirm_sub", { n: answers })}</p>
         <div className="row2">
           <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onNo}>{tr(locale, "home_confirm_no")}</button>
@@ -970,6 +992,7 @@ function SessionsScreen({ state, merge, openHistory, deleteHistory, undoDelete, 
 function Drawer({ state, merge, openHistory }: { state: State; merge: (p: Partial<State>) => void; openHistory: (rec: SessionRec) => void }) {
   const loc = state.locale;
   const close = () => merge({ drawerOpen: false });
+  const ref = useModalClose(close);
   const recent = state.history.slice(0, 7);
   const meta = (h: SessionRec) => h.narrow
     ? tr(loc, "resume_narrow_meta", { n: h.narrow.turnsLeft, date: fmtDate(h.updatedAt, loc) })
@@ -978,7 +1001,7 @@ function Drawer({ state, merge, openHistory }: { state: State; merge: (p: Partia
       : tr(loc, "resume_gen_meta", { n: h.generated?.length ?? 0, date: fmtDate(h.createdAt, loc) });
   return (
     <div className="drawerWrap" onClick={close}>
-      <div className="drawerPanel" onClick={(e) => e.stopPropagation()} role="menu">
+      <div className="drawerPanel" ref={ref} onClick={(e) => e.stopPropagation()} aria-label={tr(loc, "sessions_open")}>
         <button className={`drawerItem ${state.screen === "projects" ? "sel" : ""}`} onClick={() => merge({ screen: "projects", activeProject: undefined, drawerOpen: false })}><FolderIcon /><span className="di">{tr(loc, "drawer_projects")}</span></button>
         <button className={`drawerItem ${state.screen === "sessions" ? "sel" : ""}`} onClick={() => merge({ screen: "sessions", drawerOpen: false })}><Spark /><span className="di">{tr(loc, "drawer_search")}</span></button>
         {recent.length > 0 && (
@@ -1371,9 +1394,10 @@ function Tutorial({ state, onClose }: { state: State; onClose: () => void }) {
   const [step, setStep] = useState(0);
   const LAST = 3;
   const fields = tr(loc, "tut_p3_eg").split(",");
+  const ref = useModalClose(onClose);
   return (
     <div className="modalBackdrop" onClick={onClose}>
-      <div className="modalCard tut" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+      <div className="modalCard tut" ref={ref} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={tr(loc, "help")}>
         <div className="tutIcon"><Spark /></div>
         {step === 0 && <>
           {/* 이유1: AI 답이 전문가 수준이라 이해하기 어렵다. Claude 채팅을 모방한 사례. */}

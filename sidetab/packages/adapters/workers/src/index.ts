@@ -248,6 +248,9 @@ app.post("/classify", async (c) => {
 app.post("/next", async (c) => {
   const limits = buildLimits(c.env);
   const blocked = await securityBlock(c, c.env, limits); if (blocked) return blocked;
+  // 전역 일일 캡(아키네이터 호출도 LLM 비용을 낸다. 레이트리밋만으론 IP 순환으로 우회 가능해 비용 backstop을 더한다).
+  const cap = await bumpGlobalCap(c.env, limits.globalDailyCap);
+  if (cap.over) return c.json({ error: "GLOBAL_DAILY_CAP", message: "오늘 전체 이용량이 많아 잠시 멈췄어요. 내일 다시 시도해 주세요.", count: cap.count, cap: cap.cap }, 429);
   const body = await c.req.json<Prompt2In>();
   if (oversized(body, limits)) return c.json({ error: "INPUT_TOO_LARGE", message: "입력이 너무 길어요. 줄여서 다시 시도해 주세요." }, 413);
   const pipeline = buildPipeline(c.env);
@@ -256,10 +259,12 @@ app.post("/next", async (c) => {
 });
 
 // POST /preview
-// PreviewIn -> pipeline.preview -> JSON. 난이도 선택 직전 깊이별 대표 어휘. 레이트리밋만, 주간·전역 캡 미집계(좁히기와 같은 비용 등급).
+// PreviewIn -> pipeline.preview -> JSON. 난이도 선택 직전 깊이별 대표 어휘. 레이트리밋 + 전역 일일 캡(주간은 미집계, 좁히기와 같은 비용 등급).
 app.post("/preview", async (c) => {
   const limits = buildLimits(c.env);
   const blocked = await securityBlock(c, c.env, limits); if (blocked) return blocked;
+  const cap = await bumpGlobalCap(c.env, limits.globalDailyCap);
+  if (cap.over) return c.json({ error: "GLOBAL_DAILY_CAP", message: "오늘 전체 이용량이 많아 잠시 멈췄어요. 내일 다시 시도해 주세요.", count: cap.count, cap: cap.cap }, 429);
   const body = await c.req.json<PreviewIn>();
   if (oversized(body, limits)) return c.json({ error: "INPUT_TOO_LARGE", message: "입력이 너무 길어요. 줄여서 다시 시도해 주세요." }, 413);
   const pipeline = buildPipeline(c.env);
@@ -268,12 +273,17 @@ app.post("/preview", async (c) => {
 });
 
 // POST /relate
-// RelateIn -> pipeline.relate -> JSON. 연결 턴(프로젝트 kept 어휘 연결 판정). 레이트리밋만, 주간·전역 캡 미집계(좁히기와 같은 비용 등급).
+// RelateIn -> pipeline.relate -> JSON. 연결 턴(프로젝트 kept 어휘 연결 판정). 레이트리밋 + 전역 일일 캡(주간은 미집계, 좁히기와 같은 비용 등급).
 app.post("/relate", async (c) => {
   const limits = buildLimits(c.env);
   const blocked = await securityBlock(c, c.env, limits); if (blocked) return blocked;
+  const cap = await bumpGlobalCap(c.env, limits.globalDailyCap);
+  if (cap.over) return c.json({ error: "GLOBAL_DAILY_CAP", message: "오늘 전체 이용량이 많아 잠시 멈췄어요. 내일 다시 시도해 주세요.", count: cap.count, cap: cap.cap }, 429);
   const body = await c.req.json<RelateIn>();
   if (oversized(body, limits)) return c.json({ error: "INPUT_TOO_LARGE", message: "입력이 너무 길어요. 줄여서 다시 시도해 주세요." }, 413);
+  // 배열 길이 상한(프롬프트 부풀림 차단). 개별 문자열 길이는 oversized가, 원소 개수는 여기서 막는다(클라 12캡의 서버측 방어선).
+  body.kept = (body.kept ?? []).slice(0, 20);
+  body.history = (body.history ?? []).slice(0, 20);
   const pipeline = buildPipeline(c.env);
   const result = await pipeline.relate(body, readLocale(c));
   return c.json(result);

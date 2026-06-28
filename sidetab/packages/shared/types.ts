@@ -170,7 +170,7 @@ export interface Prompt1Out {
 export interface Prompt2In {
   domain: string;
   job_type: JobType[];
-  history: { label: string; action: "선택" | "더깊이" }[];
+  history: { label: string; action: "선택" }[];
   remaining_tags?: string[];
   context_object?: string;
   user_condition?: string;

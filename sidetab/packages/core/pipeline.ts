@@ -181,12 +181,12 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
             // 업스트림이 done 이벤트 없이 끝난 경우 여기서 닫는다.
             controller.close();
           } catch (err) {
-            // 예상치 못한 예외: error 이벤트로 전달하고 닫는다.
-            const message = err instanceof Error ? err.message : String(err);
+            // 예상치 못한 예외: 내부 메시지는 서버 로그에만 남기고, 클라엔 일반 문구만 보낸다(인프라 정보 누출 차단).
+            console.error("recommend 파이프라인 오류:", err);
             controller.enqueue({
               type: "error",
               code: "PIPELINE_ERROR",
-              message,
+              message: "추천 생성 중 문제가 발생했어요. 잠시 후 다시 시도해 주세요.",
             });
             controller.close();
           }

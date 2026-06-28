@@ -451,6 +451,10 @@ textarea.field{line-height:1.55}
 /* 무료의 첨부 버튼: 글자 옆에 작은 자물쇠. 평소 옅고 호버 시 진해진다(기존 .attach:hover 계승). */
 .attach.locked{display:inline-flex;align-items:center;gap:4px;color:var(--faint);opacity:.75}
 .attach.locked svg{width:11px;height:11px}
+/* 다크모드에서 faint와 opacity가 겹쳐 WCAG AA 대비 미달(약 2.6:1)이라, 잠금 어포던스를 더 밝은 muted로 올리고 opacity를 없앤다(라이트 디자인은 불변). */
+@media (prefers-color-scheme: dark){
+  .attach.locked{color:var(--muted);opacity:1}
+}
 /* 재탐색 입력 오른쪽 자물쇠(무료). 왼쪽 스파클은 기존 .searchwrap svg 규칙을 그대로 쓴다. */
 .searchwrap .searchlock{position:absolute;right:10px;top:50%;left:auto;transform:translateY(-50%);color:var(--faint);opacity:.6;display:flex;pointer-events:none}
 .searchwrap .searchlock svg{position:static;left:auto;top:auto;transform:none;width:12px;height:12px}

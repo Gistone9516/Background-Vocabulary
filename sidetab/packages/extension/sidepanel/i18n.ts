@@ -57,6 +57,7 @@ const ko: Dict = {
   relate_kept_chip: "이미 담음 · {term}",
   relate_lead: "맞는 방향을 골라주세요. 관련 없으면 건너뛰어도 돼요.",
   relate_skip: "이 작업과는 관련 없어요",
+  relate_cond: "이미 알고 있는 어휘: {terms}. 이번 작업 방향: {label}. 이 어휘들은 다시 설명하지 말고 그 위에서 인접하거나 더 깊은 어휘를 추천해줘.",
   history_delete: "삭제",
 
   narrow_ai: "AI가 좁히는 중 · {n}번째",
@@ -178,7 +179,6 @@ const ko: Dict = {
   home_confirm_sub: "지금까지 답한 내용은 저장돼요. 이전 탐색에서 이어서 계속할 수 있어요.",
   narrow_budget: "남은 좁히기 {n}턴",
   narrow_b0_skip: "좁히기 횟수를 다 써서 바로 깊이를 골라요.",
-  pw_r_budget: "좁히기 예산을 다 썼어요. 어휘를 생성하면 다시 채워져요.",
   home_confirm_no: "취소",
   home_confirm_yes: "처음으로",
   resume_eyebrow: "이어서",
@@ -311,6 +311,7 @@ const en: Dict = {
   relate_kept_chip: "Kept · {term}",
   relate_lead: "Pick the direction that fits. Skip if it's unrelated.",
   relate_skip: "Not related to this work",
+  relate_cond: "Vocabulary I already know: {terms}. Direction for this task: {label}. Don't re-explain these; recommend adjacent or deeper vocabulary built on top of them.",
   history_delete: "Delete",
 
   narrow_ai: "AI is narrowing · step {n}",
@@ -432,7 +433,6 @@ const en: Dict = {
   home_confirm_sub: "Your progress is saved. You can continue anytime from your previous explorations.",
   narrow_budget: "{n} narrowing turns left",
   narrow_b0_skip: "You're out of narrowing turns, so let's pick the depth directly.",
-  pw_r_budget: "You've used your narrowing budget. It refills when you generate terms.",
   home_confirm_no: "Cancel",
   home_confirm_yes: "To start",
   resume_eyebrow: "Continue",
@@ -565,6 +565,7 @@ const ja: Dict = {
   relate_kept_chip: "保存済み · {term}",
   relate_lead: "合う方向を選んでください。関係なければスキップできます。",
   relate_skip: "この作業とは関係ありません",
+  relate_cond: "すでに知っている語彙: {terms}. 今回の作業の方向: {label}. これらは改めて説明せず、その上に隣接する、またはより深い語彙を勧めてください。",
   history_delete: "削除",
 
   narrow_ai: "AIが絞り込み中 · {n}回目",
@@ -686,7 +687,6 @@ const ja: Dict = {
   home_confirm_sub: "これまでの回答は保存されます。前回の探索から続けられます。",
   narrow_budget: "残り絞り込み{n}ターン",
   narrow_b0_skip: "絞り込み回数を使い切ったので、すぐに深さを選びます。",
-  pw_r_budget: "絞り込みの残りを使い切りました。用語を生成すると再び補充されます。",
   home_confirm_no: "キャンセル",
   home_confirm_yes: "最初へ",
   resume_eyebrow: "続き",
@@ -819,6 +819,7 @@ const zh: Dict = {
   relate_kept_chip: "已收藏 · {term}",
   relate_lead: "选择合适的方向。无关可以跳过。",
   relate_skip: "与这次的工作无关",
+  relate_cond: "我已经掌握的词汇：{terms}。这次的工作方向：{label}。不要重复解释这些，请在此基础上推荐相邻或更深入的词汇。",
   history_delete: "删除",
 
   narrow_ai: "AI 正在缩小范围 · 第 {n} 次",
@@ -940,7 +941,6 @@ const zh: Dict = {
   home_confirm_sub: "当前进度会保存。可从之前的探索继续。",
   narrow_budget: "还剩 {n} 轮缩小",
   narrow_b0_skip: "缩小次数已用完，直接选择深度。",
-  pw_r_budget: "缩小次数已用完。生成术语后会重新补充。",
   home_confirm_no: "取消",
   home_confirm_yes: "回首页",
   resume_eyebrow: "继续",
