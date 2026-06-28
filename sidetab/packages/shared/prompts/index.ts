@@ -44,10 +44,11 @@ function langInstruction(loc: OutputLocale): string {
 
 // 프롬프트1. 진입 자유문장에서 분야와 작업유형을 이중 추론하고 첫 분기를 만든다.
 // 구현계획 6장 라우팅을 위해 search_locale와 domain_risk도 함께 출력한다.
-export function buildPrompt1(raw_input: string, outputLocale: OutputLocale, context_object?: string, user_condition?: string): Msg[] {
+export function buildPrompt1(raw_input: string, outputLocale: OutputLocale, context_object?: string, user_condition?: string, project_context?: string): Msg[] {
   const sys = [
     "You help a user who is trying to build something outside their own field of expertise, by giving them a starting point in that field.",
     "If a user condition is given, treat it as the narrowing direction the user already chose: tailor the first question and choices to it (do not ask what it already answers), and carry it into user_condition in the output.",
+    "A project context label may be given (the broad area the user generally works in across this project). Use it ONLY as a gentle prior to disambiguate vague input; if the current input clearly belongs to a different area, follow the input, not the label.",
     `Allowed job_type values (choose only from these; do not invent keys): ${JOB_LIST}. If one input covers two tasks, output up to 2 in the array.`,
     "search_locale decision: use 'ko' if the field is bound to Korean jurisdiction/institutions (law, regulation, government support, licensing), Korean local markets/practices (real-estate lease, domestic distribution), or Korean-native terminology; otherwise, for global tech/science/software/startup/design, use 'en'.",
     "domain_risk decision: 'high' if the field can directly harm an individual, such as medical diagnosis or personal legal judgment; otherwise 'low'.",
@@ -60,7 +61,7 @@ export function buildPrompt1(raw_input: string, outputLocale: OutputLocale, cont
     'Output exactly one JSON object. Format: {"domain","job_type":[],"user_condition"?,"condition_required":bool,"search_locale":"en|ko","domain_risk":"low|high","question","choices":[{"label","domain_tag"}]}',
     JSON_ONLY,
   ].join("\n");
-  const user = [`Free-form input: ${raw_input}`, user_condition ? `User-stated condition: ${user_condition}` : "", context_object ? `Pasted context: ${context_object}` : ""]
+  const user = [`Free-form input: ${raw_input}`, user_condition ? `User-stated condition: ${user_condition}` : "", project_context ? `Project context (broad area, gentle prior only): ${project_context}` : "", context_object ? `Pasted context: ${context_object}` : ""]
     .filter(Boolean)
     .join("\n");
   return [
@@ -77,6 +78,7 @@ export function buildPrompt2(input: {
   remaining_tags?: string[];
   context_object?: string;
   user_condition?: string;
+  project_context?: string;
   simplify?: boolean;
   outputLocale: OutputLocale;
 }): Msg[] {
@@ -87,6 +89,7 @@ export function buildPrompt2(input: {
     CHOICE_RULES,
     "If action is '더깊이' (go deeper), create sub-branches or derived choices of the immediately preceding branch (do not update the intent distribution).",
     "If context_object or user_condition is given, narrow the choices to fit that context.",
+    input.project_context ? "A project context label is given (the broad area the user works in across this project). Use it only as a gentle prior; if the user's selections so far clearly diverge from it, follow the selections, not the label." : "",
     input.simplify ? "The user signaled the previous choices were too hard to understand. From now on write the question and every choice in the simplest everyday language with concrete familiar examples, and avoid technical jargon and abbreviations. Treat any 'too hard' marker in the history as this simplification request, not as a content preference." : "",
     EYE_LEVEL,
     "Judge whether the history has narrowed the intent enough, and output enough (boolean) and confidence (0-1). The goal is to finish within 3 turns — once about 3 answers are gathered, usually end with enough=true. Ask additional questions (max 8) only when intent genuinely splits widely. Do not pad questions just to fill turns (D1).",
@@ -185,6 +188,42 @@ export function buildPreview(input: {
   ];
 }
 
+// 연결 턴. 좁히기 종료 직전, 같은 프로젝트에서 이미 담은 어휘가 지금 좁힌 작업과 진짜로 연결되는지 판정해,
+// 연결이 있으면 재인 질문 한 턴으로 드러낸다(없으면 relevant=false로 스킵). RAG 없이 1회 생성.
+export function buildRelate(input: {
+  area: string;
+  job_type: JobType[];
+  history: string[];
+  topic?: string;
+  kept: { term: string; one_line: string; area?: string }[];
+  outputLocale: OutputLocale;
+}): Msg[] {
+  const sys = [
+    "The user has, in earlier sessions of THIS project, curated (kept) the background vocabulary terms listed below. They are now narrowing a NEW task in the same field. Decide whether any kept term genuinely connects to the new narrowed task in a way that should shape what vocabulary they learn next, and if so, surface that connection as one short recognition question.",
+    langInstruction(input.outputLocale),
+    SECURITY_GUARD,
+    "[RELEVANCE GATE — CRITICAL] Only claim a connection that is GENUINE and useful. If the kept terms do not meaningfully relate to the current narrowed task (different sub-topic, only a superficial keyword overlap, or a forced link), output relevant=false with an empty question, empty choices, and empty related_terms. Never fabricate a connection just to produce a question — a weak or spurious link is worse than none.",
+    EYE_LEVEL,
+    "When relevant=true: related_terms = the 1 to 3 kept terms the connection is based on (each MUST be from the provided kept list). question = a short, plain question telling the user 'you already know [those terms], and this current work seems to build on them — which direction are you taking?'. choices = 2 or 3 distinct, concrete next-step directions that build on those kept terms (each a single atomic branch describing what the user wants to do on top of what they already know).",
+    "NEVER output an umbrella/combined option ('both', 'all', 'A and B together') or a meta-option ('not sure', 'unrelated', 'none') — the UI already provides a separate 'unrelated' escape. Each choice is one concrete direction, not a restatement of a kept term.",
+    "SELF-CHECK before output: is the connection real and useful to someone doing the current task? If not, set relevant=false. If true, are all related_terms actually in the provided kept list, and is each choice a distinct concrete direction?",
+    'Output exactly one JSON object. Format: {"relevant":bool,"question","choices":[{"label","domain_tag"}],"related_terms":[]}. When relevant is false, question must be "", choices must be [], and related_terms must be [].',
+    JSON_ONLY,
+  ].join("\n");
+  const user = [
+    `area: ${input.area}`,
+    `job_type (allowed values ${JOB_LIST}): ${input.job_type.join(", ")}`,
+    input.topic ? `User's current task (original request): ${input.topic}` : "",
+    input.history.length ? `Current narrowing choices: ${input.history.join(", ")}` : "",
+    `Kept background vocabulary from earlier sessions in this project:\n${input.kept.map((k) => `- ${k.term}: ${k.one_line}`).join("\n")}`,
+    "Decide relevance and, if relevant, produce the connection question and 2-3 directions, as JSON.",
+  ].filter(Boolean).join("\n");
+  return [
+    { role: "system", content: sys },
+    { role: "user", content: user },
+  ];
+}
+
 // 프롬프트4. 태깅 결과를 받아 메인 AI에 넘길 정리 텍스트를 만든다.
 export function buildPrompt4(input: {
   area: string;
@@ -225,6 +264,7 @@ export function buildPrompt5(input: {
   job_type: JobType[];
   grounding?: string; // recommend서 재사용한 RAG 근거(있으면 출처 귀속에 쓴다)
   candidateSources?: { title: string; url: string }[]; // 근거 문서 목록. 이 중에서만 고른다.
+  connection_hint?: string; // 연결 턴에서 확정된 정렬(프로젝트 제목과 아는 어휘). 이 어휘가 닿을 때만 약하게 반영.
   outputLocale: OutputLocale;
 }): Msg[] {
   const sys = [
@@ -235,6 +275,7 @@ export function buildPrompt5(input: {
     "what: lead with ONE plain-language definition sentence (the essence), then optionally ONE analogy sentence. The UI bolds the first sentence, so it must stand alone as the core meaning.",
     "whymine: 1-2 short sentences addressed to the user, on why this matters in their situation.",
     "how: 2-4 short, actionable steps. Write each step as its own separate sentence on its own line. Do NOT add any leading number, bullet, or marker (no '1.', '2.', '-', '•') — the UI numbers them automatically. No rambling. Unpack jargon.",
+    input.connection_hint ? "A connection hint may be given (the user's project context and the vocabulary they already know that this work builds on). ONLY if THIS term genuinely connects to it, add ONE short, light bridge inside whymine showing how it relates to what they already know or their project — keep it subtle and secondary. If this term does not genuinely relate, ignore the hint and explain normally. Never force a connection or let it dominate; the explanation is primarily about the term itself." : "",
     "related are general related terms for detail browsing (a different concept from relates_to in prompt 3).",
     "sources: choose only those among the provided candidateSources that genuinely support this term (precision first). If unsure, leave an empty array. Do not invent sources not in the list (site may be left empty; the code fills it from the URL).",
     'Output exactly one JSON object. Format: {"what","whymine","how","misc"?,"related":[],"sources":[{"title","url"}]}.',
@@ -247,6 +288,7 @@ export function buildPrompt5(input: {
     job_type: input.job_type,
     grounding: input.grounding ?? "",
     candidateSources: input.candidateSources ?? [],
+    ...(input.connection_hint ? { connection_hint: input.connection_hint } : {}),
   });
   return [
     { role: "system", content: sys },

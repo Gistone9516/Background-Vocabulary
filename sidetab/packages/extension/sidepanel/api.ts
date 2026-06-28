@@ -3,7 +3,7 @@
 import type {
   Prompt1In, Prompt1Out, Prompt2In, Prompt2Out,
   Prompt4In, Prompt4Out, Prompt5In, Prompt5Out,
-  PreviewIn, PreviewOut,
+  PreviewIn, PreviewOut, RelateIn, RelateOut,
   RecommendInput, StreamEvent, ClientLimits, OutputLocale,
 } from "@sidetab/shared";
 import { DEFAULT_LIMITS, OUTPUT_LOCALES } from "@sidetab/shared";
@@ -99,6 +99,12 @@ export async function nextBranch(input: Prompt2In): Promise<Prompt2Out> {
 export async function preview(input: PreviewIn): Promise<PreviewOut> {
   if (USE_MOCK) return mock.preview(input);
   return postJson<PreviewIn, PreviewOut>("/preview", input, "free");
+}
+
+// 연결 턴(프로젝트 kept 어휘가 현재 좁힌 작업과 연결되는지 판정). 한도 미집계라 free 티어로 보낸다.
+export async function relate(input: RelateIn): Promise<RelateOut> {
+  if (USE_MOCK) return mock.relate(input);
+  return postJson<RelateIn, RelateOut>("/relate", input, "free");
 }
 
 export async function detail(input: Prompt5In, tier: Tier): Promise<Prompt5Out> {

@@ -7,7 +7,7 @@ import { DEFAULT_CLIENT_LIMITS } from "./api.js";
 import { loadSessions, saveSession, deleteSession, loadProjects, createProject, deleteProject, type SessionRec, type KeptTerm, type NarrowSnap } from "./history.js";
 import { t as tr, LOCALE_LABELS } from "./i18n.js";
 import { EXAMPLES, pickRandom } from "./examples.js";
-import { MIN_Q, THINK_KEYS, HIGHRISK, GALAXY_POS } from "./constants.js";
+import { MIN_Q, THINK_KEYS, HIGHRISK, GALAXY_POS, RELATE_MIN_KEPT, RELATE_KEPT_CAP } from "./constants.js";
 import type { Screen, UITerm, State, Action, Difficulty } from "./types.js";
 import { sentLines, splitSentences, firstSentence, fmtDate, dateBucket, markTerms, commaLines, hasVal } from "./text.js";
 import { isTextFile, readTextFile } from "./file.js";
@@ -145,10 +145,11 @@ export function App() {
   const startNarrow = useCallback(async (raw: string) => {
     if (classifyingRef.current) return; // 연타 드롭: 이미 분류 중이면 무시(이중 진입 방지)
     classifyingRef.current = true;
-    merge({ pending: true, screen: "narrow", answers: [], sel: [], questions: [], input: raw, refining: false, usedUndo: false, tooHard: false, simplify: false, resumedSession: false });
+    merge({ pending: true, screen: "narrow", answers: [], sel: [], questions: [], input: raw, refining: false, usedUndo: false, tooHard: false, simplify: false, resumedSession: false, relateOut: null, relateCond: "" });
     try {
       const cond0 = sref.current.cond.trim();
-      const p1 = await api.classify({ raw_input: raw, ...(sref.current.attachedFile ? { context_object: sref.current.attachedFile.text } : {}), ...(cond0 ? { user_condition: cond0 } : {}) });
+      const projName = projectName(); // 프로젝트 제목을 첫 질문부터 부드러운 사전으로
+      const p1 = await api.classify({ raw_input: raw, ...(sref.current.attachedFile ? { context_object: sref.current.attachedFile.text } : {}), ...(cond0 ? { user_condition: cond0 } : {}), ...(projName ? { project_context: projName } : {}) });
       if (p1.domain_risk === "high") { merge({ pending: false, screen: "refusal" }); return; } // 고위험: 세션·과금 없음
       // 정상 분류 = 세션 생성. classify가 곧 결제(D3)이므로 주간 1회 차감(클라 추정), 턴 예산 만충, narrow 첫 스냅샷 저장(0답도 저장).
       const tier = sref.current.plan === "pro" ? "paid" : "free";
@@ -214,7 +215,8 @@ export function App() {
     const turnsLeft = opts?.turnsLeft ?? s0.turnsLeft;
     try {
       const cond0 = s0.cond.trim();
-      const p2 = await api.nextBranch({ domain: s0.classifyOut?.domain ?? "", job_type: s0.classifyOut?.job_type ?? [], history, ...(s0.attachedFile ? { context_object: s0.attachedFile.text } : {}), ...(cond0 ? { user_condition: cond0 } : {}), ...(simplify ? { simplify: true } : {}) });
+      const projName = projectName(); // 매 좁히기 턴에도 같은 사전 유지
+      const p2 = await api.nextBranch({ domain: s0.classifyOut?.domain ?? "", job_type: s0.classifyOut?.job_type ?? [], history, ...(s0.attachedFile ? { context_object: s0.attachedFile.text } : {}), ...(cond0 ? { user_condition: cond0 } : {}), ...(projName ? { project_context: projName } : {}), ...(simplify ? { simplify: true } : {}) });
       if (sref.current.sessionId !== sid) return; // 세션이 바뀜(홈/다른 세션 열기) → 결과 폐기
       const s = sref.current;
       const c = s.classifyOut;
@@ -286,16 +288,45 @@ export function App() {
   };
 
   // ----- 추천(스트리밍) -----
+  // 같은 프로젝트의 다른 세션에서 담은(kept) 어휘를 모은다. 같은 도메인만(가드4, 느슨한 버킷 주제 섞임 차단).
+  // 연결 턴 입력과 추천 dedup(메커니즘1)에 함께 쓴다. 프로젝트에 안 속한 세션은 빈 배열.
+  const projectKept = (): { term: string; one_line: string; area: string }[] => {
+    const s = sref.current;
+    const rec = s.history.find((h) => h.id === s.sessionId);
+    const pid = rec?.projectId ?? s.activeProject;
+    if (!pid) return [];
+    const area = s.classifyOut?.domain ?? "";
+    const out: { term: string; one_line: string; area: string }[] = [];
+    for (const h of s.history) {
+      if (h.projectId !== pid || h.id === s.sessionId) continue;
+      if (area && h.area && h.area !== area) continue; // 같은 도메인 프리필터
+      for (const t of h.terms) out.push({ term: t.term, one_line: t.one_line, area: h.area });
+    }
+    return out;
+  };
+  // 현재 세션이 속한 프로젝트(폴더)의 제목. 없으면 빈 문자열. 아키네이터(부드러운 사전)와 상세(약한 반영)에 전달한다.
+  const projectName = (): string => {
+    const s = sref.current;
+    const rec = s.history.find((h) => h.id === s.sessionId);
+    const pid = rec?.projectId ?? s.activeProject;
+    if (!pid) return "";
+    return s.projects.find((p) => p.id === pid)?.name ?? "";
+  };
   const buildRecInput = (exclude?: string[], diffOverride?: Difficulty): RecommendInput => {
     const s = sref.current; const c = s.classifyOut;
     // 난이도는 막 고른 직후 sref가 stale일 수 있어, 호출부에서 명시 전달하면 그것을 우선한다.
     const difficulty = diffOverride ?? s.difficulty;
+    // dedup(메커니즘1): 같은 프로젝트에서 이미 담은 어휘를 제외 목록에 더한다.
+    const keptNames = projectKept().map((k) => k.term);
+    const exAll = Array.from(new Set([...(exclude ?? []), ...keptNames]));
+    // 프라이밍(메커니즘2): 진입 조건과 연결 턴에서 고른 방향을 합쳐 user_condition으로 보낸다(사용자가 고른 것만).
+    const cond = [s.cond.trim(), (s.relateCond ?? "").trim()].filter(Boolean).join(" ");
     return {
       area: c?.domain ?? "", domain: c?.domain ?? "other", topic: s.input,
       locale: c?.search_locale ?? "en", job_type: c?.job_type ?? [], domain_risk: c?.domain_risk ?? "low",
-      ...(exclude && exclude.length ? { exclude } : {}),
+      ...(exAll.length ? { exclude: exAll } : {}),
       ...(s.attachedFile ? { context_object: s.attachedFile.text } : {}),
-      ...(s.cond.trim() ? { user_condition: s.cond.trim() } : {}), // 진입 조건을 어휘 선정에 반영(c-0-1)
+      ...(cond ? { user_condition: cond } : {}),
       ...(difficulty ? { difficulty } : {}), // 사용자가 고른 난이도(묶음4)
     };
   };
@@ -372,11 +403,39 @@ export function App() {
       })
       .catch(() => { if (!ctrl.signal.aborted && sref.current.screen === "difficulty") merge({ previewLoading: false }); }); // 폴백: 예시 없이 정적 안내만
   }, [merge]);
-  // 좁히기를 마치고 어휘로 넘어가기 직전. 초기 생성이면 난이도를 먼저 묻고(아직 안 골랐을 때) 예시도 생성, 조건 재탐색(append)은 기존 난이도로 바로 잇는다.
+  // 좁히기 종료 직전, 같은 프로젝트 kept 어휘가 현재 좁힌 작업과 연결되는지 묻는 "연결 턴"을 조건부로 띄운다.
+  // 같은 도메인 kept가 임계 미만이거나 연결이 없으면(relevant=false) 조용히 건너뛰고 난이도로 간다(가드 1·2).
+  const maybeRelate = useCallback(async () => {
+    const s = sref.current; const c = s.classifyOut;
+    const kept = projectKept();
+    if (!c || kept.length < RELATE_MIN_KEPT) { merge({ screen: "difficulty", relateOut: null }); startPreview(); return; }
+    const sid = s.sessionId;
+    merge({ screen: "relate", relateLoading: true, relateOut: null });
+    try {
+      const history = s.answers.flat().filter((l) => l !== TOO_HARD_MARK);
+      const out = await api.relate({ area: c.domain ?? "", job_type: c.job_type ?? [], history, ...(s.input ? { topic: s.input } : {}), kept: kept.slice(0, RELATE_KEPT_CAP) });
+      if (sref.current.sessionId !== sid) return; // 세션 바뀜(홈·다른 세션) → 결과 폐기
+      if (!out.relevant || !out.choices?.length) { merge({ screen: "difficulty", relateLoading: false, relateOut: null }); startPreview(); return; } // 연결 없음 → 스킵
+      merge({ relateOut: out, relateLoading: false });
+    } catch {
+      if (sref.current.sessionId !== sid) return;
+      merge({ screen: "difficulty", relateLoading: false, relateOut: null }); startPreview(); // 실패는 그냥 난이도로 degrade(가드)
+    }
+  }, [merge, startPreview]);
+  // 연결 턴에서 한 방향 선택 → 사용자가 고른 연결만 user_condition에 실어 추천을 그 위로 쌓게 한다(조용한 주입 아님).
+  const pickRelate = (label: string) => {
+    const out = sref.current.relateOut;
+    const terms = out?.related_terms ?? [];
+    const cond = `이미 알고 있는 어휘: ${terms.join(", ")}. 이번 작업 방향: ${label}. 이 어휘들은 다시 설명하지 말고 그 위에서 인접하거나 더 깊은 어휘를 추천해줘.`;
+    merge({ relateCond: cond, screen: "difficulty", relateOut: null });
+    startPreview();
+  };
+  // "관련 없어요" → 프라이밍 없이 난이도로(dedup만 유지).
+  const skipRelate = () => { merge({ relateCond: "", screen: "difficulty", relateOut: null }); startPreview(); };
+  // 좁히기를 마치고 어휘로 넘어가기 직전. 초기 생성이면 연결 턴(조건부)을 거쳐 난이도로, 조건 재탐색(append)이나 난이도 기선택이면 바로 잇는다.
   const finishNarrow = (append: boolean) => {
     if (append || sref.current.difficulty) { void runRecommend(append); return; }
-    merge({ screen: "difficulty" });
-    startPreview();
+    void maybeRelate();
   };
   // 난이도 선택 직후 곧장 생성한다. 프리뷰 fetch는 버리고, merge가 아직 반영 전이라 고른 값을 명시 전달한다(stale 방지).
   const pickDifficulty = (level: Difficulty) => { previewAbortRef.current?.abort(); merge({ difficulty: level }); void runRecommend(false, level); };
@@ -472,7 +531,11 @@ export function App() {
       dispatch({ type: "updateTerm", id, patch: { detailLoading: true } });
       if (s.plan !== "pro") merge({ detailCount: s.detailCount + 1 });
       try {
-        const d = await api.detail({ term: t.term, kind: t.kind, area: s.classifyOut?.domain ?? "", job_type: s.classifyOut?.job_type ?? [], domain: s.classifyOut?.domain ?? "other", topic: s.input, locale: s.classifyOut?.search_locale ?? "en" }, s.plan === "pro" ? "paid" : "free");
+        // 연결 턴에서 정렬을 확정했을 때만(relateCond 있음) 프로젝트 제목과 아는 어휘를 상세에 약하게 전달한다.
+        const rc = (s.relateCond ?? "").trim();
+        const pn = projectName();
+        const hint = rc ? [pn ? `프로젝트 맥락: ${pn}.` : "", rc].filter(Boolean).join(" ") : "";
+        const d = await api.detail({ term: t.term, kind: t.kind, area: s.classifyOut?.domain ?? "", job_type: s.classifyOut?.job_type ?? [], domain: s.classifyOut?.domain ?? "other", topic: s.input, locale: s.classifyOut?.search_locale ?? "en", ...(hint ? { connection_hint: hint } : {}) }, s.plan === "pro" ? "paid" : "free");
         dispatch({ type: "updateTerm", id, patch: { detail: d, detailLoading: false } });
         const withDetail = sref.current.terms.map((x) => (x.id === id ? { ...x, detail: d } : x));
         if (withDetail.find((x) => x.id === id)?.kept) void persist(withDetail);
@@ -630,6 +693,7 @@ export function App() {
       <Header state={state} openPaywall={openPaywall} goHome={requestHome} changeLocale={changeLocale} openTutorial={() => merge({ tutorialOpen: true })} openDrawer={() => merge({ drawerOpen: true })} />
       {state.screen === "entry" && <Entry state={state} merge={merge} submitEntry={submitEntry} chip={chip} openHistory={openHistory} acceptFile={acceptFile} attachNotice={attachNotice} removeAttached={removeAttached} />}
       {state.screen === "narrow" && <Narrow state={state} merge={merge} toggleSel={toggleSel} nextStep={nextStep} undoStep={undoStep} jumpToTerms={jumpToTerms} />}
+      {state.screen === "relate" && <RelateTurn state={state} pick={pickRelate} skip={skipRelate} />}
       {state.screen === "difficulty" && <DifficultyPick state={state} pick={pickDifficulty} back={backFromDifficulty} />}
       {state.screen === "terms" && <Terms state={state} merge={merge} loadMore={loadMore} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} go={go} goHome={goHome} refine={refineFromTerms} genGroup={genGroup} />}
       {state.screen === "kept" && <Kept state={state} merge={merge} go={go} goHome={goHome} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} buildSummary={buildSummary} onCopy={onCopy} onShare={onShare} aiRefine={aiRefine} />}
@@ -1042,6 +1106,36 @@ function Narrow({ state, merge, toggleSel, nextStep, undoStep, jumpToTerms }: { 
       {idx >= MIN_Q
         ? <button className="btn btn-ghost" style={{ marginTop: 10 }} onClick={jumpToTerms}>{tr(loc, "narrow_jump")}</button>
         : <button className="link" style={{ marginTop: 12, alignSelf: "center" }} onClick={jumpToTerms}>{tr(loc, "narrow_jump")}</button>}
+    </div></main>
+  );
+}
+
+// 연결 턴. 좁히기 종료 직전, 같은 프로젝트에서 담은 어휘가 현재 작업과 연결되는지 재인 질문으로 묻는다(메커니즘 2, 4).
+// 사용자가 고른 방향만 추천 맥락에 반영하고, "관련 없어요"로 언제든 건너뛸 수 있어 불투명·오염을 피한다.
+function RelateTurn({ state, pick, skip }: { state: State; pick: (label: string) => void; skip: () => void }) {
+  const loc = state.locale;
+  if (state.relateLoading || !state.relateOut) {
+    return (<main className="scroll entryMain screenIn"><div className="thinking">
+      <div className="aiav"><Spark /></div>
+      <div className="msg">{sentLines(tr(loc, "relate_loading"))}</div>
+      <div className="dots3"><i /><i /><i /></div>
+    </div></main>);
+  }
+  const out = state.relateOut;
+  return (
+    <main className="scroll screenIn"><div className="pad" style={{ display: "flex", flexDirection: "column" }}>
+      <div className="aiwrap"><span className="aimeta">{tr(loc, "relate_eyebrow")}</span></div>
+      {out.related_terms.length > 0 && (
+        <div className="chips" style={{ margin: "2px 0 6px" }}>
+          {out.related_terms.map((t) => <span key={t} className="chip sel">{tr(loc, "relate_kept_chip", { term: t })}</span>)}
+        </div>
+      )}
+      <h2 style={{ marginTop: 10 }}>{sentLines(out.question)}</h2>
+      <p className="lead" style={{ margin: "6px 0 16px" }}>{tr(loc, "relate_lead")}</p>
+      {out.choices.map((o) => (
+        <button key={o.label} className="opt" onClick={() => pick(o.label)}><span>{o.label}</span><span className="tick">✓</span></button>
+      ))}
+      <button className="btn btn-ghost" style={{ marginTop: 12 }} onClick={skip}>{tr(loc, "relate_skip")}</button>
     </div></main>
   );
 }

@@ -153,6 +153,7 @@ export interface Prompt1In {
   raw_input: string;
   context_object?: string;
   user_condition?: string; // 진입 화면에서 사용자가 적은 좁힘 조건. 첫 분기와 어휘 선정에 반영한다.
+  project_context?: string; // 프로젝트(폴더) 제목. 아키네이터를 그 영역으로 부드럽게 기울이는 사전(약함). 입력이 명백히 다르면 입력 우선.
 }
 export interface Prompt1Out {
   domain: string;
@@ -173,6 +174,7 @@ export interface Prompt2In {
   remaining_tags?: string[];
   context_object?: string;
   user_condition?: string;
+  project_context?: string; // 프로젝트(폴더) 제목. 좁히기 매 턴을 그 영역으로 부드럽게 기울이는 사전(약함). 선택이 명백히 다르면 선택 우선.
   simplify?: boolean; // "선택지가 어려워요" 이후. 질문·선택지를 더 쉬운 말로.
 }
 export interface Prompt2Out {
@@ -223,6 +225,7 @@ export interface Prompt5In {
   domain: string;
   topic: string;
   locale: Locale;
+  connection_hint?: string; // 연결 턴에서 사용자가 확정한 정렬(프로젝트 제목과 이미 아는 어휘, 고른 방향). 상세 설명에 약하게만 반영한다.
 }
 export interface Prompt5Out {
   // 프론트 상세 3단 구조(D2). 정본 = panel.html detailHTML.
@@ -247,4 +250,21 @@ export interface PreviewOut {
   basic: { term: string; line: string };
   inter: { term: string; line: string };
   adv: { term: string; line: string };
+}
+
+// 연결 턴(프로젝트 누적 kept 어휘). 좁히기 종료 직전, 같은 프로젝트에서 이미 담은 어휘가 지금 좁힌 작업과
+// 진짜로 연결되는지 LLM이 판정해, 연결이 있으면 재인 질문 한 턴으로 드러낸다(없으면 relevant=false로 스킵).
+// 사용자의 명시적 선택만 추천(user_condition)과 dedup(exclude)에 반영해 "조용한 주입" 오염을 피한다.
+export interface RelateIn {
+  area: string;
+  job_type: JobType[];
+  history: string[]; // 좁히기에서 고른 답 라벨들(preview와 동일)
+  topic?: string; // 사용자 원래 요청
+  kept: { term: string; one_line: string; area?: string }[]; // 같은 도메인 프리필터 후 캡한 프로젝트 kept
+}
+export interface RelateOut {
+  relevant: boolean; // false면 프론트가 이 턴을 건너뛴다(연결 없음 또는 희박)
+  question: string;
+  choices: Choice[]; // 연결 방향 2~3개. "관련 없어요" 탈출구는 프론트가 덧붙인다.
+  related_terms: string[]; // 질문이 근거한 kept 용어(연결 노출 UI)
 }

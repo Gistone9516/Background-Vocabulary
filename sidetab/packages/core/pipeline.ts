@@ -14,6 +14,8 @@ import type {
   Prompt5Out,
   PreviewIn,
   PreviewOut,
+  RelateIn,
+  RelateOut,
   StreamEvent,
 } from "@sidetab/shared";
 import { prompts } from "@sidetab/shared";
@@ -52,7 +54,7 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
   return {
     // 프롬프트1: 자유 문장에서 도메인과 작업유형을 분류하고 첫 분기를 만든다.
     async classify(input: Prompt1In, outputLocale: OutputLocale): Promise<Prompt1Out> {
-      const messages = prompts.buildPrompt1(input.raw_input, outputLocale, input.context_object, input.user_condition);
+      const messages = prompts.buildPrompt1(input.raw_input, outputLocale, input.context_object, input.user_condition, input.project_context);
       return deps.llm.complete<Prompt1Out>({
         model: MODEL_FLASH,
         messages,
@@ -74,6 +76,16 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
     async preview(input: PreviewIn, outputLocale: OutputLocale): Promise<PreviewOut> {
       const messages = prompts.buildPreview({ ...input, outputLocale });
       return deps.llm.complete<PreviewOut>({
+        model: MODEL_FLASH,
+        messages,
+        maxTokens: limits.maxTokens.next,
+      });
+    },
+
+    // 연결 턴: 프로젝트 kept 어휘가 현재 좁힌 작업과 연결되는지 판정해 재인 질문을 만든다(없으면 relevant=false). next와 같은 작은 토큰 상한을 재사용한다.
+    async relate(input: RelateIn, outputLocale: OutputLocale): Promise<RelateOut> {
+      const messages = prompts.buildRelate({ ...input, outputLocale });
+      return deps.llm.complete<RelateOut>({
         model: MODEL_FLASH,
         messages,
         maxTokens: limits.maxTokens.next,
@@ -222,6 +234,7 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
         grounding,
         candidateSources,
         outputLocale,
+        ...(input.connection_hint !== undefined && { connection_hint: input.connection_hint }),
       });
 
       const out = await deps.llm.complete<Prompt5Out>({

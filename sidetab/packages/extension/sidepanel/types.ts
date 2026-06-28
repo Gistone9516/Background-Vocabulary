@@ -1,8 +1,8 @@
 // 사이드패널 상태·화면 타입. App.tsx의 reducer와 화면 컴포넌트가 공유한다.
-import type { Prompt1Out, Choice, Term, Prompt5Out, PreviewOut, ClientLimits, OutputLocale } from "@sidetab/shared";
+import type { Prompt1Out, Choice, Term, Prompt5Out, PreviewOut, RelateOut, ClientLimits, OutputLocale } from "@sidetab/shared";
 import type { SessionRec, Project } from "./history.js";
 
-export type Screen = "entry" | "narrow" | "difficulty" | "terms" | "kept" | "paywall" | "refusal" | "sessions" | "projects";
+export type Screen = "entry" | "narrow" | "relate" | "difficulty" | "terms" | "kept" | "paywall" | "refusal" | "sessions" | "projects";
 
 // 어휘 난이도. 아키네이터 종료 직전 사용자가 고르며, 리스트 전체가 이 깊이로 생성된다.
 export type Difficulty = "기초" | "중급" | "심화";
@@ -31,6 +31,9 @@ export interface State {
   difficulty?: Difficulty; // 고른 어휘 난이도(기초/중급/심화)
   previews?: PreviewOut | null; // 난이도 화면의 깊이별 대표 어휘 예시(LLM 생성). null=미생성/폴백.
   previewLoading?: boolean; // 난이도 예시 생성 중(스켈레톤 표시)
+  relateOut?: RelateOut | null; // 연결 턴(프로젝트 kept 어휘 연결 질문). null=없음/스킵.
+  relateLoading?: boolean; // 연결 판정 LLM 호출 중
+  relateCond?: string; // 연결 턴에서 사용자가 고른 방향. recommend의 user_condition에 합쳐진다(빈값=프라이밍 없음).
   turnsLeft: number; // 아키네이터 좁히기 턴 공유 예산(세션 간 영속, 생성 완료 시 재충전)
   terms: UITerm[]; visibleCount: number; openId: string | null; opening: string | null;
   query: string; groupView: boolean; detailCount: number;

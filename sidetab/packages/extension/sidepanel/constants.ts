@@ -4,6 +4,11 @@ import type { OutputLocale } from "@sidetab/shared";
 // 좁히기 종료 최소 턴.
 export const MIN_Q = 3;
 
+// 연결 턴(프로젝트 kept 어휘). 같은 도메인 kept가 이 개수 이상일 때만 연결 턴을 시도한다(희박·콜드스타트 스킵 가드).
+export const RELATE_MIN_KEPT = 3;
+// 연결 판정 LLM에 보낼 프로젝트 kept 상한(토큰 가드).
+export const RELATE_KEPT_CAP = 12;
+
 // 아키네이터 로딩 문구 키. 추론이 길어질 때 4초 간격으로 다음 문구로 바꿔 진행감을 준다(마지막 문구에서 정지).
 export const THINK_KEYS = ["thinking", "thinking2", "thinking3", "thinking4"] as const;
 

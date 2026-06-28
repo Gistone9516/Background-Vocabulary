@@ -14,6 +14,8 @@ import type {
   Prompt5Out,
   PreviewIn,
   PreviewOut,
+  RelateIn,
+  RelateOut,
   StreamEvent,
   Locale,
   DomainRisk,
@@ -53,6 +55,8 @@ export interface Pipeline {
   detail(input: Prompt5In, tier: Tier, outputLocale: OutputLocale): Promise<Prompt5Out>;
   // 난이도 선택 직전 깊이별 대표 어휘 프리뷰. RAG 없이 LLM 1회, 한도 미집계(좁히기와 같은 비용 등급).
   preview(input: PreviewIn, outputLocale: OutputLocale): Promise<PreviewOut>;
+  // 연결 턴. 좁히기 종료 직전 프로젝트 누적 kept 어휘가 현재 좁힌 작업과 연결되는지 판정해 재인 질문을 만든다(없으면 relevant=false). RAG 없이 LLM 1회, 한도 미집계.
+  relate(input: RelateIn, outputLocale: OutputLocale): Promise<RelateOut>;
 }
 
 // 팩토리 시그니처. core/pipeline.ts가 구현한다.
