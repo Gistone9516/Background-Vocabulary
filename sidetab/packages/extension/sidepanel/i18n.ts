@@ -58,6 +58,8 @@ const ko: Dict = {
   relate_lead: "맞는 방향을 골라주세요. 관련 없으면 건너뛰어도 돼요.",
   relate_skip: "이 작업과는 관련 없어요",
   relate_cond: "이미 알고 있는 어휘: {terms}. 이번 작업 방향: {label}. 이 어휘들은 다시 설명하지 말고 그 위에서 인접하거나 더 깊은 어휘를 추천해줘.",
+  related_kind: "관련 어휘",
+  terms_rationale: "이 작업에 먼저 필요한 어휘부터 골랐어요",
   history_delete: "삭제",
 
   narrow_ai: "AI가 좁히는 중 · {n}번째",
@@ -312,6 +314,8 @@ const en: Dict = {
   relate_lead: "Pick the direction that fits. Skip if it's unrelated.",
   relate_skip: "Not related to this work",
   relate_cond: "Vocabulary I already know: {terms}. Direction for this task: {label}. Don't re-explain these; recommend adjacent or deeper vocabulary built on top of them.",
+  related_kind: "Related",
+  terms_rationale: "Picked the vocabulary you'll need first for this",
   history_delete: "Delete",
 
   narrow_ai: "AI is narrowing · step {n}",
@@ -566,6 +570,8 @@ const ja: Dict = {
   relate_lead: "合う方向を選んでください。関係なければスキップできます。",
   relate_skip: "この作業とは関係ありません",
   relate_cond: "すでに知っている語彙: {terms}. 今回の作業の方向: {label}. これらは改めて説明せず、その上に隣接する、またはより深い語彙を勧めてください。",
+  related_kind: "関連語",
+  terms_rationale: "この作業にまず必要な語彙から選びました",
   history_delete: "削除",
 
   narrow_ai: "AIが絞り込み中 · {n}回目",
@@ -820,6 +826,8 @@ const zh: Dict = {
   relate_lead: "选择合适的方向。无关可以跳过。",
   relate_skip: "与这次的工作无关",
   relate_cond: "我已经掌握的词汇：{terms}。这次的工作方向：{label}。不要重复解释这些，请在此基础上推荐相邻或更深入的词汇。",
+  related_kind: "相关词",
+  terms_rationale: "优先挑选了这次最需要的词汇",
   history_delete: "删除",
 
   narrow_ai: "AI 正在缩小范围 · 第 {n} 次",

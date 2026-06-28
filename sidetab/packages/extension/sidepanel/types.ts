@@ -59,5 +59,6 @@ export interface State {
 export type Action =
   | { type: "merge"; patch: Partial<State> }
   | { type: "addTerm"; term: UITerm }
+  | { type: "insertTermAfter"; afterId: string; term: UITerm }
   | { type: "updateTerm"; id: string; patch: Partial<UITerm> }
   | { type: "reset" };

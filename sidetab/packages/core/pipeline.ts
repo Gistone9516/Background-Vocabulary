@@ -75,11 +75,20 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
     // 프리뷰: 난이도 선택 직전 깊이별 대표 어휘 1개씩(RAG 없이 LLM 1회). next와 같은 작은 토큰 상한을 재사용한다.
     async preview(input: PreviewIn, outputLocale: OutputLocale): Promise<PreviewOut> {
       const messages = prompts.buildPreview({ ...input, outputLocale });
-      return deps.llm.complete<PreviewOut>({
-        model: MODEL_FLASH,
-        messages,
-        maxTokens: limits.maxTokens.next,
-      });
+      const req = { model: MODEL_FLASH, messages, maxTokens: limits.maxTokens.next };
+      const complete = (p: PreviewOut | undefined): boolean => {
+        if (!p) return false;
+        return (["basic", "inter", "adv"] as const).every((k) => {
+          const lv = p[k] as { term?: string; line?: string } | undefined;
+          return !!lv && !!lv.term && !!lv.line;
+        });
+      };
+      let out = await deps.llm.complete<PreviewOut>(req);
+      // 세 깊이(기초·중급·심화)가 다 차지 않으면 1회 재생성한다(난이도 예시 간헐 누락 방지). 그래도 불완전하면 채운 것만 반환(우아한 폴백).
+      if (!complete(out)) {
+        try { const retry = await deps.llm.complete<PreviewOut>(req); if (complete(retry)) out = retry; } catch { /* 폴백: 부분 결과 유지 */ }
+      }
+      return out;
     },
 
     // 연결 턴: 프로젝트 kept 어휘가 현재 좁힌 작업과 연결되는지 판정해 재인 질문을 만든다(없으면 relevant=false). next와 같은 작은 토큰 상한을 재사용한다.

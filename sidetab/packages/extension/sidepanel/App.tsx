@@ -77,6 +77,11 @@ function reducer(s: State, a: Action): State {
   switch (a.type) {
     case "merge": return { ...s, ...a.patch };
     case "addTerm": return { ...s, terms: [...s.terms, a.term], visibleCount: s.visibleCount + 1 };
+    case "insertTermAfter": {
+      const i = s.terms.findIndex((t) => t.id === a.afterId);
+      const at = i < 0 ? s.terms.length : i + 1;
+      return { ...s, terms: [...s.terms.slice(0, at), a.term, ...s.terms.slice(at)], visibleCount: s.visibleCount + 1 };
+    }
     case "updateTerm": return { ...s, terms: s.terms.map((t) => (t.id === a.id ? { ...t, ...a.patch } : t)) };
     case "reset": return initial();
   }
@@ -246,10 +251,10 @@ export function App() {
     const s = sref.current;
     // "선택지가 어려워요"를 고른 턴: 마커 한 칸을 답변으로 넣고 이후 난이도를 낮춘다(simplify sticky).
     if (s.tooHard) {
-      const newTurns = Math.max(0, s.turnsLeft - 1); // 답 커밋 = 턴 1 소모(merge·opts 동일 변수, sref 재읽기 금지)
+      // "선택지가 어려워요"는 답이 아니라 난이도 신호이므로 턴 예산을 깎지 않는다(turnsLeft 유지).
       const answers = [...s.answers, [TOO_HARD_MARK]]; // 라벨 텍스트가 아니라 sentinel(히스토리에서 걸러짐)
-      merge({ answers, sel: [], customText: "", customOpen: false, tooHard: false, simplify: true, pending: true, turnsLeft: newTurns });
-      await advanceNarrow(answers, { simplify: true, turnsLeft: newTurns });
+      merge({ answers, sel: [], customText: "", customOpen: false, tooHard: false, simplify: true, pending: true });
+      await advanceNarrow(answers, { simplify: true, turnsLeft: s.turnsLeft });
       return;
     }
     const custom = s.customText.trim();
@@ -266,11 +271,9 @@ export function App() {
     const t = text.trim();
     if (!t) return;
     if (s.plan !== "pro") { merge({ proNotice: "refine" }); return; } // pro 전용
-    // refine은 라이브 일시 연장이라 세션 턴 예산을 쓰지 않고 진행도 저장하지 않는다(refining=true → advanceNarrow가 비영속 처리).
-    // 조건은 새 턴이 아니라 직전 답변에 덧붙인다(턴 수 부풀림·진행바 밀림 방지). nextBranch 히스토리는 동일하다.
-    const answers = s.answers.length
-      ? s.answers.map((g, i) => (i === s.answers.length - 1 ? [...g, t] : g))
-      : [[t]];
+    // refine은 이전 좁히기를 그대로 이어가는 라이브 연장이다(refining=true는 비영속). 입력 조건을 새 답변 턴으로 더해
+    // 다음 질문을 잇고, 끝나면 기존 어휘 리스트에 이어붙인다(append). 화면은 일반 좁히기와 동일하게 둔다(별도 배너 없음).
+    const answers = [...s.answers, [t]];
     merge({ answers, sel: [], customText: "", customOpen: false, query: "", screen: "narrow", pending: true, refining: true });
     await advanceNarrow(answers, { turnsLeft: s.turnsLeft });
   }, [merge, advanceNarrow]);
@@ -550,7 +553,31 @@ export function App() {
       } catch (e) { dispatch({ type: "updateTerm", id, patch: { detailLoading: false } }); merge({ openId: null, errorMsg: msg(e) }); } // 실패 시 카드 접고 오류 표시(무한 로딩·무신호 차단)
     }
   }, [merge]);
-  const jumpRelated = (name: string) => { const t = sref.current.terms.find((x) => x.term === name); if (t) void toggleDetail(t.id); };
+  // 상세의 "함께 볼 어휘"가 현재 목록에 없으면, 그 어휘를 루트 카드 바로 아래에 새 카드로 추가하고 상세를 즉석 생성해 펼친다(리스트 카운트 +1).
+  const expandRelated = async (name: string, rootId: string) => {
+    const s = sref.current;
+    const tier: "free" | "paid" = s.plan === "pro" ? "paid" : "free";
+    if (s.terms.length >= s.limits.maxTotal[tier]) { merge({ proNotice: "cap" }); return; } // 누적 상한 동일 적용
+    if (s.plan !== "pro" && s.detailCount >= s.limits.detailLimitFree) { merge({ proNotice: "detail" }); return; } // 무료 상세 한도 동일 적용
+    const id = "x" + crypto.randomUUID().slice(0, 8);
+    const n = s.terms.length;
+    const term: UITerm = { term: name, kind: tr(s.locale, "related_kind"), one_line: "", why: "", priority: n + 1, tag: "몰라", id, kept: false, _new: true, detailLoading: true };
+    dispatch({ type: "insertTermAfter", afterId: rootId, term });
+    later(() => dispatch({ type: "updateTerm", id, patch: { _new: false } }), 780);
+    merge({ openId: id, opening: id });
+    later(() => { if (sref.current.opening === id) merge({ opening: null }); }, 340);
+    try {
+      const d = await api.detail({ term: name, kind: term.kind, area: s.classifyOut?.domain ?? "", job_type: s.classifyOut?.job_type ?? [], domain: s.classifyOut?.domain ?? "other", topic: s.input, locale: s.classifyOut?.search_locale ?? "en" }, tier);
+      const lead = firstSentence(d.what) || name;
+      dispatch({ type: "updateTerm", id, patch: { detail: d, detailLoading: false, one_line: lead, why: firstSentence(d.whymine) || lead } });
+      if (s.plan !== "pro") merge({ detailCount: sref.current.detailCount + 1 }); // 성공한 즉석 상세만 무료 횟수 차감
+    } catch (e) { dispatch({ type: "updateTerm", id, patch: { detailLoading: false, one_line: name } }); merge({ errorMsg: msg(e) }); }
+  };
+  const jumpRelated = (name: string, rootId?: string) => {
+    const t = sref.current.terms.find((x) => x.term === name);
+    if (t) { void toggleDetail(t.id); return; } // 이미 목록에 있으면 그 카드로 점프
+    if (rootId) void expandRelated(name, rootId); // 없으면 루트 아래에 즉석 생성
+  };
   // ----- 요약(출력 언어로) -----
   const buildSummary = (s: State): string => {
     const loc = s.locale;
@@ -1107,7 +1134,6 @@ function Narrow({ state, merge, toggleSel, nextStep, undoStep, jumpToTerms }: { 
       <p className="rangehint">{state.resumedSession && state.answers.length > 0
         ? tr(loc, "narrow_resume_hint", { n: state.turnsLeft })
         : budgetFull ? tr(loc, state.plan === "pro" ? "narrow_range_pro" : "narrow_range_free", { min: MIN_Q, max: maxT }) : tr(loc, "narrow_budget", { n: state.turnsLeft })}</p>
-      {state.refining && <p className="aihint refineNote">{tr(loc, "refine_ephemeral_note")}</p>}
       <h2 style={{ marginTop: 14 }}>{sentLines(cur?.question ?? "")}</h2>
       <p className="lead" style={{ margin: "6px 0 16px" }}>{tr(loc, "narrow_lead")}</p>
       {(cur?.choices ?? []).map((o) => {
@@ -1208,7 +1234,7 @@ function DifficultyPick({ state, pick, back }: { state: State; pick: (l: Difficu
   );
 }
 
-function Detail({ t, locale, opening, jumpRelated, toggleKeep }: { t: UITerm; locale: OutputLocale; opening: boolean; jumpRelated: (n: string) => void; toggleKeep: (id: string) => void }) {
+function Detail({ t, locale, opening, jumpRelated, toggleKeep }: { t: UITerm; locale: OutputLocale; opening: boolean; jumpRelated: (n: string, rootId?: string) => void; toggleKeep: (id: string) => void }) {
   if (t.detailLoading || !t.detail) return <div className="detail"><p className="dtext" style={{ color: "var(--muted)" }}>{tr(locale, "detail_loading")}</p></div>;
   const d = t.detail;
   // 개념은 핵심(첫 문장)을 굵게 두고 나머지를 이어 보여준다(핵심 우선). 활용은 문장을 단계로 쪼갠다.
@@ -1238,7 +1264,7 @@ function Detail({ t, locale, opening, jumpRelated, toggleKeep }: { t: UITerm; lo
         {hasVal(d.misc) && <p className="dmemo"><InfoIcon />{sentLines(d.misc as string)}</p>}
       </div>
       <div className="dsec" style={{ marginTop: 16 }}>{tr(locale, "detail_sec2")}</div>
-      {d.related.length > 0 && <div className="related">{d.related.map((r) => <button key={r} className="relbtn" onClick={() => jumpRelated(r)}>{r} ↗</button>)}</div>}
+      {d.related.length > 0 && <div className="related">{d.related.map((r) => <button key={r} className="relbtn" onClick={() => jumpRelated(r, t.id)}>{r} ↗</button>)}</div>}
       {d.sources.length > 0
         ? d.sources.map((s, i) => <a key={i} className="src" href={s.url} target="_blank" rel="noopener noreferrer"><span style={{ color: "var(--faint)", flex: "0 0 auto" }}><LinkIcon /></span><span style={{ flex: 1, minWidth: 0 }}><b>{s.title}</b><small>{s.site}</small></span></a>)
         : <div className="nosrc"><InfoIcon />{sentLines(tr(locale, "detail_nosrc"))}</div>}
@@ -1297,6 +1323,7 @@ function Terms({ state, merge, loadMore, toggleKeep, toggleDetail, jumpRelated, 
       <main className="scroll screenIn"><div style={{ padding: "13px 13px 14px" }}>
         {ro && <button className="link" style={{ alignSelf: "flex-start", color: "var(--muted)", marginBottom: 12 }} onClick={goHome}>{tr(loc, "kept_back_home")}</button>}
         <div className="tagrow"><span className="minitag">{state.classifyOut?.domain ?? tr(loc, "terms_domain_fallback")}</span><small>{tr(loc, ro ? "terms_domain_saved" : "terms_domain_label")}</small></div>
+        {!ro && <p className="note" style={{ margin: "1px 0 0", fontSize: 12 }}>{tr(loc, "terms_rationale")}</p>}
         {/* 조건 재탐색 검색창. 이전 탐색(읽기전용)에선 숨긴다 — stub classifyOut로 엉뚱한 도메인 생성·복원 어휘 교체 방지. */}
         {!ro && <div className="searchwrap"><Spark /><input className={`search${state.plan === "pro" ? "" : " locked"}`} aria-label={tr(loc, "terms_refine_label")} placeholder={tr(loc, state.plan === "pro" ? "terms_refine_ph" : "terms_refine_free")} value={state.query} onChange={(e) => merge({ query: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); refine(state.query); } }} />{state.plan !== "pro" && <span className="searchlock"><LockIcon /></span>}</div>}
         <div className="toolrow"><span className="hint">{tr(loc, "terms_count", { max: state.plan === "pro" ? state.limits.maxTotal.paid : state.limits.maxTotal.free, n: state.terms.length })}</span><button className={`toggle ${state.groupView ? "on" : ""}`} onClick={() => merge({ groupView: !state.groupView })}>{state.groupView ? tr(loc, "group_off") : tr(loc, "group_on")}</button></div>

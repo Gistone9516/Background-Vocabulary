@@ -16,6 +16,16 @@ interface DeepSeekBody {
   max_tokens?: number;
 }
 
+// json_object 모드라 보통 순수 JSON이지만, 약모델이 드물게 코드펜스나 잡텍스트로 감싸는 경우를 방어한다.
+function parseLooseJson<T>(raw: string): T {
+  try { return JSON.parse(raw) as T; } catch { /* 아래 폴백으로 */ }
+  const fenced = raw.replace(/^[\s\S]*?```(?:json)?\s*/i, "").replace(/```[\s\S]*$/, "").trim();
+  try { return JSON.parse(fenced) as T; } catch { /* 아래 폴백으로 */ }
+  const s = raw.indexOf("{"); const e = raw.lastIndexOf("}");
+  if (s >= 0 && e > s) return JSON.parse(raw.slice(s, e + 1)) as T;
+  throw new Error("DeepSeek complete: JSON 파싱 실패");
+}
+
 export class DeepSeekLlmClient implements LlmClient {
   private readonly apiKey: string;
   private readonly flashModel: string;
@@ -56,13 +66,13 @@ export class DeepSeekLlmClient implements LlmClient {
 
     const content = await this.fetchOnce(body);
     if (content !== "") {
-      return JSON.parse(content) as T;
+      return parseLooseJson<T>(content);
     }
 
     // 빈 content를 받으면 한 번 재시도한다.
     const retried = await this.fetchOnce(body);
     if (retried !== "") {
-      return JSON.parse(retried) as T;
+      return parseLooseJson<T>(retried);
     }
 
     throw new Error(
