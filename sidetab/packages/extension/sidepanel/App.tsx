@@ -21,6 +21,12 @@ function savedPlan(): "flash" | "pro" {
 function savedReview(): boolean {
   try { return localStorage.getItem("sidetab:review") !== "off"; } catch { return true; }
 }
+// 출력/UI 언어도 새로고침과 홈 복귀(reset)에 유지한다. 저장값 우선, 없으면 브라우저 감지. plan과 같은 복원 패턴이다.
+// 이게 없으면 reset이 locale을 한국어로 되돌려, 다른 언어로 보던 중 홈으로 가면 한국어로 휙 바뀐다.
+function savedLocale(): OutputLocale {
+  try { const st = localStorage.getItem("sidetab:locale"); if (st && (["ko", "en", "ja", "zh"] as string[]).includes(st)) return st as OutputLocale; } catch { /* 무시 */ }
+  return api.detectLocale();
+}
 // 난이도 예시 캐시(localStorage). 같은 세션·같은 답변이면 새로고침·재진입에도 재생성하지 않고 이전 텍스트를 그대로 보여준다.
 function savedPreview(): { sid: string; key: string; preview: PreviewOut } | null {
   try { const v = localStorage.getItem("sidetab:preview"); return v ? (JSON.parse(v) as { sid: string; key: string; preview: PreviewOut }) : null; } catch { return null; }
@@ -63,7 +69,7 @@ function initial(): State {
     moreLoading: false, moreLoaded: false, streaming: false, groupGenLoading: "", refining: false,
     ctxInput: "", copied: false, copyFailed: false, shareNote: false, aiSummary: "", aiSummaryLoading: false,
     plan, remaining: plan === "pro" ? 99 : DEFAULT_CLIENT_LIMITS.freeWeeklyLimit, prevScreen: "entry", limitHit: false, reviewOn: savedReview(), errorMsg: "",
-    sessionId: "", history: [], histView: false, projects: [], limits: DEFAULT_CLIENT_LIMITS, locale: "ko",
+    sessionId: "", history: [], histView: false, projects: [], limits: DEFAULT_CLIENT_LIMITS, locale: savedLocale(),
   };
 }
 
@@ -88,8 +94,9 @@ export function App() {
 
   // ----- 진입 -----
   const go = (screen: Screen) => merge({ screen });
-  // reset 직전 진행 중 스트리밍을 끊는다(orphan fetch·dispatch 방지). 모든 홈 복귀 경로가 이 함수를 거치게 한다.
-  const goHome = () => { abortRef.current?.abort(); dispatch({ type: "reset" }); };
+  // reset 직전 진행 중 스트리밍을 끊고(orphan fetch 방지), reset 뒤 이전 탐색을 다시 읽는다.
+  // entry에서 홈으로 복귀하면 screen이 entry 그대로라 로드 effect가 다시 안 돌아 이어서 보기 패널이 사라지던 문제를 막는다.
+  const goHome = () => { abortRef.current?.abort(); dispatch({ type: "reset" }); void loadSessions().then((list) => merge({ history: list })); void loadProjects().then((projects) => merge({ projects })); };
   // 확인은 아키네이터(narrow)에서만 — 진행한 턴이 이미 소모됐고 좁히기가 사라짐을 알린다. 그 외 화면은 바로 홈.
   const requestHome = () => {
     if (sref.current.screen === "narrow") { merge({ confirmHome: true }); return; }
@@ -129,7 +136,8 @@ export function App() {
   // 이걸로 이탈·새로고침·크래시에도 좁히기를 이어서 진행할 수 있다. refine(비영속)은 호출하지 않는다.
   const writeNarrowSession = useCallback((sid: string, snap: NarrowSnap, topic: string, area: string, locale: string) => {
     const existing = sref.current.history.find((h) => h.id === sid);
-    const projectId = existing?.projectId ?? sref.current.activeProject; // 스코프 홈에서 시작한 새 세션은 그 프로젝트에 속한다
+    // 이어서 연 기존 세션은 소속(projectId)을 바꾸지 않는다. 새로 시작한 세션만 현재 스코프 프로젝트에 편입한다.
+    const projectId = existing ? existing.projectId : sref.current.activeProject;
     const rec: SessionRec = { id: sid, topic, area, locale, createdAt: existing?.createdAt ?? Date.now(), updatedAt: Date.now(), terms: existing?.terms ?? [], narrow: snap, ...(projectId ? { projectId } : {}) };
     void saveSession(rec).then((list) => merge({ history: list }));
   }, [merge]);
@@ -719,17 +727,14 @@ function Entry({ state, merge, submitEntry, chip, openHistory, acceptFile, attac
   return (
     <main className="scroll entryMain screenIn" style={{ position: "relative" }}>
       {scopedProj && (
-        <div className="filechip" style={{ alignSelf: "flex-start", marginTop: 0, marginBottom: 6 }}>
-          <span className="fn">📁 {scopedProj.name}</span>
-          <button onClick={() => merge({ activeProject: undefined })} aria-label="×" title="×">×</button>
-        </div>
+        <button className="link backlink" onClick={() => merge({ activeProject: undefined })}>← {tr(loc, "project_all")}</button>
       )}
-      {/* 입력 컴포저는 중앙에서 위로 올린다(사용자 요청 90px). 하단 고정 묶음·안내문엔 영향 없음. */}
-      <div className="hero" style={{ transform: "translateY(-90px)" }}>
-        <h1 className="heroTitle">{tr(loc, "entry_title")}</h1>
-        <p className="heroSub">{sentLines(tr(loc, state.plan === "pro" ? "entry_sub_pro" : "entry_sub"))}</p>
+      {/* 입력창 위치 고정. 메인 홈은 아래 예시칩·주간힌트가 입력창을 위로 밀어, 스코프 홈은 그게 없어 더 낮게 온다. 스코프 홈만 추가로 들어 올려 메인과 같은 높이로 맞춘다. */}
+      <div className="hero" style={{ transform: scopedProj ? "translateY(-160px)" : "translateY(-90px)" }}>
+        <h1 className="heroTitle">{scopedProj ? scopedProj.name : tr(loc, "entry_title")}</h1>
+        <p className="heroSub">{scopedProj ? tr(loc, "entry_sub_project") : sentLines(tr(loc, state.plan === "pro" ? "entry_sub_pro" : "entry_sub"))}</p>
         <div className="heroGlow">
-        <div className="aurora" aria-hidden="true" />
+        {!scopedProj && <div className="aurora" aria-hidden="true" />}
         <div className={`composer ${state.inputErr ? "err" : ""}${state.dragging ? " dragging" : ""}`}
           onDragOver={(e) => { e.preventDefault(); if (!state.dragging) merge({ dragging: true }); }}
           onDragLeave={(e) => { e.preventDefault(); merge({ dragging: false }); }}
@@ -755,17 +760,16 @@ function Entry({ state, merge, submitEntry, chip, openHistory, acceptFile, attac
         {state.attachNote && <div className="errmsg" style={{ textAlign: "center" }}>{tr(loc, state.attachNote)}</div>}
         {state.inputErr && <div className="errmsg" style={{ textAlign: "center" }}>{tr(loc, "entry_err")}</div>}
         {state.showCond && <input className="field condField" aria-label={tr(loc, "cond_aria")} placeholder={tr(loc, "cond_ph")} value={state.cond} onChange={(e) => merge({ cond: e.target.value })} />}
-        {state.plan !== "pro" && state.remaining > 0 && <p className="weeklyHint">{tr(loc, state.remaining === 1 ? "entry_weekly_last" : "entry_weekly_cost")}</p>}
-        <div className="suggest">
+        {!scopedProj && state.plan !== "pro" && state.remaining > 0 && <p className="weeklyHint">{tr(loc, state.remaining === 1 ? "entry_weekly_last" : "entry_weekly_cost")}</p>}
+        {!scopedProj && <div className="suggest">
           {picks.map((c, i) => <button key={c} className="sg" style={{ animationDelay: `${(i % 5) * 0.8}s` }} onClick={() => chip(c)}>{c}</button>)}
           <button className="shuffle" onClick={() => merge({ chipSeed: state.chipSeed + 1 })} aria-label={tr(loc, "shuffle")} title={tr(loc, "shuffle")}><RefreshIcon /></button>
-        </div>
+        </div>}
         </div>
       </div>
-      {/* 컴포저는 항상 중앙(hero가 flex로 전체 높이를 채운다). 하단 고정 영역은 흐름에서 빼 컴포저 중앙 정렬을 건드리지 않는다.
-          스코프 홈이면 그 프로젝트의 세션 리스트를, 아니면 이어서 보기·모두 보기·안내문을 둔다. */}
-      {scopedProj ? (
-        <div className="scroll" style={{ position: "absolute", left: 16, right: 16, bottom: 14, maxHeight: "46vh", overflowY: "auto", display: "flex", flexDirection: "column", gap: 7 }}>
+      {/* 스코프 홈: 입력창은 메인과 동일하게 고정하고, 세션 리스트는 hero 밖에 띄워 자체 스크롤한다. 리스트 개수가 입력창 위치를 건드리지 않는다. */}
+      {scopedProj && (
+        <div className="scroll" style={{ position: "absolute", left: 16, right: 16, top: "calc(50% - 10px)", bottom: 14, overflowY: "auto", display: "flex", flexDirection: "column", gap: 7 }}>
           {projSessions.length === 0 ? (
             <p className="note" style={{ margin: 0 }}>{tr(loc, "project_empty_hint")}</p>
           ) : projSessions.map((h) => (
@@ -781,7 +785,9 @@ function Entry({ state, merge, submitEntry, chip, openHistory, acceptFile, attac
             </div>
           ))}
         </div>
-      ) : (
+      )}
+      {/* 비스코프 홈의 하단 고정 영역(이어서 보기, 모두 보기, 안내문). 흐름에서 빼 컴포저 중앙 정렬을 건드리지 않는다. */}
+      {!scopedProj && (
         <>
           {recent && (
             <div style={{ position: "absolute", left: 16, right: 16, bottom: 205, display: "flex", flexDirection: "column" }}>
