@@ -183,7 +183,8 @@ export function App() {
     if (cannotStartNew()) { openPaywall(); return; }
     void startNarrow(v);
   };
-  const chip = (t: string) => { if (HIGHRISK.test(t)) { merge({ input: t, screen: "refusal" }); return; } if (cannotStartNew()) { merge({ input: t }); openPaywall(); return; } void startNarrow(t); };
+  // 예시 칩 클릭은 입력창에 텍스트를 넣기만 한다. 바로 좁히기가 시작되면 의도와 다른 조작이 될 수 있어서다. 위험어 차단과 페이월은 사용자가 실제로 제출할 때 submitEntry가 처리한다.
+  const chip = (t: string) => merge({ input: t });
 
   // ----- 파일 첨부(pro 전용, 붙여넣은 문서 = context_object) -----
   // 텍스트 파일을 읽어 context_object로 담는다. 길면 maxContextChars로 잘라 보낸다(노트로 알림).
@@ -827,8 +828,14 @@ function Entry({ state, merge, submitEntry, chip, openHistory, acceptFile, attac
   const fileRef = useRef<HTMLInputElement>(null);
   const grow = () => { const el = taRef.current; if (el) { el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight, 160) + "px"; } };
   useEffect(grow, []);
-  // 예시 칩: ~50개 풀에서 랜덤 5개. loc/chipSeed가 바뀔 때만 재추첨(타이핑 중엔 고정, 홈 복귀·새로고침 시 새로).
-  const picks = useMemo(() => pickRandom(EXAMPLES[loc] ?? EXAMPLES.ko, 5), [loc, state.chipSeed]);
+  // 예시 칩: 약 50개 풀에서 랜덤 5개. loc나 chipSeed가 바뀔 때만 재추첨한다(타이핑 중엔 고정, 홈 복귀나 새로고침 때 새로 뽑는다). 칩마다 키프레임 종류와 속도, 시작 위상을 함께 무작위로 정해 그룹이 아니라 개별로 떠다니게 하고, 새로 뽑을 때마다 움직임이 달라진다.
+  const picks = useMemo(() => {
+    const names = ["chipFloatA", "chipFloatB", "chipFloatC"];
+    return pickRandom(EXAMPLES[loc] ?? EXAMPLES.ko, 5).map((text) => {
+      const dur = 4.5 + Math.random() * 3.5;
+      return { text, name: names[Math.floor(Math.random() * names.length)] as string, dur, delay: -(Math.random() * dur) };
+    });
+  }, [loc, state.chipSeed]);
   // 드롭: 무료는 페이월로 튕기지 않고 하단 패널로 "pro 기능"임을 알린다(잠긴 첨부 클릭과 같은 경로).
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault(); merge({ dragging: false });
@@ -875,7 +882,7 @@ function Entry({ state, merge, submitEntry, chip, openHistory, acceptFile, attac
         {state.showCond && <input className="field condField" aria-label={tr(loc, "cond_aria")} placeholder={tr(loc, "cond_ph")} value={state.cond} onChange={(e) => merge({ cond: e.target.value })} />}
         {!scopedProj && state.plan !== "pro" && state.remaining > 0 && <p className="weeklyHint">{tr(loc, state.remaining === 1 ? "entry_weekly_last" : "entry_weekly_cost")}</p>}
         {!scopedProj && <div className="suggest">
-          {picks.map((c, i) => <button key={c} className="sg" style={{ animationDelay: `${(i % 5) * 0.8}s` }} onClick={() => chip(c)}>{c}</button>)}
+          {picks.map((c) => <button key={c.text} className="sg" style={{ animationName: c.name, animationDuration: `${c.dur}s`, animationDelay: `${c.delay}s` }} onClick={() => { chip(c.text); taRef.current?.focus(); requestAnimationFrame(grow); }}>{c.text}</button>)}
           <button className="shuffle" onClick={() => merge({ chipSeed: state.chipSeed + 1 })} aria-label={tr(loc, "shuffle")} title={tr(loc, "shuffle")}><RefreshIcon /></button>
         </div>}
         </div>
@@ -918,7 +925,7 @@ function Entry({ state, merge, submitEntry, chip, openHistory, acceptFile, attac
               </button>
               {state.history.length > 1 && (
                 <button className="link" style={{ alignSelf: "flex-end", fontSize: "12.5px" }} onClick={() => merge({ screen: "sessions" })}>
-                  {tr(loc, "sessions_all", { n: state.history.length })} →
+                  {tr(loc, "sessions_all", { n: state.history.length })}
                 </button>
               )}
             </div>

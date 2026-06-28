@@ -143,27 +143,29 @@ textarea.field{line-height:1.55}
 /* 파일 첨부(pro 전용) — composerBar 왼쪽에 붙이고 send는 오른쪽 고정 */
 .composerBar{justify-content:flex-start;gap:12px}
 .composerBar .send{margin-left:auto}
-.attach{font-size:13px;line-height:1;color:var(--muted);padding:2px}
+.attach{font-size:13px;color:var(--muted);padding:2px}
 .attach:hover{color:var(--accent-ink)}
 .composer.dragging{border-color:var(--accent);background:var(--accent-soft);box-shadow:var(--glow-ring)}
 .filechip{display:inline-flex;align-items:center;gap:8px;max-width:100%;margin-top:9px;font-size:12.5px;font-weight:600;color:var(--accent-ink);background:var(--accent-soft);border:1px solid var(--accent);border-radius:99px;padding:5px 6px 5px 11px}
 .filechip .fn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .filechip button{flex:0 0 auto;width:18px;height:18px;border-radius:99px;background:var(--surface);color:var(--muted);font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center}
 .condField{margin-top:10px}
-.suggest{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;align-items:center;margin-top:18px;padding-bottom:26px}
-.sg{font-size:10.5px;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:5.5px 9.5px;line-height:1.3;transition:border-color .12s,color .12s,background .12s;animation:chipFloat 5.5s ease-in-out infinite}
+.suggest{position:relative;display:flex;flex-wrap:wrap;gap:7px;justify-content:center;align-items:center;margin-top:18px;padding-bottom:26px}
+.sg{font-size:10.5px;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:5.5px 9.5px;line-height:1.3;transition:border-color .12s,color .12s,background .12s;animation:chipFloatA 5.5s ease-in-out infinite}
 .sg:hover{border-color:var(--accent);color:var(--text);background:var(--accent-soft)}
-/* 예시 칩이 둥둥 떠다니는 은은한 호흡. 칩마다 animation-delay로 위상차를 둔다(인라인). 느리게·좁게. */
-@keyframes chipFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
-@media (prefers-reduced-motion: reduce){.sg{animation:none}}
+/* 예시 칩이 은은하게 떠다니는 호흡. 칩마다 인라인으로 키프레임 종류와 속도, 시작 위상을 무작위로 달리해 그룹이 아니라 개별로 움직인다. */
+@keyframes chipFloatA{0%,100%{transform:translate(0,0)}50%{transform:translate(0.5px,-4px)}}
+@keyframes chipFloatB{0%,100%{transform:translate(0,0)}50%{transform:translate(-1px,-3px)}}
+@keyframes chipFloatC{0%,100%{transform:translate(0,0)}33%{transform:translate(1px,-2px)}66%{transform:translate(-1px,-3.5px)}}
+@media (prefers-reduced-motion: reduce){.sg{animation:none!important}}
 /* 진입 오로라 하이라이트. 입력창부터 예시칩까지 감싸는 영역(제목과 부제 위, 하단 history 제외). 좌우는 페이지 끝단까지. 하늘 청록을 크게 보라를 작은 포인트로 세 겹이 흐르고, 위아래 모두 마스크로 부드럽게 사라져 경계선이 없다. */
 .heroGlow{position:relative;z-index:0}
-.aurora{position:absolute;top:-95px;bottom:0;left:-18px;right:-18px;z-index:-1;pointer-events:none;overflow:hidden;opacity:.5;background:radial-gradient(80% 130% at 46% 122%,var(--aurora2),transparent 84%),radial-gradient(46% 92% at 72% 126%,var(--aurora3),transparent 80%),radial-gradient(128% 152% at 34% 120%,var(--aurora1),transparent 90%);background-size:160% 145%,120% 130%,188% 162%;-webkit-mask-image:linear-gradient(to top,transparent 0%,#000 8%,transparent 100%);mask-image:linear-gradient(to top,transparent 0%,#000 8%,transparent 100%);animation:auroraWave 13s ease-in-out infinite}
+.aurora{position:absolute;top:-95px;bottom:0;left:-18px;right:-18px;z-index:-1;pointer-events:none;overflow:hidden;opacity:.5;background:radial-gradient(50% 130% at 46% 122%,var(--aurora2),transparent 84%),radial-gradient(52% 98% at 72% 126%,color-mix(in srgb,var(--aurora3) 64%,transparent),transparent 88%),radial-gradient(128% 152% at 34% 120%,var(--aurora1),transparent 90%);background-size:220% 145%,120% 130%,188% 162%;-webkit-mask-image:linear-gradient(to top,transparent 0%,#000 8%,transparent 100%);mask-image:linear-gradient(to top,transparent 0%,#000 8%,transparent 100%);animation:auroraWave 30s ease-in-out infinite}
 /* 레이어 앞→뒤 = 보라(front)·청록(mid)·하늘(back base). 비율 하늘4 청록2 보라4. 청록과 보라를 크게 움직이고 하늘 베이스는 천천히 흐른다. 강도(opacity·saturate)는 유지. */
-@keyframes auroraWave{0%{background-position:38% 100%,82% 100%,30% 100%;filter:hue-rotate(0deg) saturate(1.08)}25%{background-position:62% 95%,50% 100%,38% 98%;filter:hue-rotate(-5deg) saturate(1.14)}50%{background-position:34% 100%,20% 95%,24% 100%;filter:hue-rotate(-9deg) saturate(1.18)}75%{background-position:64% 96%,56% 100%,40% 98%;filter:hue-rotate(-5deg) saturate(1.12)}100%{background-position:38% 100%,82% 100%,30% 100%;filter:hue-rotate(0deg) saturate(1.08)}}
+@keyframes auroraWave{0%{background-position:8% 100%,82% 100%,30% 100%;filter:hue-rotate(0deg) saturate(1.08)}25%{background-position:52% 95%,50% 100%,38% 98%;filter:hue-rotate(-5deg) saturate(1.14)}50%{background-position:95% 100%,20% 95%,24% 100%;filter:hue-rotate(-9deg) saturate(1.18)}75%{background-position:52% 96%,56% 100%,40% 98%;filter:hue-rotate(-5deg) saturate(1.12)}100%{background-position:8% 100%,82% 100%,30% 100%;filter:hue-rotate(0deg) saturate(1.08)}}
 @media (prefers-reduced-motion: reduce){.aurora{animation:none}}
-/* 예시 다시 뽑기. 예시칩 흐름의 마지막에 두어 가장 하단 칩 오른편에 작게. 평소 투명도 30이고 호버 시 진해진다. */
-.shuffle{flex:0 0 auto;width:22px;height:22px;display:flex;align-items:center;justify-content:center;color:var(--muted);opacity:.3;transition:opacity .15s}
+/* 예시 다시 뽑기. 칩 길이에 휘둘리지 않도록 suggest 블록의 우측 하단에 고정해 마지막 칩 줄과 수평으로 둔다. 평소 투명도 30이고 호버 시 진해진다. */
+.shuffle{position:absolute;right:0;bottom:28px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;color:var(--muted);opacity:.3;transition:opacity .15s}
 .shuffle:hover{opacity:.7}
 .shuffle svg{width:16px;height:16px}
 .prolock svg{width:11px;height:11px}
@@ -496,7 +498,7 @@ textarea.field{line-height:1.55}
 .nosrc svg{flex:0 0 auto;width:14px;height:14px;opacity:.7;margin-top:1px}
 
 /* ───── 잠금 동작 고지 토스트. 작은 알약을 하단 중앙에 띄우고 2초에 걸쳐 페이드인·홀드·아웃. ───── */
-.proSheet{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);z-index:30;max-width:calc(100% - 36px);display:flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--border);border-radius:13px;box-shadow:var(--shadow-lg);padding:8px 13px;font-size:12.5px;line-height:1.4;color:var(--text);animation:toastInOut 2s ease both}
+.proSheet{position:absolute;left:50%;bottom:56px;transform:translateX(-50%);z-index:30;max-width:calc(100% - 36px);display:flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--border);border-radius:13px;box-shadow:var(--shadow-lg);padding:8px 13px;font-size:12.5px;line-height:1.4;color:var(--text);animation:toastInOut 2s ease both}
 .proSheet svg{flex:0 0 auto;width:13px;height:13px;color:var(--accent-ink)}
 @keyframes toastInOut{0%{opacity:0;transform:translate(-50%,8px)}12%{opacity:1;transform:translate(-50%,0)}80%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,4px)}}
 @media (prefers-reduced-motion:reduce){.proSheet{animation:none}}
