@@ -1,7 +1,7 @@
 // 배경노트(Vock note) 사이드패널 — panel.html(UI 정본) 화면을 React로 이식하고 실 API에 배선.
 // UI 문자열은 i18n.ts의 t()(여기선 tr)로 가져온다. LLM 콘텐츠는 워커가 출력 언어로 만든다(별개).
 import { useReducer, useRef, useEffect, useState, useCallback, useMemo } from "react";
-import type { Tag, RecommendInput, OutputLocale, PreviewOut } from "@sidetab/shared";
+import type { Tag, RecommendInput, OutputLocale, PreviewOut, ClientLimits } from "@sidetab/shared";
 import * as api from "./api.js";
 import { DEFAULT_CLIENT_LIMITS } from "./api.js";
 import { loadSessions, saveSession, deleteSession, loadProjects, createProject, deleteProject, type SessionRec, type KeptTerm, type NarrowSnap } from "./history.js";
@@ -48,6 +48,14 @@ function weeklyErr(e: unknown): boolean {
 // "선택지 어려워요"의 내부 표식. answers에 넣어 턴만 진행시키고, 모델에 보내는 히스토리에선 걸러낸다.
 // 라벨 텍스트("선택지 내용이 어려워요")를 직접 넣으면 모델이 그 신호를 "둘 다 어려움" 같은 메타 선택지로 되받아치므로 sentinel을 쓴다.
 const TOO_HARD_MARK = "__too_hard__";
+// 좁히기 잔여 턴은 현재 plan과 누적 답변에서 유도한다. 스냅샷의 turnsLeft는 저장 당시 plan 기준이라
+// 진행 중 plan이 바뀌면(특히 flash에서 pro로) 어긋난다. 이 함수로 다시 계산하면 항상 현재 plan을 반영한다.
+// 어려워요 답변은 난이도 신호일 뿐 예산을 깎지 않으므로 소비 집계에서 뺀다.
+function remainingTurns(plan: "flash" | "pro", answers: string[][], limits: ClientLimits): number {
+  const max = plan === "pro" ? limits.narrowMax.paid : limits.narrowMax.free;
+  const consumed = answers.filter((a) => !(Array.isArray(a) && a.length === 1 && a[0] === TOO_HARD_MARK)).length;
+  return Math.max(0, max - consumed);
+}
 // 받은 선택지에서 금지된 umbrella(둘 다·모두·both·all)·메타("어려움/모르겠음") 라벨을 한 번 더 걸러내는 안전망.
 // 모델이 규칙을 어겨도 화면엔 안 뜨게 한다. 너무 많이 걸러지면(2개 미만) 원본을 유지해 빈 화면을 막는다.
 const UMBRELLA_RE = /^(둘\s*다|모두|전부|both|all of the above|either|まとめて|全部|以上すべて|全部都|两者都)$/i;
@@ -627,7 +635,7 @@ export function App() {
         screen: "narrow", histView: false, resumedSession: true, sessionId: rec.id, input: rec.topic,
         classifyOut: n.classifyOut, questions: n.questions, answers: n.answers, unchosen: n.unchosen,
         usedUndo: n.usedUndo, tooHard: n.tooHard, simplify: n.simplify, refining: n.refining,
-        confidence: n.confidence, turnsLeft: n.turnsLeft, cond: n.cond ?? "",
+        confidence: n.confidence, turnsLeft: remainingTurns(sref.current.plan, n.answers, sref.current.limits), cond: n.cond ?? "",
         sel: [], customText: "", customOpen: false, query: "", difficulty: undefined, relateCond: "", relateOut: null,
         attachedFile: null, attachNote: "", dragging: false, prevScreen: "entry", showCond: false,
         limitHit: false, proNotice: "", errorMsg: "", pending: false, streaming: false,
@@ -657,8 +665,9 @@ export function App() {
   const onUpgrade = () => {
     const s = sref.current;
     const toPro = s.plan !== "pro";
-    // 업그레이드(flash→pro)는 좁히기 예산 충전 보상, 다운그레이드(pro→flash)는 상한으로 클램프만(증가 금지).
-    const newTurns = toPro ? s.limits.narrowMax.paid : Math.min(s.turnsLeft, s.limits.narrowMax.free);
+    // 좁히기 예산을 현재 plan 기준으로 다시 계산한다. 업그레이드는 pro 잔량(8 빼기 사용분)으로 늘고,
+    // 다운그레이드는 flash 상한으로 자연히 클램프된다. 진행 중 세션이 아니면(answers 비어 있음) 그냥 만충.
+    const newTurns = remainingTurns(toPro ? "pro" : "flash", s.answers, s.limits);
     merge({ plan: toPro ? "pro" : "flash", remaining: toPro ? 99 : s.limits.freeWeeklyLimit, turnsLeft: newTurns });
     try { localStorage.setItem("sidetab:plan", toPro ? "pro" : "flash"); } catch { /* 무시 */ }
     later(closePaywall, 350);
@@ -897,7 +906,7 @@ function Entry({ state, merge, submitEntry, chip, openHistory, acceptFile, attac
               <button className="histmain" onClick={() => openHistory(h)}>
                 <span className="histtopic">{h.topic || tr(loc, "history_untitled")}</span>
                 <span className="histmeta">{h.narrow
-                  ? tr(loc, "resume_narrow_meta", { n: h.narrow.turnsLeft, date: fmtDate(h.updatedAt, loc) })
+                  ? tr(loc, "resume_narrow_meta", { n: remainingTurns(state.plan, h.narrow.answers, state.limits), date: fmtDate(h.updatedAt, loc) })
                   : h.terms.length > 0
                     ? tr(loc, "history_meta", { n: h.terms.length, date: fmtDate(h.createdAt, loc) })
                     : tr(loc, "resume_gen_meta", { n: h.generated?.length ?? 0, date: fmtDate(h.createdAt, loc) })}</span>
@@ -916,7 +925,7 @@ function Entry({ state, merge, submitEntry, chip, openHistory, acceptFile, attac
                   <span className="resumeEy">{recent.narrow ? <span className="inprogPill">{tr(loc, "resume_in_progress")}</span> : tr(loc, "resume_eyebrow")}</span>
                   <b>{recent.area || recent.topic || tr(loc, "history_untitled")}</b>
                   <span className="resumeMeta">{recent.narrow
-                    ? tr(loc, "resume_narrow_meta", { n: recent.narrow.turnsLeft, date: fmtDate(recent.updatedAt, loc) })
+                    ? tr(loc, "resume_narrow_meta", { n: remainingTurns(state.plan, recent.narrow.answers, state.limits), date: fmtDate(recent.updatedAt, loc) })
                     : recent.terms.length > 0
                       ? tr(loc, "resume_meta", { n: recent.terms.length, date: fmtDate(recent.createdAt, loc) })
                       : tr(loc, "resume_gen_meta", { n: recent.generated?.length ?? 0, date: fmtDate(recent.createdAt, loc) })}</span>
@@ -949,7 +958,7 @@ function SessionsScreen({ state, merge, openHistory, deleteHistory, undoDelete, 
   const pinned = filtered.filter((h) => h.pinned);
   const loose = filtered.filter((h) => !h.pinned);
   const meta = (h: SessionRec) => h.narrow
-    ? tr(loc, "resume_narrow_meta", { n: h.narrow.turnsLeft, date: fmtDate(h.updatedAt, loc) })
+    ? tr(loc, "resume_narrow_meta", { n: remainingTurns(state.plan, h.narrow.answers, state.limits), date: fmtDate(h.updatedAt, loc) })
     : h.terms.length > 0
       ? tr(loc, "history_meta", { n: h.terms.length, date: fmtDate(h.createdAt, loc) })
       : tr(loc, "resume_gen_meta", { n: h.generated?.length ?? 0, date: fmtDate(h.createdAt, loc) });
@@ -1029,7 +1038,7 @@ function Drawer({ state, merge, openHistory }: { state: State; merge: (p: Partia
   const ref = useModalClose(close);
   const recent = state.history.slice(0, 7);
   const meta = (h: SessionRec) => h.narrow
-    ? tr(loc, "resume_narrow_meta", { n: h.narrow.turnsLeft, date: fmtDate(h.updatedAt, loc) })
+    ? tr(loc, "resume_narrow_meta", { n: remainingTurns(state.plan, h.narrow.answers, state.limits), date: fmtDate(h.updatedAt, loc) })
     : h.terms.length > 0
       ? tr(loc, "history_meta", { n: h.terms.length, date: fmtDate(h.createdAt, loc) })
       : tr(loc, "resume_gen_meta", { n: h.generated?.length ?? 0, date: fmtDate(h.createdAt, loc) });
