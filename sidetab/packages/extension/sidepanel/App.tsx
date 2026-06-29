@@ -798,7 +798,8 @@ function msg(e: unknown): string { return e instanceof Error ? e.message : Strin
 function Header({ state, openPaywall, goHome, changeLocale, openTutorial, openDrawer }: { state: State; openPaywall: () => void; goHome: () => void; changeLocale: (l: OutputLocale) => void; openTutorial: () => void; openDrawer: () => void }) {
   const warn = state.plan !== "pro" && state.remaining <= 2;
   const brandName = state.locale === "ko" ? "배경노트" : "Vock note";
-  const brandSub = state.locale === "ko" ? "Vock note" : "Voca·back·note";
+  // 한국어만 부제(Vock note)를 단다. 비한국어 UI는 브랜드명이 곧 Vock note라 'Voca·back·note' 어원 부제를 빼서 깔끔하게 둔다.
+  const brandSub = state.locale === "ko" ? "Vock note" : "";
   const navScreen = state.screen === "entry" || state.screen === "sessions" || state.screen === "projects";
   return (
     <header>
@@ -808,7 +809,7 @@ function Header({ state, openPaywall, goHome, changeLocale, openTutorial, openDr
       )}
       <button className="brand" onClick={goHome}>
         <span className="logo"><img src="icons/icon-32.png" alt="" width={24} height={24} /></span>
-        <span><b>{brandName}</b><span>{brandSub}</span></span>
+        <span><b>{brandName}</b>{brandSub && <span>{brandSub}</span>}</span>
       </button>
       <div className="htools">
         {/* 언어 설정과 도움말은 진입(메인) 화면에서만. 이미 생성된 LLM 텍스트는 언어 변경에 반응하지 않아, 탐색 중 전환을 막는다. */}
@@ -1404,14 +1405,24 @@ function Kept({ state, merge, go, goHome, toggleKeep, toggleDetail, jumpRelated,
 
 function Paywall({ state, closePaywall, onUpgrade }: { state: State; closePaywall: () => void; onUpgrade: () => void }) {
   const loc = state.locale;
+  // 지역 가격: 국내(ko)는 원화 부가세 포함, 그 외는 달러 세금 별도. 정밀한 지역 판별(IP 기반)은 결제 인프라(Phase 0)에서 붙인다.
+  const freePrice = loc === "ko" ? "₩0" : "$0";
   return (
     <main className="scroll screenIn"><div className="pad" style={{ display: "flex", flexDirection: "column" }}>
       <button className="link" style={{ alignSelf: "flex-start", color: "var(--muted)", marginBottom: 14 }} onClick={closePaywall}>{tr(loc, "pw_close")}</button>
       <h2>{tr(loc, "pw_using", { plan: state.plan === "pro" ? "pro" : "flash" })}</h2>
       <p className="lead" style={{ margin: "4px 0 16px" }}>{state.plan === "pro" ? tr(loc, "plan_unlimited") : tr(loc, "plan_free_left", { n: state.remaining })}</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        <div className="plancard"><div className="ph"><b>{tr(loc, "pw_free_card")}</b><span>₩0</span></div><ul><li>{tr(loc, "pw_free_1")}</li><li>{tr(loc, "pw_free_2")}</li><li>{tr(loc, "pw_free_3")}</li></ul></div>
-        <div className="plancard hi"><div className="ribbon">{tr(loc, "pw_reco")}</div><div className="ph"><b>{tr(loc, "pw_pro_card")}</b><span className="hl">{tr(loc, "pw_pro_price")}</span></div><ul><li>{tr(loc, "pw_pro_1")}</li><li>{tr(loc, "pw_pro_2")}</li><li>{tr(loc, "pw_pro_3")}</li><li>{tr(loc, "pw_pro_4")}</li><li>{tr(loc, "pw_pro_5")}</li></ul></div>
+        <div className="plancard">
+          <div className="ph"><b>{tr(loc, "pw_free_card")}</b><span>{freePrice}</span></div>
+          <ul><li>{tr(loc, "pw_free_1")}</li><li>{tr(loc, "pw_free_2")}</li><li>{tr(loc, "pw_free_3")}</li></ul>
+        </div>
+        <div className="plancard hi">
+          <div className="ph"><b>{tr(loc, "pw_pro_card")}<span className="recopill">{tr(loc, "pw_reco")}</span></b></div>
+          <div className="priceline"><span className="price">{tr(loc, "pw_pro_price")}</span><span className="taxcap">{tr(loc, "pw_pro_tax")}</span></div>
+          <p className="planvalue">{tr(loc, "pw_pro_value")}</p>
+          <ul><li>{tr(loc, "pw_pro_1")}</li><li>{tr(loc, "pw_pro_2")}</li><li>{tr(loc, "pw_pro_3")}</li><li>{tr(loc, "pw_pro_4")}</li><li>{tr(loc, "pw_pro_5")}</li></ul>
+        </div>
       </div>
       <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={onUpgrade}>{state.plan === "pro" ? tr(loc, "pw_preview_on") : tr(loc, "pw_preview")}</button>
       <p className="note">{tr(loc, "pw_note")}</p>
