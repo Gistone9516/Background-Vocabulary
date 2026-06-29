@@ -29,6 +29,10 @@ import type {
 import type { RecommendInput, Tier, Limits, ClientLimits, OutputLocale } from "@sidetab/shared";
 import { DEFAULT_LIMITS, OUTPUT_LOCALES } from "@sidetab/shared";
 import { UpstashUsageCounter, UpstashGlobalDailyCap, UpstashCounter } from "./usage-counter.js";
+import { issueTokens, verifyAccess, verifyRefresh } from "./auth/jwt.js";
+import { exchangeGoogleCode } from "./auth/google.js";
+import { D1UserRepository } from "./db/d1-user-repo.js";
+import type { UserRecord, Entitlement } from "@sidetab/shared";
 
 // Workers env 바인딩 타입. wrangler.toml의 [vars]와 secrets에 대응한다.
 // 운영 한도는 전부 env로 튜닝한다(미설정이면 DEFAULT_LIMITS). 값은 양의 정수 문자열.
@@ -50,6 +54,17 @@ export interface Env {
   MAX_CONTEXT_CHARS?: string;
   // 설정 시 이 chrome-extension origin만 허용(프로덕션 확장 ID 잠금). 미설정이면 모든 확장 허용(개발).
   ALLOWED_EXT_ORIGIN?: string;
+  // 결제 인증 엔타이틀먼트(Phase 0). 정본 계약은 인터페이스계약 8장이다.
+  DB?: D1Database; // 엔타이틀먼트 SoT. 미바인딩이면 인증 라우트는 503이고 기존 추천 흐름은 영향이 없다.
+  JWT_SECRET_CURRENT?: string; // HS256 서명키(현재 kid)
+  JWT_SECRET_PREV?: string; // 키 로테이션 시 이전 키(이중 검증)
+  JWT_KID?: string; // 현재 kid
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string; // Worker 전용. 클라이언트에 노출하지 않는다.
+  GOOGLE_REDIRECT_URI?: string; // 형식은 https://<확장 id>.chromiumapp.org/ 이다.
+  PAYMENT_ENABLED?: string; // "true"면 실 결제. 아니면 checkout 은 준비 중 스텁이다(b안).
+  DEV_MODE?: string; // "true"일 때만 DEV_FORCE_TIER 를 허용한다(프로덕션은 미설정).
+  DEV_FORCE_TIER?: string; // 개발 중 티어 강제이며 값은 "free" 또는 "paid"다.
 }
 
 // 양의 정수 문자열을 파싱한다. 비거나 잘못되면 기본값.
@@ -102,7 +117,7 @@ function readIp(c: { req: { header(name: string): string | undefined } }): strin
 }
 
 // IP당 분/일 요청 레이트리밋. 한도 초과면 true. Upstash 오류 시 통과(서비스 우선).
-// x-tier·x-user-id를 스푸핑해도 IP 기준이라 우회 불가 — 인증 없는 anti-abuse의 핵심.
+// x-user-id를 스푸핑해도 IP 기준이라 우회 불가다. 인증 없는 anti-abuse의 핵심이다.
 async function rateLimited(env: Env, ip: string, limits: Limits): Promise<boolean> {
   try {
     const counter = new UpstashCounter({ url: env.UPSTASH_REDIS_REST_URL, token: env.UPSTASH_REDIS_REST_TOKEN });
@@ -135,9 +150,43 @@ async function securityBlock(c: { req: { header(name: string): string | undefine
   return null;
 }
 
-// x-tier 헤더를 Tier로 좁힌다. "paid"가 아니면 모두 free로 본다.
-function readTier(c: { req: { header(name: string): string | undefined } }): Tier {
-  return (c.req.header("x-tier") ?? "").toLowerCase() === "paid" ? "paid" : "free";
+// Bearer 토큰을 헤더에서 꺼낸다. 없으면 null 이다.
+function bearer(c: { req: { header(name: string): string | undefined } }): string | null {
+  const h = c.req.header("authorization") ?? c.req.header("Authorization") ?? "";
+  const m = h.match(/^Bearer\s+(.+)$/i);
+  const tok = m?.[1];
+  return tok ? tok.trim() : null;
+}
+
+// JWT 서명 검증에 쓸 후보 시크릿이다(현재 키와 이전 키). 키 로테이션을 흡수한다.
+function jwtSecrets(env: Env): string[] {
+  return [env.JWT_SECRET_CURRENT, env.JWT_SECRET_PREV].filter((s): s is string => !!s);
+}
+
+// 요청의 유효 티어를 정한다. per-request 는 networkless 다(서명과 exp 만 보고 외부호출은 없다).
+// 무인증이나 익명은 free 로 본다(기존 흐름 보존). x-tier 헤더 신뢰는 폐기했다.
+async function resolveTier(c: { req: { header(name: string): string | undefined } }, env: Env): Promise<Tier> {
+  if (env.DEV_MODE === "true" && env.DEV_FORCE_TIER) {
+    return env.DEV_FORCE_TIER === "paid" ? "paid" : "free";
+  }
+  const token = bearer(c);
+  if (!token) return "free";
+  const secrets = jwtSecrets(env);
+  if (secrets.length === 0) return "free";
+  const claims = await verifyAccess(token, secrets);
+  return claims ? claims.tier : "free";
+}
+
+// 사용자 레코드에서 유효 권한을 계산한다. grace 기간에는 pro 를 유지한다.
+function effectiveEntitlement(u: UserRecord): Entitlement {
+  const now = Date.now();
+  const isPro = u.tier === "paid" || (u.grace_until != null && u.grace_until > now);
+  return {
+    user_id: u.user_id,
+    effective_tier: isPro ? "paid" : "free",
+    subscription_status: u.subscription_status,
+    expires_at: u.expires_at,
+  };
 }
 
 // x-locale 헤더를 OutputLocale로 좁힌다(허용 목록 외/미지정이면 ko). 출력 콘텐츠 언어.
@@ -192,7 +241,7 @@ app.use(
       return null;
     },
     allowMethods: ["GET", "POST", "OPTIONS"],
-    allowHeaders: ["Content-Type", "x-user-id", "x-tier", "x-locale"],
+    allowHeaders: ["Content-Type", "Authorization", "x-user-id", "x-locale"],
     maxAge: 86400,
   })
 );
@@ -213,7 +262,7 @@ app.post("/classify", async (c) => {
 
   // 주간 한도(free)는 세션 생성 시점인 classify에서 차감한다(D3: 1 탐색 = 주간 1회). free·비익명만 집계.
   // GET으로 한도를 먼저 확인해 초과면 LLM 호출 전에 막는다(선증가-후차단 방지). 실제 INCR은 분류 성공·비고위험일 때만.
-  const tier = readTier(c);
+  const tier = await resolveTier(c, c.env);
   const userId = c.req.header("x-user-id") ?? "anonymous";
   const metered = tier === "free" && userId !== "anonymous";
   const counter = new UpstashUsageCounter({ url: c.env.UPSTASH_REDIS_REST_URL, token: c.env.UPSTASH_REDIS_REST_TOKEN });
@@ -295,10 +344,10 @@ app.post("/relate", async (c) => {
 // userId는 x-user-id 헤더에서 읽는다.
 // 서버 측 설치 UUID 검증은 구현계획 12장(Tier3) 이후로 보류한다.
 app.post("/recommend", async (c) => {
-  const tier = readTier(c);
+  const tier = await resolveTier(c, c.env);
   const limits = buildLimits(c.env);
 
-  // 보안 게이트(IP 레이트리밋). x-tier·x-user-id 스푸핑과 무관하게 IP 기준으로 남용을 막는다.
+  // 보안 게이트(IP 레이트리밋). x-user-id 스푸핑과 무관하게 IP 기준으로 남용을 막는다.
   const blocked = await securityBlock(c, c.env, limits); if (blocked) return blocked;
 
   // 전역 일일 캡(빌드 단계 비용 차단). 티어·사용자 무관. anonymous 우회도 여기서 덮는다.
@@ -363,7 +412,7 @@ app.post("/recommend", async (c) => {
 // Prompt4In -> pipeline.summarize -> JSON
 // /summarize는 "AI로 더 정리"(유료 전용, D3). free 티어는 클라이언트 템플릿만 쓰므로 여기로 오면 거부.
 app.post("/summarize", async (c) => {
-  const tier = readTier(c);
+  const tier = await resolveTier(c, c.env);
   const limits = buildLimits(c.env);
   const blocked = await securityBlock(c, c.env, limits); if (blocked) return blocked;
   if (tier !== "paid") {
@@ -389,7 +438,7 @@ app.post("/summarize", async (c) => {
 // POST /detail
 // Prompt5In -> pipeline.detail -> JSON
 app.post("/detail", async (c) => {
-  const tier = readTier(c);
+  const tier = await resolveTier(c, c.env);
   const limits = buildLimits(c.env);
   const blocked = await securityBlock(c, c.env, limits); if (blocked) return blocked;
   const cap = await bumpGlobalCap(c.env, limits.globalDailyCap);
@@ -404,6 +453,120 @@ app.post("/detail", async (c) => {
   const pipeline = buildPipeline(c.env);
   const result = await pipeline.detail(body, tier, readLocale(c));
   return c.json(result);
+});
+
+// POST /auth/google
+// launchWebAuthFlow 가 받은 authorization code 를 Worker 가 교환해 우리 JWT 를 발급한다.
+// D1 과 JWT 시크릿과 Google 설정이 없으면 503 이다(기존 추천 흐름엔 영향 없음).
+app.post("/auth/google", async (c) => {
+  const env = c.env;
+  const limits = buildLimits(env);
+  const blocked = await securityBlock(c, env, limits); if (blocked) return blocked;
+  const { DB, JWT_SECRET_CURRENT, JWT_KID, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI } = env;
+  if (!DB || !JWT_SECRET_CURRENT || !JWT_KID) {
+    return c.json({ error: "AUTH_UNAVAILABLE", message: "인증이 아직 구성되지 않았습니다." }, 503);
+  }
+  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_REDIRECT_URI) {
+    return c.json({ error: "AUTH_UNAVAILABLE", message: "Google 로그인이 아직 구성되지 않았습니다." }, 503);
+  }
+  const body = (await c.req.json().catch(() => ({}))) as { code?: string; code_verifier?: string; redirect_uri?: string };
+  if (!body.code || !body.code_verifier || !body.redirect_uri) {
+    return c.json({ error: "AUTH_FAILED", message: "인증 요청이 올바르지 않습니다." }, 401);
+  }
+  let identity;
+  try {
+    identity = await exchangeGoogleCode({
+      code: body.code,
+      codeVerifier: body.code_verifier,
+      redirectUri: body.redirect_uri,
+      clientId: GOOGLE_CLIENT_ID,
+      clientSecret: GOOGLE_CLIENT_SECRET,
+    });
+  } catch (err) {
+    console.error("Google 코드 교환 실패:", err);
+    return c.json({ error: "AUTH_FAILED", message: "Google 로그인에 실패했습니다. 다시 시도해 주세요." }, 401);
+  }
+  const repo = new D1UserRepository(DB);
+  // email 로 기존 계정을 찾고 없으면 만든다. google_sub 은 보조 연결 컬럼이다.
+  let user = await repo.findByEmail(identity.email);
+  if (!user) user = await repo.create({ email: identity.email, google_sub: identity.sub });
+  const ent = effectiveEntitlement(user);
+  const tokens = await issueTokens(
+    { userId: user.user_id, tier: ent.effective_tier, email: user.email },
+    JWT_SECRET_CURRENT,
+    JWT_KID
+  );
+  return c.json({
+    access_token: tokens.access_token,
+    refresh_token: tokens.refresh_token,
+    expires_in: tokens.expires_in,
+    user: { email: user.email, tier: ent.effective_tier },
+  });
+});
+
+// POST /auth/refresh
+// 리프레시 토큰으로 액세스 토큰을 재발급한다. 이때 D1 에서 최신 tier 를 다시 읽는다(취소·갱신 반영).
+app.post("/auth/refresh", async (c) => {
+  const env = c.env;
+  const { DB, JWT_SECRET_CURRENT, JWT_KID } = env;
+  if (!DB || !JWT_SECRET_CURRENT || !JWT_KID) {
+    return c.json({ error: "AUTH_UNAVAILABLE", message: "인증이 아직 구성되지 않았습니다." }, 503);
+  }
+  const body = (await c.req.json().catch(() => ({}))) as { refresh_token?: string };
+  if (!body.refresh_token) return c.json({ error: "TOKEN_REVOKED", message: "다시 로그인해 주세요." }, 401);
+  const claims = await verifyRefresh(body.refresh_token, jwtSecrets(env));
+  if (!claims) return c.json({ error: "TOKEN_REVOKED", message: "세션이 만료되었습니다. 다시 로그인해 주세요." }, 401);
+  // 블랙리스트 검사는 취소·환불 경로가 생기는 Phase 1 에서 활성화한다(Phase 0 은 빈 목록).
+  const repo = new D1UserRepository(DB);
+  const user = await repo.findById(claims.sub);
+  if (!user) return c.json({ error: "TOKEN_REVOKED", message: "계정을 찾을 수 없습니다." }, 401);
+  const ent = effectiveEntitlement(user);
+  const tokens = await issueTokens(
+    { userId: user.user_id, tier: ent.effective_tier, email: user.email },
+    JWT_SECRET_CURRENT,
+    JWT_KID
+  );
+  return c.json({ access_token: tokens.access_token, refresh_token: tokens.refresh_token, expires_in: tokens.expires_in });
+});
+
+// POST /auth/logout
+// Phase 0 은 클라이언트가 저장 토큰을 지우는 것으로 충분하다. 서버 블랙리스트는 Phase 1.
+app.post("/auth/logout", (c) => c.json({ ok: true }));
+
+// POST /checkout
+// b안. 결제 비활성(PAYMENT_ENABLED 가 "true" 아님)이면 준비 중 스텁이다. 실 결제는 Phase 1 PG 어댑터.
+app.post("/checkout", (c) => {
+  if (c.env.PAYMENT_ENABLED !== "true") return c.json({ status: "coming_soon" });
+  return c.json({ error: "NOT_IMPLEMENTED", message: "결제는 곧 제공됩니다." }, 501);
+});
+
+// GET /subscription/status
+// 폴링과 복구용. D1 을 직접 조회해 최신 tier 를 확인하고 새 액세스 토큰을 함께 돌려준다.
+app.get("/subscription/status", async (c) => {
+  const env = c.env;
+  const { DB, JWT_SECRET_CURRENT, JWT_KID } = env;
+  if (!DB || !JWT_SECRET_CURRENT || !JWT_KID) {
+    return c.json({ error: "AUTH_UNAVAILABLE", message: "인증이 아직 구성되지 않았습니다." }, 503);
+  }
+  const token = bearer(c);
+  if (!token) return c.json({ error: "AUTH_REQUIRED", message: "로그인이 필요합니다." }, 401);
+  const claims = await verifyAccess(token, jwtSecrets(env));
+  if (!claims) return c.json({ error: "TOKEN_EXPIRED", message: "세션이 만료되었습니다. 다시 로그인해 주세요." }, 401);
+  const repo = new D1UserRepository(DB);
+  const user = await repo.findById(claims.sub);
+  if (!user) return c.json({ error: "AUTH_REQUIRED", message: "계정을 찾을 수 없습니다." }, 401);
+  const ent = effectiveEntitlement(user);
+  const tokens = await issueTokens(
+    { userId: user.user_id, tier: ent.effective_tier, email: user.email },
+    JWT_SECRET_CURRENT,
+    JWT_KID
+  );
+  return c.json({
+    tier: ent.effective_tier,
+    subscription_status: ent.subscription_status,
+    expires_at: ent.expires_at,
+    access_token: tokens.access_token,
+  });
 });
 
 export default app;

@@ -5,7 +5,8 @@
   "description": "배경노트(Vock note) — 교차전공 빌더를 위한 핵심 배경 어휘 추천 크롬 확장",
   "permissions": [
     "sidePanel",
-    "storage"
+    "storage",
+    "identity"
   ],
   "host_permissions": [
     "https://sidetab-api.example.workers.dev/*",

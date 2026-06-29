@@ -4,6 +4,7 @@ import { useReducer, useRef, useEffect, useState, useCallback, useMemo } from "r
 import type { Tag, RecommendInput, OutputLocale, PreviewOut, ClientLimits } from "@sidetab/shared";
 import * as api from "./api.js";
 import { DEFAULT_CLIENT_LIMITS } from "./api.js";
+import * as auth from "./auth.js";
 import { loadSessions, saveSession, deleteSession, loadProjects, createProject, deleteProject, type SessionRec, type KeptTerm, type NarrowSnap } from "./history.js";
 import { t as tr, LOCALE_LABELS } from "./i18n.js";
 import { EXAMPLES, pickRandom } from "./examples.js";
@@ -13,9 +14,10 @@ import { sentLines, splitSentences, firstSentence, fmtDate, dateBucket, markTerm
 import { isTextFile, readTextFile } from "./file.js";
 import { Spark, Chev, LinkIcon, RefreshIcon, LockIcon, TrashIcon, BookmarkIcon, UserIcon, CopyIcon, ShareIcon, InfoIcon, ListIcon, FolderIcon } from "./icons.js";
 
-// pro 여부를 localStorage에 저장해 화면 전환과 새로고침에도 유지한다. reset이 initial을 다시 부르므로 여기서 복원하면 goHome 후에도 pro가 남는다.
+// 플랜은 더 이상 localStorage 미리보기 토글에서 오지 않는다. 로그인 후 서버가 JWT 로 판정한 tier 에서 온다(auth.getPlan).
+// 초기에는 무료(flash)로 두고, 마운트 직후 저장된 인증의 tier 를 읽어 갱신한다. reset 후에도 같은 경로로 복원된다.
 function savedPlan(): "flash" | "pro" {
-  try { return localStorage.getItem("sidetab:plan") === "pro" ? "pro" : "flash"; } catch { return "flash"; }
+  return "flash";
 }
 // 복습 알림 설정. 기본은 켜짐이고 사용자가 끄면 "off"를 저장한다(설정에서 토글).
 function savedReview(): boolean {
@@ -661,16 +663,26 @@ export function App() {
 
   const openPaywall = () => merge({ prevScreen: sref.current.screen, screen: "paywall", limitHit: false, proNotice: "" });
   const closePaywall = () => merge({ screen: sref.current.prevScreen === "paywall" ? "entry" : sref.current.prevScreen });
-  // pro 미리보기 토글. 켜기만 되던 버그를 고쳐, pro면 다시 flash로 끌 수 있게 양방향으로 만든다.
-  const onUpgrade = () => {
+  // 페이월 CTA. 미리보기 토글을 폐기하고 실 결제 여정으로 배선한다(설계 H장).
+  // 로그인이 가능하면 먼저 Google 로그인으로 계정을 연결하고 그다음 결제 진입을 시도한다.
+  // Phase 0 은 결제 비활성이라 결제 진입이 coming_soon 을 돌려주므로 준비 중 안내를 띄운다(b안).
+  const onPaywallCta = async () => {
     const s = sref.current;
-    const toPro = s.plan !== "pro";
-    // 좁히기 예산을 현재 plan 기준으로 다시 계산한다. 업그레이드는 pro 잔량(8 빼기 사용분)으로 늘고,
-    // 다운그레이드는 flash 상한으로 자연히 클램프된다. 진행 중 세션이 아니면(answers 비어 있음) 그냥 만충.
-    const newTurns = remainingTurns(toPro ? "pro" : "flash", s.answers, s.limits);
-    merge({ plan: toPro ? "pro" : "flash", remaining: toPro ? 99 : s.limits.freeWeeklyLimit, turnsLeft: newTurns });
-    try { localStorage.setItem("sidetab:plan", toPro ? "pro" : "flash"); } catch { /* 무시 */ }
-    later(closePaywall, 350);
+    try {
+      if (s.plan !== "pro" && auth.isLoginAvailable() && !(await auth.isLoggedIn())) {
+        const { tier } = await auth.signInWithGoogle();
+        merge({ plan: tier === "paid" ? "pro" : "flash", remaining: tier === "paid" ? 99 : s.limits.freeWeeklyLimit });
+      }
+    } catch {
+      return; // 로그인 취소나 실패면 조용히 멈춘다.
+    }
+    try {
+      const r = await api.checkout();
+      if (r.checkout_url) { window.open(r.checkout_url, "_blank", "noopener"); return; } // Phase 1 실 결제
+      merge({ proNotice: "coming_soon" }); // 결제 준비 중 안내
+    } catch {
+      merge({ proNotice: "coming_soon" });
+    }
   };
   // 언어 변경: api 헤더·로컬 저장·상태를 함께 갱신한다(재빌드 없이 즉시 반영).
   const changeLocale = (l: OutputLocale) => {
@@ -696,6 +708,8 @@ export function App() {
   }, [state.screen, merge]);
   // 워커 운영 한도(좁히기 턴·상세 횟수 등)를 한 번 읽어 게이팅에 쓴다. 실패 시 기본값 유지.
   useEffect(() => { void api.getConfig().then((l) => merge({ limits: l })); }, [merge]);
+  // 저장된 로그인의 tier 로 플랜을 복원한다(로그인 후·새로고침·홈 복귀에 일관). 없으면 flash 유지.
+  useEffect(() => { void auth.getPlan().then((p) => { if (p === "pro") merge({ plan: "pro", remaining: 99 }); }); }, [merge]);
   // 한도/플랜 변경 후 좁히기 예산을 실제 narrowMax로 하향 클램프(부풀림 금지, 소비분 보존).
   useEffect(() => {
     const max = state.plan === "pro" ? state.limits.narrowMax.paid : state.limits.narrowMax.free;
@@ -742,7 +756,7 @@ export function App() {
       {state.screen === "difficulty" && <DifficultyPick state={state} pick={pickDifficulty} back={backFromDifficulty} />}
       {state.screen === "terms" && <Terms state={state} merge={merge} loadMore={loadMore} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} go={go} goHome={goHome} refine={refineFromTerms} genGroup={genGroup} />}
       {state.screen === "kept" && <Kept state={state} merge={merge} go={go} goHome={goHome} toggleKeep={toggleKeep} toggleDetail={toggleDetail} jumpRelated={jumpRelated} buildSummary={buildSummary} onCopy={onCopy} onShare={onShare} aiRefine={aiRefine} />}
-      {state.screen === "paywall" && <Paywall state={state} closePaywall={closePaywall} onUpgrade={onUpgrade} />}
+      {state.screen === "paywall" && <Paywall state={state} closePaywall={closePaywall} onPaywallCta={onPaywallCta} />}
       {state.screen === "refusal" && <Refusal state={state} goHome={goHome} />}
       {state.screen === "sessions" && <SessionsScreen state={state} merge={merge} openHistory={openHistory} deleteHistory={deleteHistory} undoDelete={undoDelete} togglePin={togglePin} goHome={goHome} assignProject={assignProject} />}
       {state.screen === "projects" && <ProjectsScreen state={state} merge={merge} addProject={addProject} removeProject={removeProject} />}
@@ -1403,7 +1417,7 @@ function Kept({ state, merge, go, goHome, toggleKeep, toggleDetail, jumpRelated,
   );
 }
 
-function Paywall({ state, closePaywall, onUpgrade }: { state: State; closePaywall: () => void; onUpgrade: () => void }) {
+function Paywall({ state, closePaywall, onPaywallCta }: { state: State; closePaywall: () => void; onPaywallCta: () => void }) {
   const loc = state.locale;
   // 지역 가격: 국내(ko)는 원화 부가세 포함, 그 외는 달러 세금 별도. 정밀한 지역 판별(IP 기반)은 결제 인프라(Phase 0)에서 붙인다.
   const freePrice = loc === "ko" ? "₩0" : "$0";
@@ -1424,7 +1438,7 @@ function Paywall({ state, closePaywall, onUpgrade }: { state: State; closePaywal
           <ul><li>{tr(loc, "pw_pro_1")}</li><li>{tr(loc, "pw_pro_2")}</li><li>{tr(loc, "pw_pro_3")}</li><li>{tr(loc, "pw_pro_4")}</li><li>{tr(loc, "pw_pro_5")}</li></ul>
         </div>
       </div>
-      <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={onUpgrade}>{state.plan === "pro" ? tr(loc, "pw_preview_on") : tr(loc, "pw_preview")}</button>
+      <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={onPaywallCta}>{tr(loc, "pw_subscribe")}</button>
       <p className="note">{tr(loc, "pw_note")}</p>
     </div></main>
   );

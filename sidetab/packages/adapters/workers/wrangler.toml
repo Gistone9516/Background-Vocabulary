@@ -39,6 +39,30 @@ command = ""
 # MAX_CONTEXT_CHARS = "12000"
 # ALLOWED_EXT_ORIGIN = "chrome-extension://<배포된_확장_ID>"
 
+# 결제 인증(Phase 0). PAYMENT_ENABLED 는 활성 값으로 둔다(b안: false 면 결제는 준비 중 스텁, 티어 게이팅은 평소대로).
+PAYMENT_ENABLED = "false"
+# JWT_KID = "k1"
+# GOOGLE_CLIENT_ID = "<구글 OAuth 웹 클라이언트 ID>"
+# GOOGLE_REDIRECT_URI = "https://<배포된_확장_ID>.chromiumapp.org/"
+# 개발 중 pro 테스트(프로덕션에서는 둘 다 비활성):
+# DEV_MODE = "true"
+# DEV_FORCE_TIER = "paid"
+
 # 로컬 개발(.dev.vars 파일 참조):
 # .dev.vars 파일에 키를 넣으면 wrangler dev 실행 시 자동으로 env에 주입된다.
 # .dev.vars는 git에 커밋하지 않는다(.gitignore 필수).
+
+# 결제 인증 시크릿(Phase 0). 반드시 wrangler secret 으로 등록한다(코드·toml 에 평문 금지).
+# wrangler secret put JWT_SECRET_CURRENT     # openssl rand -base64 48 등으로 생성한 임의 문자열
+# wrangler secret put JWT_SECRET_PREV         # 키 로테이션 시에만(평소 미설정)
+# wrangler secret put GOOGLE_CLIENT_SECRET    # 구글 OAuth 웹 클라이언트 시크릿
+
+# 엔타이틀먼트 저장소(Cloudflare D1). 사용 전 프로비저닝이 필요하다.
+#   wrangler d1 create sidetab-entitlements        그러면 출력된 database_id 를 아래 database_id 에 채운다.
+#   wrangler d1 migrations apply sidetab-entitlements        migrations/0001_init.sql 적용.
+# database_id 를 채우기 전에는 인증 라우트가 503 이고 기존 추천 흐름은 정상 동작한다.
+[[d1_databases]]
+binding = "DB"
+database_name = "sidetab-entitlements"
+database_id = "<wrangler d1 create 후 채움>"
+migrations_dir = "migrations"

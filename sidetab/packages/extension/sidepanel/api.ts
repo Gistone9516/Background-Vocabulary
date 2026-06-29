@@ -8,6 +8,7 @@ import type {
 } from "@sidetab/shared";
 import { DEFAULT_LIMITS, OUTPUT_LOCALES } from "@sidetab/shared";
 import * as mock from "./mock.js";
+import * as auth from "./auth.js";
 
 // 출력 콘텐츠 언어. 브라우저/OS 언어에서 감지하거나 사용자가 드롭다운으로 바꾼다.
 // 모든 API 호출에 x-locale 헤더로 실어 보내 워커가 LLM 출력 언어를 정한다.
@@ -58,13 +59,19 @@ export async function getUserId(): Promise<string> {
   return id;
 }
 
-async function headers(tier: Tier): Promise<Record<string, string>> {
-  return { "Content-Type": "application/json", "x-user-id": await getUserId(), "x-tier": tier, "x-locale": currentLocale };
+// 서버는 이제 티어를 JWT 에서 판정한다. 클라는 x-tier 를 보내지 않고 Authorization 만 붙인다.
+// (CORS allowHeaders 에서 x-tier 를 뺐으므로 보내면 preflight 가 막힌다.) 로그인 전이면 헤더 없이 free 로 취급된다.
+async function headers(): Promise<Record<string, string>> {
+  const h: Record<string, string> = { "Content-Type": "application/json", "x-user-id": await getUserId(), "x-locale": currentLocale };
+  const token = await auth.getAccessToken();
+  if (token) h["Authorization"] = `Bearer ${token}`;
+  return h;
 }
 
-async function postJson<I, O>(path: string, body: I, tier: Tier): Promise<O> {
+// tier 인자는 서버가 JWT 로 티어를 판정하게 되어 더는 헤더에 안 쓴다(남겨 두되 미사용). 호출부 호환을 위해 시그니처는 유지한다.
+async function postJson<I, O>(path: string, body: I, _tier: Tier): Promise<O> {
   const res = await fetch(`${WORKER_BASE}${path}`, {
-    method: "POST", headers: await headers(tier), body: JSON.stringify(body),
+    method: "POST", headers: await headers(), body: JSON.stringify(body),
   });
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
@@ -119,17 +126,30 @@ export async function summarize(input: Prompt4In, tier: Tier): Promise<Prompt4Ou
   return postJson<Prompt4In, Prompt4Out>("/summarize", input, tier);
 }
 
+// 결제 진입(Phase 0). 결제 비활성이면 워커가 status="coming_soon"을 준다(b안). 실 결제 URL은 Phase 1.
+// mock(개발)과 실패는 모두 coming_soon으로 본다(페이월 CTA가 준비 중 안내를 띄운다).
+export async function checkout(): Promise<{ status?: string; checkout_url?: string }> {
+  if (USE_MOCK) return { status: "coming_soon" };
+  try {
+    const res = await fetch(`${WORKER_BASE}/checkout`, { method: "POST", headers: await headers(), body: JSON.stringify({}) });
+    if (!res.ok) return { status: "coming_soon" };
+    return (await res.json()) as { status?: string; checkout_url?: string };
+  } catch {
+    return { status: "coming_soon" };
+  }
+}
+
 // /recommend SSE. term 단위로 onEvent를 호출한다. signal로 취소.
 export async function streamRecommend(
   input: RecommendInput,
-  tier: Tier,
+  _tier: Tier,
   onEvent: (ev: StreamEvent) => void,
   signal: AbortSignal,
 ): Promise<void> {
   if (USE_MOCK) return mock.streamRecommend(input, onEvent, signal);
 
   const res = await fetch(`${WORKER_BASE}/recommend`, {
-    method: "POST", headers: await headers(tier), body: JSON.stringify(input), signal,
+    method: "POST", headers: await headers(), body: JSON.stringify(input), signal,
   });
   if (!res.ok) {
     const msg = await res.text().catch(() => res.statusText);
