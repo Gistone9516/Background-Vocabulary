@@ -1,4 +1,4 @@
-# secrets — never commit (DEEPSEEK_API_KEY 노출 이력 있음, 폐기 권고)
+# secrets — never commit
 .env
 .env.*
 *.local
@@ -14,6 +14,5 @@ dist/
 .DS_Store
 Thumbs.db
 
-# 과거 산출물(로컬 참조용) · MCP 브라우저 프로필 — git 제외
-_archive/
+# 도구 프로파일 · 과거 산출물(v1 내부는 v1/.gitignore가 관리)
 .playwright-mcp/

@@ -1,0 +1,19 @@
+# secrets — never commit (DEEPSEEK_API_KEY 노출 이력 있음, 폐기 권고)
+.env
+.env.*
+*.local
+.dev.vars
+
+# deps / build
+node_modules/
+dist/
+.wrangler/
+*.tsbuildinfo
+
+# os / editor
+.DS_Store
+Thumbs.db
+
+# 과거 산출물(로컬 참조용) · MCP 브라우저 프로필 — git 제외
+_archive/
+.playwright-mcp/
