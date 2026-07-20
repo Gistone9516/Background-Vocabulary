@@ -69,6 +69,16 @@
 
 LLM 스트리밍처럼 대기가 긴 워크로드에서 Lambda가 구조적으로 더 비싼 것은 확정 사실입니다. **월 $10~25 안팎의 차액을 클라우드 운영 학습 투자로 수용할지가 이 ADR의 승인 조건입니다.** (대안: C-1 단계적 이행 — 1단계 S3+CloudFront 정적만 AWS로 저위험 학습 → 2단계 API Lambda 이관.)
 
+**★로컬 dev 모드 (사용자 지시 2026-07-21: "AWS 구동 기반으로 만들되 dev 모드로 로컬 실행 가능하게")**:
+- 같은 Hono 앱을 어댑터만 바꿔 로컬에서 구동한다 — 포트-어댑터 구조가 이 요구의 직접 해답. 실행 3계층:
+  | 계층 | 서버 | DB | LLM·검색 | 용도 |
+  |---|---|---|---|---|
+  | mock | 없음(클라 목) | 없음 | 목 데이터 | UI 개발(v1 방식 승계) |
+  | **local dev** | `@hono/node-server`(동일 앱 코드) | 로컬 PostgreSQL(Docker) 기본 — 방언 차이 0. 초경량 대안으로 SQLite 어댑터 허용 | 실키(.env) 또는 목 선택 | 통합 테스트 |
+  | prod/staging | Lambda(streamHandle) | Aurora Serverless+Data API | 실키(Secrets) | 운영 |
+- 리포지토리·캐시·LLM은 전부 포트 뒤이므로 local 어댑터(node-postgres/SQLite, 인메모리 캐시)만 추가하면 core/shared/ui는 무변. 환경 분리는 SRS NFR-501의 구현.
+- AWS SAM local/LocalStack은 주 개발 루프로 쓰지 않는다(느림) — 배포 직전 스모크 용도로만 선택 사용.
+
 **리스크·확인필요**:
 - ★**RDS Data API는 서울 리전 미지원**(도쿄·버지니아·오레곤·프랑크푸르트만) — 도쿄 리전 선택 시 한국 사용자 지연 증가(LLM 지연이 지배적이라 체감 영향은 제한적일 것으로 추정, 실측 필요).
 - Aurora scale-to-zero의 cold resume 지연 실측 필요(첫 로그인·추천 체감).
