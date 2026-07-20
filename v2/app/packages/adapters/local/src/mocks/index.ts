@@ -2,3 +2,4 @@
 export { MockLlmClient } from "./mock-llm.js";
 export { MockSearchProvider } from "./mock-search.js";
 export { InMemoryCacheStore } from "./mem-cache.js";
+export { MockGoogleOAuthClient } from "./mock-google.js";

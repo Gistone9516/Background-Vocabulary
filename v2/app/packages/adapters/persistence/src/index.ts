@@ -2,4 +2,4 @@
 // 드라이버(SqlRunner 구현)는 여기 없다 — local(PgSqlRunner)·aws(DataApiSqlRunner)가 주입한다.
 export { migrate } from "./migrate.js";
 export { buildRepositories } from "./repositories/index.js";
-export { SessionRepositoryImpl, AssetRepositoryImpl, KnowledgeRepositoryImpl, ProjectRepositoryImpl } from "./repositories/index.js";
+export { SessionRepositoryImpl, AssetRepositoryImpl, KnowledgeRepositoryImpl, ProjectRepositoryImpl, PgUserRepository, PgJtiBlacklist } from "./repositories/index.js";

@@ -3,3 +3,4 @@ export * from "./enums.js";
 export * from "./limits.js";
 export * from "./pipeline-io.js";
 export * from "./persistence.js";
+export * from "./auth.js";

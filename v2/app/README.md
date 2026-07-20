@@ -7,11 +7,12 @@
 ```
 packages/
 ├ shared/            [C1] 타입·포트·파이프라인 시그니처·유틸·SSE·픽스처. 웹표준만, sink 계층
-├ core/              [C1] 파이프라인(P1~P5)·RAG·로케일·프롬프트 빌더. shared에만 의존
+├ core/              [C1·C2.2] 파이프라인(P1~P5)·RAG·로케일·프롬프트 빌더 + auth(JWT·엔타이틀먼트·서비스). shared에만 의존
 ├ adapters/
-│  ├ http-app/       [C1·C2.1] Hono 앱 조립(파이프라인+CRUD 라우트↔core/리포 배선). 부트 없음
-│  ├ persistence/    [C2.1] PG 스키마·마이그레이션·리포지토리(SqlRunner 포트로 드라이버 무관)
-│  ├ local/          [C1·C2.1] node-server 부트 + mock LLM + PgSqlRunner(실 PG) + DI 팩토리
+│  ├ http-app/       [C1·C2.1·C2.2] Hono 앱 조립(파이프라인+CRUD+auth 라우트↔core/리포 배선). 부트 없음
+│  ├ persistence/    [C2.1·C2.2] PG 스키마·마이그레이션·리포(세션·자산·지식·프로젝트·User·JtiBlacklist). SqlRunner로 드라이버 무관
+│  ├ providers/      [C2.2] 외부 공급자 어댑터(웹표준 fetch, local·aws 공유) — Google OAuth. DeepSeek·Tavily·Upstash는 C2.4
+│  ├ local/          [C1·C2.1·C2.2] node-server 부트 + mock LLM/Google + PgSqlRunner(실 PG) + DI 팩토리
 │  ├ aws/            [C2.5] Lambda 부트(streamHandle)·Data API 리포·Secrets — 예정
 │  └ tauri/          [C4] 파일첨부·알림·전역단축키·오프라인·업데이터 — 예정
 ├ web/               [C3] Vite SPA 셸 — 예정
@@ -37,7 +38,7 @@ corepack pnpm run gate-db             # PG 게이트: build → e2e-pg(영속 CR
 ```
 개별 게이트: `guard`(런타임 누수) · `boundary`(순환·역참조·딥임포트) · `size`(300행 상한) · `prompt-parity`(프롬프트 무손실) · `e2e`(local mock 관통) · `e2e-pg`(Docker PG CRUD).
 
-## 현재 상태 (C2.1 완료)
-- **C1 뼈대**: 모노레포 + v1 shared/core 이식 + 경계 게이트 3중 + 코드규약 검사 + local mock e2e 관통.
-- **C2.1 영속 계층**: 도메인 타입·리포 포트·PG 스키마/마이그레이션·`@vock/persistence`(SqlRunner로 드라이버 무관 리포)·CRUD 라우트·local PG 배선. Docker PG e2e(소유권 409·소프트삭제·restore·프로젝트 FK) 18/18 + 목 게이트 무회귀.
-- 다음 = **C2.2 인증**(JWT·OAuth·UserRepository, v1 §8 이월) → C2.3 게이팅 → C2.4 실 공급자 → C2.5 aws 부트·배포(실배포는 핸즈온 세션).
+## 현재 상태 (C2.2 완료)
+- **C1 뼈대** / **C2.1 영속 계층**(CRUD·PG 스키마·SqlRunner 리포, PG e2e 18/18).
+- **C2.2 인증**: 자체 JWT(HS256·Web Crypto)·Google OAuth PKCE(providers, local은 Mock)·엔타이틀먼트·UserRepository(PG)·JtiBlacklist(revoked_jtis)·`/auth/{google,refresh,logout}`·`/subscription/status`·resolveTier. CRUD를 JWT sub 파생으로 전환(x-user-id는 DEV 전용). 인증 e2e 11/11(로그인·JWT CRUD·refresh·logout revoke·위조/실패). 실 Google 크레덴셜·실 OAuth는 핸즈온 이월.
+- 다음 = **C2.3 게이팅** → C2.4 실 공급자(DeepSeek·Tavily·Upstash) → C2.5 aws 부트·배포 코드(실배포는 핸즈온 세션).

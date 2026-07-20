@@ -5,3 +5,4 @@ export { classifyRouting, STATIC_DOMAIN_MAP } from "./locale/index.js";
 export type { RoutingResult } from "./locale/index.js";
 export { runRag } from "./rag/index.js";
 export type { RagResult } from "./rag/index.js";
+export * from "./auth/index.js";

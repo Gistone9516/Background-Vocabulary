@@ -68,6 +68,12 @@ importers:
         specifier: ^22.10.0
         version: 22.20.1
 
+  packages/adapters/providers:
+    dependencies:
+      '@vock/shared':
+        specifier: workspace:*
+        version: link:../../shared
+
   packages/core:
     dependencies:
       '@vock/shared':

@@ -3,15 +3,19 @@
 
 import { Hono } from "hono";
 import { createPipeline } from "@vock/core";
+import type { AuthService } from "@vock/core";
 import { DEFAULT_LIMITS } from "@vock/shared";
 import type { PipelineDeps, ClientLimits, Limits, Repositories } from "@vock/shared";
 import { registerPipelineRoutes } from "./routes/pipeline-routes.js";
 import { registerCrudRoutes } from "./routes/crud-routes.js";
+import { registerAuthRoutes } from "./routes/auth-routes.js";
+import { jwtResolveUserId, devResolveUserId } from "./middleware/auth.js";
 
-// 앱 의존 계약. 파이프라인 포트 + (있으면) 영속 리포. 부트가 계층별로 조립해 주입한다.
-// repos 미주입(mock UI 개발 부트)이면 CRUD 라우트를 등록하지 않는다 — 파이프라인 라우트는 항상 동작.
+// 앱 의존 계약. 파이프라인 포트 + (있으면) 영속 리포 + (있으면) 인증 서비스. 부트가 계층별로 조립해 주입한다.
+// repos 미주입(mock UI 부트)이면 CRUD 미등록. authService 미주입이면 /auth 미등록 + CRUD는 DEV(x-user-id) 경로.
 export interface AppDeps extends PipelineDeps {
   repos?: Repositories;
+  authService?: AuthService;
 }
 
 // 운영 한도에서 클라이언트 게이팅용 부분집합(/config 응답)을 파생한다.
@@ -34,6 +38,8 @@ export function createApp(deps: AppDeps): Hono {
   app.get("/health", (c) => c.json({ ok: true }));
   app.get("/config", (c) => c.json(clientLimits));
   registerPipelineRoutes(app, pipeline);
-  if (deps.repos) registerCrudRoutes(app, deps.repos);
+  if (deps.authService) registerAuthRoutes(app, deps.authService);
+  const resolveUserId = deps.authService ? jwtResolveUserId(deps.authService) : devResolveUserId();
+  if (deps.repos) registerCrudRoutes(app, deps.repos, resolveUserId);
   return app;
 }
