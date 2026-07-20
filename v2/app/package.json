@@ -1,0 +1,24 @@
+{
+  "name": "vock-app",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "tsc -b --clean",
+    "guard": "node packages/scripts/portability-guard.mjs",
+    "boundary": "node packages/scripts/boundary-check.mjs",
+    "size": "node packages/scripts/check-file-size.mjs",
+    "prompt-parity": "node packages/scripts/prompt-parity.mjs",
+    "e2e": "node packages/scripts/e2e-local.mjs",
+    "gate": "tsc -b && node packages/scripts/portability-guard.mjs && node packages/scripts/boundary-check.mjs && node packages/scripts/check-file-size.mjs && node packages/scripts/prompt-parity.mjs && node packages/scripts/e2e-local.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.2"
+  }
+}

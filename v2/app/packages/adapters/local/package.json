@@ -1,0 +1,23 @@
+{
+  "name": "@vock/local",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@vock/shared": "workspace:*",
+    "@vock/core": "workspace:*",
+    "@vock/http-app": "workspace:*",
+    "@hono/node-server": "^1.13.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0"
+  }
+}

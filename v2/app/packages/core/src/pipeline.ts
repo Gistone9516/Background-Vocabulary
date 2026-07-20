@@ -1,0 +1,261 @@
+// 파이프라인 오케스트레이터. 정본은 구현계획 9장.
+// 런타임 전용 바인딩 없음. LlmClient, SearchProvider, CacheStore 인터페이스에만 의존한다.
+// 프롬프트 빌더는 core 내부 prompts 모듈에서 가져온다(본문은 core에만, SoT §8).
+// 사용량 카운트와 게이팅은 어댑터에서 처리한다(C2).
+
+import type {
+  Prompt1In,
+  Prompt1Out,
+  Prompt2In,
+  Prompt2Out,
+  Prompt4In,
+  Prompt4Out,
+  Prompt5In,
+  Prompt5Out,
+  PreviewIn,
+  PreviewOut,
+  RelateIn,
+  RelateOut,
+  StreamEvent,
+  PipelineDeps,
+  Pipeline,
+  CreatePipeline,
+  RecommendInput,
+  Tier,
+  OutputLocale,
+} from "@vock/shared";
+import { DEFAULT_LIMITS } from "@vock/shared";
+
+import * as prompts from "./prompts/index.js";
+import { classifyRouting } from "./locale/index.js";
+import { runRag } from "./rag/index.js";
+
+// 모델 식별자 상수. 이 파일 외부에서 문자열을 직접 쓰지 않는다.
+const MODEL_FLASH = "deepseek-v4-flash";
+const MODEL_PRO   = "deepseek-v4-pro";
+// 운영 한도(어휘 개수·토큰 상한 등)는 deps.limits로 주입한다(어댑터 env에서 옴). 미주입 시 기본값.
+// 토큰 상한은 폭주를 막는 안전 상한이다. 유효 JSON을 자를 만큼 낮추면 응답이 깨지므로 넉넉히 잡고
+// 실제 출력량 차등은 어휘 개수(termCount)와 호출 게이팅이 담당한다.
+
+// 출처 표시용 site를 URL 호스트에서 파생한다(웹표준 URL, 이식 안전). 실패 시 빈 문자열.
+function siteFromUrl(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
+export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => {
+  const limits = deps.limits ?? DEFAULT_LIMITS;
+  return {
+    // 프롬프트1: 자유 문장에서 도메인과 작업유형을 분류하고 첫 분기를 만든다.
+    async classify(input: Prompt1In, outputLocale: OutputLocale): Promise<Prompt1Out> {
+      const messages = prompts.buildPrompt1(input.raw_input, outputLocale, input.context_object, input.user_condition, input.project_context);
+      return deps.llm.complete<Prompt1Out>({
+        model: MODEL_FLASH,
+        messages,
+        maxTokens: limits.maxTokens.classify,
+      });
+    },
+
+    // 프롬프트2: 누적 선택에서 다음 분기를 만든다.
+    async nextBranch(input: Prompt2In, outputLocale: OutputLocale): Promise<Prompt2Out> {
+      const messages = prompts.buildPrompt2({ ...input, outputLocale });
+      return deps.llm.complete<Prompt2Out>({
+        model: MODEL_FLASH,
+        messages,
+        maxTokens: limits.maxTokens.next,
+      });
+    },
+
+    // 프리뷰: 난이도 선택 직전 깊이별 대표 어휘 1개씩(RAG 없이 LLM 1회). next와 같은 작은 토큰 상한을 재사용한다.
+    async preview(input: PreviewIn, outputLocale: OutputLocale): Promise<PreviewOut> {
+      const messages = prompts.buildPreview({ ...input, outputLocale });
+      const req = { model: MODEL_FLASH, messages, maxTokens: limits.maxTokens.next };
+      const complete = (p: PreviewOut | undefined): boolean => {
+        if (!p) return false;
+        return (["basic", "inter", "adv"] as const).every((k) => {
+          const lv = p[k] as { term?: string; line?: string } | undefined;
+          return !!lv && !!lv.term && !!lv.line;
+        });
+      };
+      let out = await deps.llm.complete<PreviewOut>(req);
+      // 세 깊이(기초·중급·심화)가 다 차지 않으면 1회 재생성한다(난이도 예시 간헐 누락 방지). 그래도 불완전하면 채운 것만 반환(우아한 폴백).
+      if (!complete(out)) {
+        try { const retry = await deps.llm.complete<PreviewOut>(req); if (complete(retry)) out = retry; } catch { /* 폴백: 부분 결과 유지 */ }
+      }
+      return out;
+    },
+
+    // 연결 턴: 프로젝트 kept 어휘가 현재 좁힌 작업과 연결되는지 판정해 재인 질문을 만든다(없으면 relevant=false). next와 같은 작은 토큰 상한을 재사용한다.
+    async relate(input: RelateIn, outputLocale: OutputLocale): Promise<RelateOut> {
+      const messages = prompts.buildRelate({ ...input, outputLocale });
+      return deps.llm.complete<RelateOut>({
+        model: MODEL_FLASH,
+        messages,
+        maxTokens: limits.maxTokens.next,
+      });
+    },
+
+    // 프롬프트3: RAG를 먼저 실행한 뒤 term 단위 스트리밍으로 추천 어휘를 내보낸다.
+    // 고위험 도메인은 LLM을 호출하지 않고 즉시 error 이벤트로 스트림을 닫는다.
+    // hard_domain이 true이면 flash 사용자라도 pro 모델을 쓴다(구현계획 6장 모델 라우팅).
+    recommendStream(input: RecommendInput, tier: Tier, outputLocale: OutputLocale, signal?: AbortSignal): ReadableStream<StreamEvent> {
+      // ReadableStream을 동기로 반환하되 내부 비동기 흐름을 start 안에서 처리한다.
+      return new ReadableStream<StreamEvent>({
+        async start(controller) {
+          try {
+            // 1. 로케일 라우팅 분류
+            const routing = classifyRouting({
+              domain: input.domain,
+              search_locale: input.locale,
+              domain_risk: input.domain_risk, // LLM 판정 고위험을 정적맵 미스 시 반영(판단대기 #2)
+            });
+
+            // 2. 고위험 게이트: 분류 결과가 high이면 즉시 거부하고 닫는다.
+            if (routing.risk === "high") {
+              controller.enqueue({
+                type: "error",
+                code: "HIGH_RISK_REFUSED",
+                message: "고위험 도메인은 안전상 직접 다루지 않습니다",
+              });
+              controller.close();
+              return;
+            }
+
+            // 3. RAG 실행. 검색 실패 시 limited=true로 계속 진행한다(구현계획 7장).
+            const { grounding, limited } = await runRag(deps, {
+              domainKey: routing.domainKey,
+              topic: input.topic,
+              locale: routing.locale,
+            });
+
+            // limited일 때 grounding에 근거 제한 안내를 덧붙인다.
+            // 이 안내는 LLM 프롬프트에 포함돼 why/notes 필드에 반영된다.
+            const groundingText = limited
+              ? grounding
+                ? `[근거 제한: 캐시 폴백 사용]\n${grounding}`
+                : "[근거 제한: 검색 실패, 근거 없이 진행]"
+              : grounding;
+
+            // 4. 모델 선택: hard_domain이면 pro, 그 외 flash.
+            const model = routing.hardDomain ? MODEL_PRO : MODEL_FLASH;
+
+            // 5. 프롬프트3 빌드 후 스트리밍 호출.
+            // exactOptionalPropertyTypes 때문에 undefined인 선택 필드는 객체에 넣지 않는다.
+            const prompt3Base = {
+              area: input.area,
+              job_type: input.job_type,
+              grounding: groundingText,
+              topic: input.topic, // 앵커(사용자 입력 용어) 식별용
+            };
+            const prompt3Input = {
+              ...prompt3Base,
+              outputLocale,
+              count: limits.termCount[tier], // 티어별 어휘 개수
+              ...(input.user_condition !== undefined && { user_condition: input.user_condition }),
+              ...(input.context_object !== undefined && { context_object: input.context_object }),
+              ...(input.gap_type !== undefined && { gap_type: input.gap_type }),
+              ...(input.exclude !== undefined && { exclude: input.exclude }),
+              ...(input.difficulty !== undefined && { difficulty: input.difficulty }),
+            };
+            const messages = prompts.buildPrompt3(prompt3Input);
+
+            const upstream = deps.llm.streamTerms({ model, messages, maxTokens: limits.maxTokens.recommend[tier] }, signal);
+            const reader = upstream.getReader();
+
+            // 업스트림 StreamEvent를 그대로 하위 컨트롤러에 전달한다.
+            for (;;) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              if (value !== undefined) {
+                controller.enqueue(value);
+                // done 이벤트를 받으면 스트림을 닫는다.
+                if (value.type === "done") {
+                  controller.close();
+                  return;
+                }
+                // error 이벤트를 받으면 스트림을 닫는다.
+                if (value.type === "error") {
+                  controller.close();
+                  return;
+                }
+              }
+            }
+
+            // 업스트림이 done 이벤트 없이 끝난 경우 여기서 닫는다.
+            controller.close();
+          } catch (err) {
+            // 예상치 못한 예외: 내부 메시지는 서버 로그에만 남기고, 클라엔 일반 문구만 보낸다(인프라 정보 누출 차단).
+            console.error("recommend 파이프라인 오류:", err);
+            controller.enqueue({
+              type: "error",
+              code: "PIPELINE_ERROR",
+              message: "추천 생성 중 문제가 발생했어요. 잠시 후 다시 시도해 주세요.",
+            });
+            controller.close();
+          }
+        },
+      });
+    },
+
+    // 프롬프트4: 태깅 결과를 받아 메인 AI에 넘길 정리 텍스트를 만든다.
+    async summarize(input: Prompt4In, outputLocale: OutputLocale): Promise<Prompt4Out> {
+      const messages = prompts.buildPrompt4({ ...input, outputLocale });
+      return deps.llm.complete<Prompt4Out>({
+        model: MODEL_FLASH,
+        messages,
+        maxTokens: limits.maxTokens.summarize,
+      });
+    },
+
+    // 프롬프트5: 단어 상세. 자세히 클릭 시에만 호출한다(on-demand, lazy).
+    // 출처(D2): 이 어휘로 경량 검색해 candidateSources를 만든다(en만; ko는 throw되어 빈 출처 폴백).
+    async detail(input: Prompt5In, tier: Tier, outputLocale: OutputLocale): Promise<Prompt5Out> {
+      let grounding = "";
+      let candidateSources: { title: string; url: string }[] = [];
+      try {
+        const docs = await deps.search.search({
+          query: `${input.term} ${input.topic}`,
+          locale: input.locale,
+          depth: "basic",
+          maxResults: 3,
+          rawContent: false,
+        });
+        grounding = docs
+          .map((d) => (d.content.trim() ? `## ${d.title}\n${d.content}` : ""))
+          .filter(Boolean)
+          .join("\n\n");
+        candidateSources = docs.map((d) => ({ title: d.title, url: d.url }));
+      } catch {
+        // ko throw 또는 검색 실패: 출처 없이 진행(빈 배열이면 프론트가 "확인된 출처 없음" 표시).
+      }
+
+      const messages = prompts.buildPrompt5({
+        term: input.term,
+        kind: input.kind,
+        area: input.area,
+        job_type: input.job_type,
+        grounding,
+        candidateSources,
+        outputLocale,
+        ...(input.connection_hint !== undefined && { connection_hint: input.connection_hint }),
+      });
+
+      const out = await deps.llm.complete<Prompt5Out>({
+        model: MODEL_FLASH,
+        messages,
+        maxTokens: limits.maxTokens.detail[tier],
+      });
+
+      // LLM은 candidateSources에서 title과 url만 골랐다. site는 URL 호스트로 코드가 채운다.
+      out.sources = (out.sources ?? []).map((s) => ({
+        title: s.title,
+        url: s.url,
+        site: siteFromUrl(s.url),
+      }));
+      return out;
+    },
+  };
+};
