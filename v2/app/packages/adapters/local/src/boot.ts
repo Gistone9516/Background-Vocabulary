@@ -3,14 +3,14 @@
 
 import { serve } from "@hono/node-server";
 import { createApp } from "@vock/http-app";
-import type { PipelineDeps } from "@vock/shared";
+import type { AppDeps } from "@vock/http-app";
 import { buildMockDeps } from "./deps.js";
 
 type ServeReturn = ReturnType<typeof serve>;
 
 export interface BootOptions {
   port?: number; // 0이면 임의 포트(테스트용). 미지정 시 8787.
-  deps?: PipelineDeps; // 미지정 시 mock 계층.
+  deps?: AppDeps; // 미지정 시 mock 계층(리포 없음 — CRUD 비활성).
 }
 
 export interface BootHandle {

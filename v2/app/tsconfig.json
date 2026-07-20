@@ -3,6 +3,7 @@
   "references": [
     { "path": "packages/shared" },
     { "path": "packages/core" },
+    { "path": "packages/adapters/persistence" },
     { "path": "packages/adapters/http-app" },
     { "path": "packages/adapters/local" }
   ]

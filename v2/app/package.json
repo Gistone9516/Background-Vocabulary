@@ -14,7 +14,9 @@
     "size": "node packages/scripts/check-file-size.mjs",
     "prompt-parity": "node packages/scripts/prompt-parity.mjs",
     "e2e": "node packages/scripts/e2e-local.mjs",
-    "gate": "tsc -b && node packages/scripts/portability-guard.mjs && node packages/scripts/boundary-check.mjs && node packages/scripts/check-file-size.mjs && node packages/scripts/prompt-parity.mjs && node packages/scripts/e2e-local.mjs"
+    "e2e-pg": "node packages/scripts/e2e-pg.mjs",
+    "gate": "tsc -b && node packages/scripts/portability-guard.mjs && node packages/scripts/boundary-check.mjs && node packages/scripts/check-file-size.mjs && node packages/scripts/prompt-parity.mjs && node packages/scripts/e2e-local.mjs",
+    "gate-db": "tsc -b && node packages/scripts/e2e-pg.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

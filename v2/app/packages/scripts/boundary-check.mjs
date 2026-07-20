@@ -13,9 +13,10 @@ const SCAN = join(APP_ROOT, "packages");
 const ALLOWED = {
   shared: new Set([]),
   core: new Set(["shared"]),
+  persistence: new Set(["shared"]),
   "http-app": new Set(["shared", "core"]),
-  local: new Set(["shared", "core", "http-app"]),
-  scripts: new Set(["shared", "core", "http-app", "local"]), // 도구(빌드 산출물 소비)
+  local: new Set(["shared", "core", "http-app", "persistence"]),
+  scripts: new Set(["shared", "core", "http-app", "local", "persistence"]), // 도구(빌드 산출물 소비)
 };
 
 function walk(dir) {

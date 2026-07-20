@@ -1,5 +1,5 @@
 {
-  "name": "@vock/local",
+  "name": "@vock/persistence",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -12,15 +12,9 @@
     }
   },
   "dependencies": {
-    "@vock/shared": "workspace:*",
-    "@vock/core": "workspace:*",
-    "@vock/http-app": "workspace:*",
-    "@vock/persistence": "workspace:*",
-    "@hono/node-server": "^1.13.7",
-    "pg": "^8.13.1"
+    "@vock/shared": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^22.10.0",
-    "@types/pg": "^8.11.10"
+    "@types/node": "^22.10.0"
   }
 }
