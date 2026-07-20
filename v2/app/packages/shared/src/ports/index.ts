@@ -2,3 +2,4 @@
 export * from "./pipeline-ports.js";
 export * from "./persistence-ports.js";
 export * from "./auth-ports.js";
+export * from "./gating-ports.js";

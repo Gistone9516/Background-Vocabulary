@@ -6,3 +6,4 @@ export type { RoutingResult } from "./locale/index.js";
 export { runRag } from "./rag/index.js";
 export type { RagResult } from "./rag/index.js";
 export * from "./auth/index.js";
+export * from "./gating/index.js";

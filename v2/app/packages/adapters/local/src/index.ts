@@ -4,4 +4,4 @@ export type { BootOptions, BootHandle } from "./boot.js";
 export { buildMockDeps, buildLocalPgDeps, buildLocalAuthDeps } from "./deps.js";
 export { PgSqlRunner, createPgPool } from "./pg-runner.js";
 export { migrate } from "@vock/persistence";
-export { MockLlmClient, MockSearchProvider, InMemoryCacheStore, MockGoogleOAuthClient } from "./mocks/index.js";
+export { MockLlmClient, MockSearchProvider, InMemoryCacheStore, InMemoryCounterStore, MockGoogleOAuthClient } from "./mocks/index.js";

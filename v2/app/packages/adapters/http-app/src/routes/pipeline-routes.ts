@@ -9,7 +9,10 @@ function readLocale(body: { outputLocale?: unknown }): OutputLocale {
   const v = body.outputLocale;
   return v === "en" || v === "ja" || v === "zh" ? v : "ko";
 }
-function readTier(body: { tier?: unknown }): Tier {
+// 게이팅이 해석한 tier(c.get)를 우선한다. 게이팅 미적용(mock 부트)이면 바디 폴백.
+function tierOf(c: unknown, body: { tier?: unknown }): Tier {
+  const t = (c as { get(k: string): unknown }).get("tier");
+  if (t === "paid" || t === "free") return t;
   return body.tier === "paid" ? "paid" : "free";
 }
 
@@ -40,13 +43,13 @@ export function registerPipelineRoutes(app: Hono, pipeline: Pipeline): void {
   app.post("/recommend", async (c) => {
     const body = (await c.req.json()) as Body;
     // 클라 끊김을 업스트림 취소로 전파한다(node-server 한정 유효).
-    const stream = pipeline.recommendStream(body as never, readTier(body), readLocale(body), c.req.raw.signal);
+    const stream = pipeline.recommendStream(body as never, tierOf(c, body), readLocale(body), c.req.raw.signal);
     return streamEventsToResponse(stream);
   });
 
   app.post("/detail", async (c) => {
     const body = (await c.req.json()) as Body;
-    return c.json(await pipeline.detail(body as never, readTier(body), readLocale(body)));
+    return c.json(await pipeline.detail(body as never, tierOf(c, body), readLocale(body)));
   });
 
   app.post("/summarize", async (c) => {

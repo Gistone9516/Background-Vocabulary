@@ -38,7 +38,7 @@ corepack pnpm run gate-db             # PG 게이트: build → e2e-pg(영속 CR
 ```
 개별 게이트: `guard`(런타임 누수) · `boundary`(순환·역참조·딥임포트) · `size`(300행 상한) · `prompt-parity`(프롬프트 무손실) · `e2e`(local mock 관통) · `e2e-pg`(Docker PG CRUD).
 
-## 현재 상태 (C2.2 완료)
-- **C1 뼈대** / **C2.1 영속 계층**(CRUD·PG 스키마·SqlRunner 리포, PG e2e 18/18).
-- **C2.2 인증**: 자체 JWT(HS256·Web Crypto)·Google OAuth PKCE(providers, local은 Mock)·엔타이틀먼트·UserRepository(PG)·JtiBlacklist(revoked_jtis)·`/auth/{google,refresh,logout}`·`/subscription/status`·resolveTier. CRUD를 JWT sub 파생으로 전환(x-user-id는 DEV 전용). 인증 e2e 11/11(로그인·JWT CRUD·refresh·logout revoke·위조/실패). 실 Google 크레덴셜·실 OAuth는 핸즈온 이월.
-- 다음 = **C2.3 게이팅** → C2.4 실 공급자(DeepSeek·Tavily·Upstash) → C2.5 aws 부트·배포 코드(실배포는 핸즈온 세션).
+## 현재 상태 (C2.3 완료)
+- **C1 뼈대** / **C2.1 영속**(CRUD·SqlRunner 리포, PG e2e 18/18) / **C2.2 인증**(JWT·OAuth·UserRepository·JtiBlacklist, 인증 e2e 11/11).
+- **C2.3 게이팅**: 비용 엔드포인트 공통 미들웨어 — 티어(JWT)·IP 분/일·전역 일일 캡·고위험 1차 방어·free 주간 한도(TR-02 재차감 금지)·pro 전용(402)·상세 한도·`GET /usage`. `CounterStore` 포트(local 인메모리, Upstash는 C2.4). 게이팅 e2e 9/9(주간소진·고위험·pro게이트·paid 우회).
+- 다음 = **C2.4 실 공급자**(DeepSeek·Tavily·Upstash) → C2.5 aws 부트·배포 코드(실배포는 핸즈온 세션).
