@@ -1,11 +1,19 @@
 // 마이그레이션 러너. 패키지 루트 migrations/*.sql를 순번대로 1회씩 적용한다(SqlRunner 경유).
 // 로컬(Docker PG)과 Aurora가 같은 SQL 파일을 사용한다.
-// 주의: 다중 문장 DDL은 pg 단순 프로토콜(파라미터 없음)로 실행한다. Data API는 문장 분리가 필요하다(C2.5).
+// DDL은 문장(;) 단위로 쪼개 개별 실행한다 — pg·Data API(다중문장 불가) 공용.
 
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 import type { SqlRunner } from "@vock/shared";
+
+// SQL 파일을 문장 단위로 분리한다(문자열 내 세미콜론이 없는 우리 DDL 전제). 주석/빈 문장 제거.
+function splitStatements(sql: string): string[] {
+  return sql
+    .split(";")
+    .map((s) => s.trim())
+    .filter((s) => s.replace(/--.*$/gm, "").trim().length > 0);
+}
 
 // dist/migrate.js 또는 src/migrate.ts 어디서 실행하든 패키지 루트의 migrations/를 찾는다.
 function migrationsDir(): string {
@@ -30,9 +38,9 @@ export async function migrate(sql: SqlRunner): Promise<string[]> {
   for (const name of files) {
     const done = await sql.query<{ name: string }>("SELECT name FROM _migrations WHERE name = $1", [name]);
     if (done.length) continue;
-    const ddl = readFileSync(join(dir, name), "utf-8");
+    const statements = splitStatements(readFileSync(join(dir, name), "utf-8"));
     await sql.transaction(async (tx) => {
-      await tx.execute(ddl); // 파라미터 없음 → 단순 프로토콜(다중 문장 허용)
+      for (const stmt of statements) await tx.execute(stmt);
       await tx.execute("INSERT INTO _migrations (name, applied_at) VALUES ($1, $2)", [name, Date.now()]);
     });
     applied.push(name);

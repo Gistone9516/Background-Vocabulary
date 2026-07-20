@@ -8,5 +8,6 @@
 | [C2.2-인증.md](C2.2-인증.md) | C2 | JWT·Google OAuth PKCE·엔타이틀먼트·UserRepository·/auth/*·게이팅 전 단계 | 구현 완료(인증 e2e 11/11) |
 | [C2.3-게이팅.md](C2.3-게이팅.md) | C2 | 티어·IP/전역캡·고위험·주간한도(TR-02)·pro전용·/usage(CounterStore 포트) | 구현 완료(게이팅 e2e 9/9) |
 | [C2.4-실공급자.md](C2.4-실공급자.md) | C2 | DeepSeek(SSE)·Tavily(ko가드)·Upstash(cache+counter) 어댑터·buildLocalRealDeps | 구현 완료(SSE 파서 결정 검증, 실키는 핸즈온) |
+| [C2.5-aws.md](C2.5-aws.md) | C2 | DataApiSqlRunner·Secrets·streamHandle 핸들러·buildAwsDeps(배포 게이트 코드) | 코드 완료(타입체크, 실배포=핸즈온) |
 
-작성 예정: C2.5 aws 부트·배포.
+C2 코드 전량 완료(C2.1~C2.4 로컬 검증, C2.5 타입체크). 실 AWS 배포 = 핸즈온(`../app/DEPLOY.md`). 다음 사이클 = C3 웹·랜딩.

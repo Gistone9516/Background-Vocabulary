@@ -6,6 +6,7 @@
     { "path": "packages/adapters/persistence" },
     { "path": "packages/adapters/providers" },
     { "path": "packages/adapters/http-app" },
-    { "path": "packages/adapters/local" }
+    { "path": "packages/adapters/local" },
+    { "path": "packages/adapters/aws" }
   ]
 }

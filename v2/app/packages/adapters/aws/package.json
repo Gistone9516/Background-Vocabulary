@@ -1,0 +1,27 @@
+{
+  "name": "@vock/aws",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@vock/shared": "workspace:*",
+    "@vock/core": "workspace:*",
+    "@vock/http-app": "workspace:*",
+    "@vock/persistence": "workspace:*",
+    "@vock/providers": "workspace:*",
+    "@aws-sdk/client-rds-data": "^3.700.0",
+    "@aws-sdk/client-secrets-manager": "^3.700.0",
+    "hono": "^4.6.14"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0"
+  }
+}

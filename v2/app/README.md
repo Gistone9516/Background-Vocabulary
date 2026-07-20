@@ -13,7 +13,7 @@ packages/
 │  ├ persistence/    [C2.1·C2.2] PG 스키마·마이그레이션·리포(세션·자산·지식·프로젝트·User·JtiBlacklist). SqlRunner로 드라이버 무관
 │  ├ providers/      [C2.2·C2.4] 외부 공급자 어댑터(웹표준 fetch, local·aws 공유) — Google OAuth·DeepSeek(SSE)·Tavily·Upstash
 │  ├ local/          [C1·C2.1·C2.2] node-server 부트 + mock LLM/Google + PgSqlRunner(실 PG) + DI 팩토리
-│  ├ aws/            [C2.5] Lambda 부트(streamHandle)·Data API 리포·Secrets — 예정
+│  ├ aws/            [C2.5] Lambda 부트(streamHandle)·DataApiSqlRunner·Secrets — 코드 완료(배포=핸즈온, DEPLOY.md)
 │  └ tauri/          [C4] 파일첨부·알림·전역단축키·오프라인·업데이터 — 예정
 ├ web/               [C3] Vite SPA 셸 — 예정
 ├ desktop/           [C4] Tauri 셸(동일 SPA + tauri 어댑터) — 예정
@@ -38,7 +38,7 @@ corepack pnpm run gate-db             # PG 게이트: build → e2e-pg(영속 CR
 ```
 개별 게이트: `guard`(런타임 누수) · `boundary`(순환·역참조·딥임포트) · `size`(300행 상한) · `prompt-parity`(프롬프트 무손실) · `e2e`(local mock 관통) · `e2e-pg`(Docker PG CRUD).
 
-## 현재 상태 (C2.4 완료)
-- **C1 뼈대** / **C2.1 영속**(PG e2e 18/18) / **C2.2 인증**(인증 e2e 11/11) / **C2.3 게이팅**(게이팅 e2e 9/9).
-- **C2.4 실 공급자**: `@vock/providers`에 DeepSeekLlmClient(SSE 증분 파서)·TavilySearchProvider(ko 가드)·UpstashCacheStore·UpstashCounterStore. `buildLocalRealDeps`(.env 실키, Upstash 미설정 시 인메모리 폴백). SSE 파서 결정적 테스트 통과. 실키 스모크는 핸즈온 이월.
-- 다음 = **C2.5 aws 부트·배포 코드**(Lambda streamHandle·Data API 리포·Secrets·IaC — 실배포는 핸즈온 세션).
+## 현재 상태 (C2 코드 전량 완료)
+- **C1 뼈대** / **C2.1 영속**(PG e2e 18/18) / **C2.2 인증**(11/11) / **C2.3 게이팅**(9/9) / **C2.4 실 공급자**(SSE 파서 결정 검증).
+- **C2.5 aws**: `@vock/aws` — DataApiSqlRunner(리포 재사용, $n→:pn·Field 매핑·트랜잭션)·Secrets 로더·streamHandle 핸들러·buildAwsDeps. migrate 문장 분리(Data API 공용). **배포 게이트 코드**(타입체크로 @aws-sdk API-정확성 확인, 실배포·스모크는 핸즈온 → `DEPLOY.md`).
+- **다음** = 실 AWS 배포(핸즈온, `DEPLOY.md`) 또는 **C3 웹·랜딩**(ui-shared 분리·Vite SPA·Astro).

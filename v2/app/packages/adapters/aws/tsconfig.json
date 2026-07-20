@@ -1,0 +1,16 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "types": ["node"]
+  },
+  "references": [
+    { "path": "../../shared" },
+    { "path": "../../core" },
+    { "path": "../http-app" },
+    { "path": "../persistence" },
+    { "path": "../providers" }
+  ],
+  "include": ["src/**/*.ts"]
+}

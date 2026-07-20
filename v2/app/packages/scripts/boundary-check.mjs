@@ -17,6 +17,7 @@ const ALLOWED = {
   providers: new Set(["shared"]),
   "http-app": new Set(["shared", "core"]),
   local: new Set(["shared", "core", "http-app", "persistence", "providers"]),
+  aws: new Set(["shared", "core", "http-app", "persistence", "providers"]),
   scripts: new Set(["shared", "core", "http-app", "local", "persistence", "providers"]), // 도구(빌드 산출물 소비)
 };
 
