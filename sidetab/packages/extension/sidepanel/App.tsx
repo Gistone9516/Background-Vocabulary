@@ -14,10 +14,10 @@ import { sentLines, splitSentences, firstSentence, fmtDate, dateBucket, markTerm
 import { isTextFile, readTextFile } from "./file.js";
 import { Spark, Chev, LinkIcon, RefreshIcon, LockIcon, TrashIcon, BookmarkIcon, UserIcon, CopyIcon, ShareIcon, InfoIcon, ListIcon, FolderIcon } from "./icons.js";
 
-// 플랜은 더 이상 localStorage 미리보기 토글에서 오지 않는다. 로그인 후 서버가 JWT 로 판정한 tier 에서 온다(auth.getPlan).
-// 초기에는 무료(flash)로 두고, 마운트 직후 저장된 인증의 tier 를 읽어 갱신한다. reset 후에도 같은 경로로 복원된다.
+// 플랜은 로그인 후 서버가 JWT 로 판정한 tier 에서 온다(auth.getPlan, 마운트 effect 가 pro 면 덮어쓴다).
+// 단 테스트 단계 동안에는 하단 테스트 버튼이 켠 sidetab:testpro 플래그로 pro 를 복원한다(출시 전 제거).
 function savedPlan(): "flash" | "pro" {
-  return "flash";
+  try { return localStorage.getItem("sidetab:testpro") === "1" ? "pro" : "flash"; } catch { return "flash"; }
 }
 // 복습 알림 설정. 기본은 켜짐이고 사용자가 끄면 "off"를 저장한다(설정에서 토글).
 function savedReview(): boolean {
@@ -695,6 +695,15 @@ export function App() {
     merge({ tutorialOpen: false });
     try { localStorage.setItem("sidetab:tutorial-seen", "true"); } catch { /* 무시 */ }
   };
+  // 테스트 단계 임시 버튼 핸들러. 실 결제와 로그인 없이 pro 기능을 점검하려고 plan 을 수동 토글한다.
+  // 출시 전에 이 핸들러와 하단 버튼, savedPlan 의 testpro 분기를 함께 제거한다.
+  const toggleTestPro = () => {
+    const s = sref.current;
+    const toPro = s.plan !== "pro";
+    const newTurns = remainingTurns(toPro ? "pro" : "flash", s.answers, s.limits);
+    merge({ plan: toPro ? "pro" : "flash", remaining: toPro ? 99 : s.limits.freeWeeklyLimit, turnsLeft: newTurns });
+    try { if (toPro) localStorage.setItem("sidetab:testpro", "1"); else localStorage.removeItem("sidetab:testpro"); } catch { /* 무시 */ }
+  };
 
   useEffect(() => () => { abortRef.current?.abort(); window.clearTimeout(delTimer.current); }, []);
   // 진입 화면에 들어설 때마다 저장된 이전 탐색을 다시 읽어 리스트를 채운다(reset 후에도 갱신).
@@ -764,6 +773,8 @@ export function App() {
       {state.proNotice && <ProSheet locale={state.locale} reason={state.proNotice} />}
       {state.confirmHome && <ConfirmHome locale={state.locale} answers={state.answers.length} onYes={confirmHomeYes} onNo={() => merge({ confirmHome: false })} />}
       {state.tutorialOpen && <Tutorial state={state} onClose={closeTutorial} />}
+      {/* 테스트 단계 임시 버튼. 실 결제 전 pro 기능 점검용이며 출시 전 제거한다. */}
+      <button onClick={toggleTestPro} title="테스트용 pro 토글 (출시 전 제거)" style={{ position: "absolute", bottom: 3, right: 6, zIndex: 60, fontSize: 9.5, lineHeight: 1.4, padding: "2px 7px", borderRadius: 9, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--muted)", opacity: 0.6, cursor: "pointer" }}>{state.plan === "pro" ? "테스트: pro 해제" : "테스트: pro 적용"}</button>
     </div>
   );
 }
