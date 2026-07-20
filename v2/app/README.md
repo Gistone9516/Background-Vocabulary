@@ -11,7 +11,7 @@ packages/
 ├ adapters/
 │  ├ http-app/       [C1·C2.1·C2.2] Hono 앱 조립(파이프라인+CRUD+auth 라우트↔core/리포 배선). 부트 없음
 │  ├ persistence/    [C2.1·C2.2] PG 스키마·마이그레이션·리포(세션·자산·지식·프로젝트·User·JtiBlacklist). SqlRunner로 드라이버 무관
-│  ├ providers/      [C2.2] 외부 공급자 어댑터(웹표준 fetch, local·aws 공유) — Google OAuth. DeepSeek·Tavily·Upstash는 C2.4
+│  ├ providers/      [C2.2·C2.4] 외부 공급자 어댑터(웹표준 fetch, local·aws 공유) — Google OAuth·DeepSeek(SSE)·Tavily·Upstash
 │  ├ local/          [C1·C2.1·C2.2] node-server 부트 + mock LLM/Google + PgSqlRunner(실 PG) + DI 팩토리
 │  ├ aws/            [C2.5] Lambda 부트(streamHandle)·Data API 리포·Secrets — 예정
 │  └ tauri/          [C4] 파일첨부·알림·전역단축키·오프라인·업데이터 — 예정
@@ -38,7 +38,7 @@ corepack pnpm run gate-db             # PG 게이트: build → e2e-pg(영속 CR
 ```
 개별 게이트: `guard`(런타임 누수) · `boundary`(순환·역참조·딥임포트) · `size`(300행 상한) · `prompt-parity`(프롬프트 무손실) · `e2e`(local mock 관통) · `e2e-pg`(Docker PG CRUD).
 
-## 현재 상태 (C2.3 완료)
-- **C1 뼈대** / **C2.1 영속**(CRUD·SqlRunner 리포, PG e2e 18/18) / **C2.2 인증**(JWT·OAuth·UserRepository·JtiBlacklist, 인증 e2e 11/11).
-- **C2.3 게이팅**: 비용 엔드포인트 공통 미들웨어 — 티어(JWT)·IP 분/일·전역 일일 캡·고위험 1차 방어·free 주간 한도(TR-02 재차감 금지)·pro 전용(402)·상세 한도·`GET /usage`. `CounterStore` 포트(local 인메모리, Upstash는 C2.4). 게이팅 e2e 9/9(주간소진·고위험·pro게이트·paid 우회).
-- 다음 = **C2.4 실 공급자**(DeepSeek·Tavily·Upstash) → C2.5 aws 부트·배포 코드(실배포는 핸즈온 세션).
+## 현재 상태 (C2.4 완료)
+- **C1 뼈대** / **C2.1 영속**(PG e2e 18/18) / **C2.2 인증**(인증 e2e 11/11) / **C2.3 게이팅**(게이팅 e2e 9/9).
+- **C2.4 실 공급자**: `@vock/providers`에 DeepSeekLlmClient(SSE 증분 파서)·TavilySearchProvider(ko 가드)·UpstashCacheStore·UpstashCounterStore. `buildLocalRealDeps`(.env 실키, Upstash 미설정 시 인메모리 폴백). SSE 파서 결정적 테스트 통과. 실키 스모크는 핸즈온 이월.
+- 다음 = **C2.5 aws 부트·배포 코드**(Lambda streamHandle·Data API 리포·Secrets·IaC — 실배포는 핸즈온 세션).

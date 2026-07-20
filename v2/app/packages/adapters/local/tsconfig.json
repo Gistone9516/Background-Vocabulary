@@ -9,7 +9,8 @@
     { "path": "../../shared" },
     { "path": "../../core" },
     { "path": "../http-app" },
-    { "path": "../persistence" }
+    { "path": "../persistence" },
+    { "path": "../providers" }
   ],
   "include": ["src/**/*.ts"]
 }

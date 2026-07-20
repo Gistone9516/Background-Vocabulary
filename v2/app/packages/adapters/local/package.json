@@ -16,6 +16,7 @@
     "@vock/core": "workspace:*",
     "@vock/http-app": "workspace:*",
     "@vock/persistence": "workspace:*",
+    "@vock/providers": "workspace:*",
     "@hono/node-server": "^1.13.7",
     "pg": "^8.13.1"
   },

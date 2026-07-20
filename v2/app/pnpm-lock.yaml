@@ -44,6 +44,9 @@ importers:
       '@vock/persistence':
         specifier: workspace:*
         version: link:../persistence
+      '@vock/providers':
+        specifier: workspace:*
+        version: link:../providers
       '@vock/shared':
         specifier: workspace:*
         version: link:../../shared
@@ -85,6 +88,9 @@ importers:
       '@vock/local':
         specifier: workspace:*
         version: link:../adapters/local
+      '@vock/providers':
+        specifier: workspace:*
+        version: link:../adapters/providers
 
   packages/shared: {}
 

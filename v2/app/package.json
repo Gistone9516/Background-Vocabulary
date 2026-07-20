@@ -17,7 +17,7 @@
     "e2e-pg": "node packages/scripts/e2e-pg.mjs",
     "e2e-auth": "node packages/scripts/e2e-auth.mjs",
     "e2e-gate": "node packages/scripts/e2e-gate.mjs",
-    "gate": "tsc -b && node packages/scripts/portability-guard.mjs && node packages/scripts/boundary-check.mjs && node packages/scripts/check-file-size.mjs && node packages/scripts/prompt-parity.mjs && node packages/scripts/e2e-local.mjs",
+    "gate": "tsc -b && node packages/scripts/portability-guard.mjs && node packages/scripts/boundary-check.mjs && node packages/scripts/check-file-size.mjs && node packages/scripts/prompt-parity.mjs && node packages/scripts/e2e-local.mjs && node packages/scripts/e2e-sse.mjs",
     "gate-db": "tsc -b && node packages/scripts/e2e-pg.mjs && node packages/scripts/e2e-auth.mjs && node packages/scripts/e2e-gate.mjs"
   },
   "devDependencies": {
