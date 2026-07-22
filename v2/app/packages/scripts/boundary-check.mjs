@@ -15,6 +15,8 @@ const ALLOWED = {
   core: new Set(["shared"]),
   persistence: new Set(["shared"]),
   providers: new Set(["shared"]),
+  "ui-shared": new Set(["shared"]),
+  web: new Set(["shared", "ui-shared"]),
   "http-app": new Set(["shared", "core"]),
   local: new Set(["shared", "core", "http-app", "persistence", "providers"]),
   aws: new Set(["shared", "core", "http-app", "persistence", "providers"]),
@@ -65,9 +67,12 @@ for (const file of walk(SCAN)) {
     if (spec.startsWith("@vock/")) {
       const rest = spec.slice("@vock/".length);
       const target = rest.split("/")[0];
-      const deep = rest.includes("/");
+      // 배럴 규칙은 내부 모듈 구조 침범을 막으려는 것이다. 패키지 exports에 선언된
+      // 정적 자산 진입점(스타일 등)은 코드 결합이 아니므로 예외로 둔다.
+      const isAssetEntry = /\.(css|svg|png|woff2?)$/.test(rest);
+      const deep = rest.includes("/") && !isAssetEntry;
       if (deep) {
-        violations.push(`${rel}\n    딥임포트 금지 — 배럴 경유로만: ${spec}`);
+        violations.push(`${rel}\n    딥임포트 금지, 배럴 경유로만: ${spec}`);
       }
       graph[pkg].add(target);
       const allow = ALLOWED[pkg];

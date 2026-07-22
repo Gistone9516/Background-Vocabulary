@@ -15,7 +15,8 @@ packages/
 │  ├ local/          [C1·C2.1·C2.2] node-server 부트 + mock LLM/Google + PgSqlRunner(실 PG) + DI 팩토리
 │  ├ aws/            [C2.5] Lambda 부트(streamHandle)·DataApiSqlRunner·Secrets — 코드 완료(배포=핸즈온, DEPLOY.md)
 │  └ tauri/          [C4] 파일첨부·알림·전역단축키·오프라인·업데이터 — 예정
-├ web/               [C3] Vite SPA 셸 — 예정
+├ ui-shared/         [C3] 웹·데스크톱 공유 화면(반응형 셸·진입 화면·디자인 토큰 v1 verbatim)
+├ web/               [C3] Vite SPA 셸(5180) — S1 진행 중
 ├ desktop/           [C4] Tauri 셸(동일 SPA + tauri 어댑터) — 예정
 ├ landing/           [C3] Astro 설득 콘텐츠 — 예정
 └ scripts/           [C1] 경계 게이트·파일크기·프롬프트 패리티·e2e(무의존 .mjs 툴링)
@@ -41,4 +42,6 @@ corepack pnpm run gate-db             # PG 게이트: build → e2e-pg(영속 CR
 ## 현재 상태 (C2 코드 전량 완료)
 - **C1 뼈대** / **C2.1 영속**(PG e2e 18/18) / **C2.2 인증**(11/11) / **C2.3 게이팅**(9/9) / **C2.4 실 공급자**(SSE 파서 결정 검증).
 - **C2.5 aws**: `@vock/aws` — DataApiSqlRunner(리포 재사용, $n→:pn·Field 매핑·트랜잭션)·Secrets 로더·streamHandle 핸들러·buildAwsDeps. migrate 문장 분리(Data API 공용). **배포 게이트 코드**(타입체크로 @aws-sdk API-정확성 확인, 실배포·스모크는 핸즈온 → `DEPLOY.md`).
-- **다음** = 실 AWS 배포(핸즈온, `DEPLOY.md`) 또는 **C3 웹·랜딩**(ui-shared 분리·Vite SPA·Astro).
+- **C2 실키 스모크 완료**: DeepSeek(complete·실 SSE 스트리밍)·Tavily·Upstash 실호출 7/7(`pnpm e2e-real`, 수동).
+- **C3 진행 중(S1)**: `ui-shared`(v1 theme.css를 바이트 동일 복사한 디자인 정본 + 반응형 2열 셸 + 진입 화면) · `web`(Vite SPA, 5180). 화면 확인 = `corepack pnpm --dir packages/web run dev`.
+- 남은 것 = C3 S2~S6(여정 화면·i18n·랜딩), 실 AWS 배포(핸즈온 `DEPLOY.md`), C4 데스크톱, C5 신규·수익.

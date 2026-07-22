@@ -1,0 +1,117 @@
+/* 반응형 셸. tokens.css 다음에 불러와 셸 레이아웃만 덮어쓴다.
+   v1 디자인(색, 타이포, 컴포넌트 클래스)은 전혀 건드리지 않는다.
+   v1은 고정폭 480px 사이드패널이었고, 웹에서는 넓은 화면에서 좌측에 세션과 프로젝트를 상시 노출하는 2열로 승격한다. */
+
+/* v1 body의 중앙 정렬 flex는 그리드 루트와 충돌하므로 해제한다. */
+body { display: block; }
+
+.appRoot {
+  display: grid;
+  grid-template-columns: 1fr;
+  height: 100vh;
+  background: var(--bg);
+}
+
+/* 본문 열. 좁은 화면에서는 화면 전체를 쓴다. */
+.mainCol {
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* v1 셸을 본문 열 안에서 그대로 재사용하되, 고정 480px 대신 읽기 좋은 폭으로 조금 넓힌다.
+   본문 길이가 지나치게 길어지면 가독성이 떨어지므로 상한은 남긴다. */
+#app {
+  max-width: 560px;
+  min-height: 0;
+}
+
+/* 사이드바는 좁은 화면에서 기본으로 접혀 있고 드로어로 열린다. */
+.sidebar {
+  display: none;
+  flex-direction: column;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+.sidebar.open {
+  display: flex;
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 288px;
+  z-index: 40;
+  box-shadow: var(--shadow-lg);
+}
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.28);
+  z-index: 35;
+}
+
+/* 사이드바 내부. 브랜드 머리와 구역 목록으로만 구성해 밀도를 낮춘다. */
+.sbHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+.sbBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 10px;
+}
+.sbSection {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--faint);
+  padding: 0 6px;
+  margin: 14px 0 7px;
+}
+.sbSection:first-child { margin-top: 0; }
+.sbItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-size: 13.5px;
+  color: var(--text);
+  border-radius: 9px;
+  padding: 8px 10px;
+  line-height: 1.4;
+  transition: background 0.12s, color 0.12s;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sbItem:hover { background: var(--surface-2); }
+.sbItem.on { background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+.sbEmpty {
+  font-size: 12.5px;
+  color: var(--faint);
+  padding: 6px 10px;
+  line-height: 1.5;
+}
+
+/* 넓은 화면에서 2열로 편다. 사이드바가 경계를 만들므로 본문 왼쪽 테두리는 뗀다. */
+@media (min-width: 1024px) {
+  .appRoot { grid-template-columns: 288px 1fr; }
+  .sidebar { display: flex; position: static; width: auto; box-shadow: none; }
+  .scrim { display: none; }
+  #app { border-left: none; }
+  /* 넓은 화면에서는 본문을 조금 더 넓게 쓴다. */
+  #app { max-width: 620px; }
+}
+
+/* 사이드바 여닫는 버튼과 헤더 브랜드는 넓은 화면에서 필요 없다.
+   넓은 화면에서는 사이드바가 브랜드를 이미 보여주므로 헤더에서 중복으로 띄우지 않는다. */
+@media (min-width: 1024px) {
+  .sbToggle { display: none; }
+  .hdrBrand { display: none; }
+}
+.hdrBrand { min-width: 0; overflow: hidden; }

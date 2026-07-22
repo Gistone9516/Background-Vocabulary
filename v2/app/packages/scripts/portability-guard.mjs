@@ -9,11 +9,11 @@ import { dirname, join, resolve } from "node:path";
 // 경로 기준 = 스크립트 위치(실행 CWD와 무관). packages/scripts → v2/app.
 const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
-// 웹표준만 허용하는 순수 계층.
-const ROOTS = ["packages/shared/src", "packages/core/src"].map((r) => join(APP_ROOT, r));
+// 웹표준만 허용하는 순수 계층. ui-shared는 플랫폼 API를 주입받으므로 여기 포함한다.
+const ROOTS = ["packages/shared/src", "packages/core/src", "packages/ui-shared/src"].map((r) => join(APP_ROOT, r));
 
-// 프롬프트 문자열이 포함되면 안 되는 프론트 계층(SoT §8). C1에서는 아직 없음 — 생기면 추가.
-const PROMPT_ROOTS = [];
+// 프롬프트 문자열이 포함되면 안 되는 프론트 계층(SoT 8절).
+const PROMPT_ROOTS = ["packages/ui-shared/src", "packages/web/src"].map((r) => join(APP_ROOT, r));
 
 // core/·shared/ 에서 금지하는 패턴. 런타임/공급자 전용이거나 어댑터 의존이면 위반.
 const FORBIDDEN = [
