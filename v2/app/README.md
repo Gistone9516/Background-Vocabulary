@@ -29,7 +29,7 @@ packages/
 - **첫 단추 = v1 무손실 이식**: shared/core 로직과 프롬프트를 v1에서 그대로 옮기되, 프롬프트는 `prompt-parity` 게이트로 "v1 대비 의미 변경 0"을 강제.
 
 ## 실행·빌드
-전제: Node ≥ 20, pnpm 9(코어팩). 전역 pnpm shim이 없으면 `corepack pnpm ...`로 호출.
+전제: Node ≥ 22, pnpm 9(코어팩). 전역 pnpm shim이 없으면 `corepack pnpm ...`로 호출. Lambda 런타임(nodejs22.x)과 같은 메이저를 쓴다.
 ```
 corepack pnpm install                 # 워크스페이스 설치
 corepack pnpm run build               # tsc -b (프로젝트 레퍼런스 빌드 = 경계 게이트 ①)

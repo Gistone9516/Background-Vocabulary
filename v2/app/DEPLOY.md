@@ -2,6 +2,8 @@
 
 C2.1~C2.4 코드는 로컬(Docker PG)로 검증됐고, **aws 어댑터 코드(@vock/aws)는 타입체크만** 됐다(로컬 스모크 불가). 실배포는 당신의 AWS 계정·크레덴셜·실비용이 필요한 협업 단계다. Cloud-OP 포트폴리오 목적에 맞춰 함께 진행한다.
 
+> 이 문서는 인프라 목표 2단계 중 **1차(AWS 배포)**의 체크리스트다. 2차(리눅스 직접 구축·운영)는 루트 `README.md`의 v2 방향 절을 참조한다.
+
 ## 0. 먼저 정할 결정 (당신 몫)
 - **IaC 도구**: CDK(TypeScript, AWS 친화·포트폴리오 인기) vs SAM(Lambda 특화·간결) vs Terraform(멀티클라우드·업계 표준). Cloud-OP 지향이면 CDK 또는 Terraform 추천. 선택 후 그 도구로 아래 리소스를 코드화한다. (이 결정 전까지 IaC 템플릿은 미작성.)
 
@@ -14,7 +16,9 @@ C2.1~C2.4 코드는 로컬(Docker PG)로 검증됐고, **aws 어댑터 코드(@v
 ## 2. 프로비저닝(IaC로 코드화)
 - [ ] Aurora Serverless v2(PostgreSQL) + **Data API 활성화** + DB 시크릿(Secrets Manager).
 - [ ] Secrets Manager 시크릿 1개(JSON = `VockSecrets` 형태: jwtSecretCurrent·jwtKid·deepseekKey·tavilyKey·upstash{url,token}·google{web,desktop}).
-- [ ] Lambda(Node 20 ESM) + **Function URL(RESPONSE_STREAM)** + 환경변수(SECRET_ID·DB_RESOURCE_ARN·DB_SECRET_ARN·DB_NAME·AWS_REGION) + IAM(rds-data·secretsmanager:GetSecretValue).
+- [ ] Lambda(**nodejs22.x**, ESM) + **Function URL(RESPONSE_STREAM)** + 환경변수(SECRET_ID·DB_RESOURCE_ARN·DB_SECRET_ARN·DB_NAME·AWS_REGION) + IAM(rds-data·secretsmanager:GetSecretValue).
+  - 런타임은 로컬 개발 환경과 맞춘다(로컬 Node 22.x, `package.json` engines `>=22`). 최초 문서는 Node 20으로 적혀 있었으나 Node 20은 2026년 4월경 업스트림 지원이 끝나 폐기 대상이다(2026-07-28 정정).
+  - **배포 직전에 AWS 공식 런타임 표에서 nodejs22.x의 폐기 예정일을 직접 확인할 것.** 이 문서 작성 시점에 정확한 날짜를 확정하지 못했다. 표: `https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html`
 - [ ] CloudFront + S3(웹/랜딩, C3 배포 시).
 
 ## 3. 마이그레이션
