@@ -9,6 +9,7 @@
 | [C2.3-게이팅.md](C2.3-게이팅.md) | C2 | 티어·IP/전역캡·고위험·주간한도(TR-02)·pro전용·/usage(CounterStore 포트) | 구현 완료(게이팅 e2e 9/9) |
 | [C2.4-실공급자.md](C2.4-실공급자.md) | C2 | DeepSeek(SSE)·Tavily(ko가드)·Upstash(cache+counter) 어댑터·buildLocalRealDeps | 구현·**실키 스모크 완료(7/7)** |
 | [C2.5-aws.md](C2.5-aws.md) | C2 | DataApiSqlRunner·Secrets·streamHandle 핸들러·buildAwsDeps(배포 게이트 코드) | 코드 완료(타입체크, 실배포=핸즈온) |
-| [C3-웹랜딩.md](C3-웹랜딩.md) | C3 | ui-shared 화면 계층·web Vite SPA·landing Astro(6 슬라이스) | S1 완료(뼈대·진입 화면·치수 정책), S2~S6 미착수 |
+| [C3-웹랜딩.md](C3-웹랜딩.md) | C3 | ui-shared 화면 계층·web Vite SPA·landing Astro(6 슬라이스) | S1 완료(뼈대·진입 화면·치수 정책), S2 스펙 작성 |
+| [C3-S2-진입과좁히기.md](C3-S2-진입과좁히기.md) | C3 S2 | API 클라(classify·next)·에러 분류·좁히기 상태 기계·narrow 화면 | 스펙 검토 대기 |
 
 C2 코드 전량 완료(C2.1~C2.4 로컬 검증, C2.5 타입체크). 실 AWS 배포 = 핸즈온(`../app/DEPLOY.md`). 진행 중 = C3 웹·랜딩.

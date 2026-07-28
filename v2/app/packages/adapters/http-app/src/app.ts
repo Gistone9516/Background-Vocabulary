@@ -25,6 +25,7 @@ export interface AppDeps extends PipelineDeps {
 function toClientLimits(l: Limits): ClientLimits {
   return {
     narrowMax: l.narrowMax,
+    narrowMin: l.narrowMin,
     detailLimitFree: l.detailLimitFree,
     freeWeeklyLimit: l.freeWeeklyLimit,
     maxTotal: l.maxTotal,

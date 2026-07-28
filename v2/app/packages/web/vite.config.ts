@@ -19,5 +19,14 @@ export default defineConfig({
   server: {
     port: 5180,
     strictPort: true,
+    // 개발 중에는 프록시로 같은 오리진에서 서버를 부른다. 서버에 dev 전용 CORS를 뚫는 것보다
+    // 건드리는 곳이 적고, 프로덕션 오리진 정책(SoT 4절 clientCheck)과 섞이지도 않는다.
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:8787",
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/api/, ""),
+      },
+    },
   },
 });

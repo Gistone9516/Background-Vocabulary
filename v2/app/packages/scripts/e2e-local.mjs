@@ -47,6 +47,7 @@ try {
   // 2. config
   const config = await fetch(base + "/config").then((r) => r.json());
   check("/config narrowMax 존재", config && config.narrowMax && typeof config.narrowMax.free === "number");
+  check("/config narrowMin 존재", config && typeof config.narrowMin === "number" && config.narrowMin >= 1);
 
   // 3. classify
   const clf = await postJson(base, "/classify", { raw_input: "PID 제어로 로봇 팔을 안정화하고 싶어요", outputLocale: "ko" });

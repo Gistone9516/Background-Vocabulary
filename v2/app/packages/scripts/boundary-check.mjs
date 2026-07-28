@@ -20,7 +20,9 @@ const ALLOWED = {
   "http-app": new Set(["shared", "core"]),
   local: new Set(["shared", "core", "http-app", "persistence", "providers"]),
   aws: new Set(["shared", "core", "http-app", "persistence", "providers"]),
-  scripts: new Set(["shared", "core", "http-app", "local", "persistence", "providers"]), // 도구(빌드 산출물 소비)
+  // 도구(빌드 산출물 소비). 런타임 의존 그래프의 일부가 아니라 검증기이므로 검증 대상을 부를 수 있다.
+  // ui-shared는 좁히기 상태 기계를 서버 없이 검증하기 위해 들어왔다(e2e-narrow).
+  scripts: new Set(["shared", "core", "http-app", "local", "persistence", "providers", "ui-shared"]),
 };
 
 function walk(dir) {

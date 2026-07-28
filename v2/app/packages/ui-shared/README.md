@@ -7,7 +7,18 @@
 src/
 ├ index.ts              공개 배럴
 ├ app/AppShell.tsx      반응형 셸. 넓은 화면은 사이드바와 본문 2열, 좁은 화면은 드로어
+├ api/                  서버 통로. 포트와 fetch 구현, 에러 판별 유니온
+│  ├ port.ts            ApiPort. 화면이 서버를 부르는 유일한 통로
+│  ├ http-client.ts     fetch 구현(baseUrl·토큰·fetch 주입)
+│  └ errors.ts          ApiError 분류. 상태 코드는 이 파일 밖으로 새지 않는다
 ├ screens/EntryScreen.tsx  진입 화면(v1 마크업 이식)
+├ screens/narrow/       좁히기(아키네이터)
+│  ├ machine.ts         전이 규칙. 네트워크도 DOM도 모르는 순수 함수
+│  ├ decide.ts          종료 판정과 파생값(남은 턴은 저장하지 않고 계산)
+│  ├ runner.ts          명령 실행과 요청 취소
+│  ├ useNarrow.ts       React 배선
+│  ├ NarrowScreen.tsx   질문 화면
+│  └ HandoffScreen.tsx  S2 확인 화면(S3에서 어휘 목록으로 교체)
 ├ i18n/strings.ts       UI 문구(v1 한국어 원문 그대로). 4개 언어 전량은 S5
 ├ i18n/examples.ts      예시 칩 풀(v1에서 verbatim 복사)
 └ styles/

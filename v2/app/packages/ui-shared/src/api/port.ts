@@ -1,0 +1,11 @@
+// 화면이 서버를 부르는 유일한 통로. 구현은 주입받는다.
+// S2 범위는 classify와 next 둘뿐이다. 아직 소비처가 없는 엔드포인트는 여기 올리지 않는다.
+// 실패는 예외로 던지되 항상 ApiError 형태여야 한다(errors.ts의 isApiError로 판별 가능).
+
+import type { Prompt1In, Prompt1Out, Prompt2In, Prompt2Out, ClientLimits } from "@vock/shared";
+
+export interface ApiPort {
+  config(signal?: AbortSignal): Promise<ClientLimits>;
+  classify(input: Prompt1In, signal?: AbortSignal): Promise<Prompt1Out>;
+  next(input: Prompt2In, signal?: AbortSignal): Promise<Prompt2Out>;
+}

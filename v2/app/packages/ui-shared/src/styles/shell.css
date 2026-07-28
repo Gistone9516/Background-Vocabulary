@@ -46,6 +46,16 @@ body { display: block; }
   justify-content: flex-end;
 }
 
+/* 셸이 열 전체를 쓰므로 읽기 폭은 화면마다 스스로 정해야 한다.
+   글만 있는 화면은 컨테이너째 제한하면 된다. 진입 화면만 예외인데, 오로라가 열 전체를 덮어야 해서
+   컨테이너가 아니라 아래처럼 자식 요소에 상한을 준다. */
+#app > main.pad {
+  width: 100%;
+  max-width: var(--measure);
+  margin-left: auto;
+  margin-right: auto;
+}
+
 /* 진입 화면에서 읽는 요소만 폭을 제한하고 가운데로 모은다. 배경인 오로라는 여기서 빠진다. */
 .entryMain .heroTitle,
 .entryMain .heroSub,
@@ -136,6 +146,7 @@ body { display: block; }
   .scrim { display: none; }
   #app { border-left: none; }
   /* 넓은 화면에서는 읽는 요소를 조금 더 넓게 쓴다. */
+  #app > main.pad { max-width: var(--measure-wide); }
   .entryMain .heroTitle,
   .entryMain .heroSub,
   .entryMain .composer,

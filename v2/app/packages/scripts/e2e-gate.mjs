@@ -12,6 +12,7 @@ const LIMITS = {
   freeWeeklyLimit: 2,
   globalDailyCap: 1000,
   narrowMax: { free: 3, paid: 8 },
+  narrowMin: 3,
   detailLimitFree: 1,
   maxTotal: { free: 8, paid: 32 },
   groupGen: { free: 2, paid: 4 },

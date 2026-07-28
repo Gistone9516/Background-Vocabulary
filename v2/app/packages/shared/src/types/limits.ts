@@ -14,6 +14,9 @@ export interface Limits {
   freeWeeklyLimit: number; // 무료 주간 추천 한도
   globalDailyCap: number; // 전역 일일 캡(빌드 폭주 방지)
   narrowMax: { free: number; paid: number }; // 좁히기 최대 턴
+  // 좁히기 최소 턴. 이 턴수를 채우기 전에는 백엔드가 충분하다고 판정해도 종료하지 않는다.
+  // v1에서는 클라이언트 상수였다. 클라가 종료 시점을 쥐는 것은 결합도 위반이라 서버 설정으로 옮겼다.
+  narrowMin: number;
   detailLimitFree: number; // 무료 세션당 상세 열람 횟수
   maxTotal: { free: number; paid: number }; // 한 탐색에서 누적 가능한 어휘 카드 총 상한
   groupGen: { free: number; paid: number }; // 그룹별 추가 생성 1회당 개수
@@ -37,6 +40,7 @@ export const DEFAULT_LIMITS: Limits = {
   freeWeeklyLimit: 7,
   globalDailyCap: 300,
   narrowMax: { free: 3, paid: 8 },
+  narrowMin: 3,
   detailLimitFree: 3,
   maxTotal: { free: 8, paid: 32 },
   groupGen: { free: 2, paid: 4 },
@@ -49,6 +53,7 @@ export const DEFAULT_LIMITS: Limits = {
 // 클라이언트가 게이팅에 쓰는 한도 부분집합. /config 응답 형태.
 export interface ClientLimits {
   narrowMax: { free: number; paid: number };
+  narrowMin: number; // 좁히기 최소 턴. 클라가 종료 판정에 쓴다.
   detailLimitFree: number;
   freeWeeklyLimit: number;
   maxTotal: { free: number; paid: number }; // 어휘 카드 누적 상한(티어별)
