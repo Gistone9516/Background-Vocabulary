@@ -31,7 +31,7 @@ html,body{height:100%;width:100%;max-width:100%;overflow-x:hidden}
 body{
   background:var(--bg); color:var(--text);
   font-family:'Pretendard',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
-  -webkit-font-smoothing:antialiased; font-size:15px; line-height:1.5;
+  -webkit-font-smoothing:antialiased; font-size:.9375rem; line-height:1.5;
   display:flex; justify-content:center;
   word-break:keep-all; overflow-wrap:anywhere; text-wrap:pretty;
 }
@@ -46,21 +46,21 @@ a{color:inherit}
 .scroll::-webkit-scrollbar-track{background:transparent}
 
 /* shell */
-#app{width:100%;max-width:480px;min-width:0;height:100vh;min-height:600px;display:flex;flex-direction:column;background:var(--bg);position:relative;overflow:hidden;border-left:1px solid var(--border);border-right:1px solid var(--border)}
+#app{width:100%;max-width:30rem;min-width:0;height:100vh;min-height:37.5rem;display:flex;flex-direction:column;background:var(--bg);position:relative;overflow:hidden;border-left:1px solid var(--border);border-right:1px solid var(--border)}
 .bar{position:absolute;top:0;left:0;right:0;height:2px;overflow:hidden;z-index:20}
 .bar>i{position:absolute;left:0;top:0;height:100%;width:30%;background:var(--grad);background-size:220% 220%;box-shadow:var(--glow);animation:slide 1.1s ease-in-out infinite, flow 5s ease-in-out infinite}
 @keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(440%)}}
 
-header{display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--surface);border-bottom:1px solid var(--border);flex:0 0 auto;z-index:5}
-.brand{display:flex;align-items:center;gap:8px;min-width:0;overflow:hidden}
-.logo{width:24px;height:24px;border-radius:7px;overflow:hidden;display:block;flex:0 0 auto}
+header{display:flex;align-items:center;gap:.625rem;padding:.6875rem .875rem;background:var(--surface);border-bottom:1px solid var(--border);flex:0 0 auto;z-index:5}
+.brand{display:flex;align-items:center;gap:.5rem;min-width:0;overflow:hidden}
+.logo{width:1.5rem;height:1.5rem;border-radius:.4375rem;overflow:hidden;display:block;flex:0 0 auto}
 .logo img{width:100%;height:100%;display:block;object-fit:cover}
-.brand b{font-size:15px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
-.brand span{font-size:10.5px;color:var(--faint);letter-spacing:.12em;display:block;margin-top:-1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand b{font-size:.9375rem;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.brand span{font-size:.65625rem;color:var(--faint);letter-spacing:.12em;display:block;margin-top:-1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .htools{margin-left:auto;display:flex;align-items:center;gap:4px;flex:0 0 auto}
-.iconbtn{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.iconbtn{width:1.875rem;height:1.875rem;border-radius:.5rem;display:flex;align-items:center;justify-content:center;color:var(--muted)}
 .iconbtn:hover{background:var(--surface-2);color:var(--text)}
-.iconbtn svg{width:16px;height:16px}
+.iconbtn svg{width:1rem;height:1rem}
 .plan{display:flex;align-items:center;gap:6px;padding:5px 9px;border-radius:99px;border:1px solid var(--border);flex:0 0 auto;white-space:nowrap}
 .plan:hover{border-color:var(--accent)}
 .plan b{font-size:11.5px;font-weight:700;color:var(--accent-ink)}
@@ -72,17 +72,17 @@ header{display:flex;align-items:center;gap:10px;padding:11px 14px;background:var
 @keyframes proSheen{0%{background-position:0% 0,0 0}100%{background-position:400% 0,0 0}}
 @media (prefers-reduced-motion:reduce){.plan.ispro b{animation:none}}
 /* 아주 좁은 사이드패널(최소 약 320px)에서 헤더가 한 줄을 유지하도록. 브랜드 부제를 숨기고 도구 간격과 언어 선택 폭을 줄인다. */
-@media (max-width:345px){header{gap:6px;padding:11px 10px}.brand span span{display:none}.htools{gap:3px}.langsel{max-width:72px}}
+@media (max-width:21.5625em){header{gap:.375rem;padding:.6875rem .625rem}.brand span span{display:none}.htools{gap:.1875rem}.langsel{max-width:4.5rem}}
 
 main{flex:1;overflow-y:auto;overflow-x:hidden;min-width:0;display:flex;flex-direction:column}
 .pad{padding:18px 16px}
 .foot{flex:0 0 auto;background:var(--surface);border-top:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;gap:10px}
 
 .eyebrow{font-size:11.5px;font-weight:600;letter-spacing:.04em;color:var(--accent-ink);margin-bottom:8px}
-h1{font-size:24px;font-weight:700;line-height:1.3;letter-spacing:-.02em;margin-bottom:8px}
-h2{font-size:19.5px;font-weight:700;line-height:1.35;letter-spacing:-.01em}
+h1{font-size:1.5rem;font-weight:700;line-height:1.3;letter-spacing:-.02em;margin-bottom:.5rem}
+h2{font-size:1.21875rem;font-weight:700;line-height:1.35;letter-spacing:-.01em}
 /* 노트 컨셉 브랜딩: 텍스트 아래 얕은 밑줄(공책 줄) */
-h1,h2,.term{text-decoration:underline;text-decoration-color:var(--rule);text-decoration-thickness:1.4px;text-underline-offset:6px;text-decoration-skip-ink:none}
+h1,h2,.term{text-decoration:underline;text-decoration-color:var(--rule);text-decoration-thickness:1.4px;text-underline-offset:.375rem;text-decoration-skip-ink:none}
 .term{text-underline-offset:3px}
 .lead{font-size:14.5px;color:var(--muted);line-height:1.6;margin-bottom:18px}
 .lead b{color:var(--text);font-weight:600}
@@ -99,13 +99,13 @@ h1,h2,.term{text-decoration:underline;text-decoration-color:var(--rule);text-dec
 .divider:before,.divider:after{content:"";flex:1;height:1px;background:var(--border)}
 .divider span{font-size:11.5px;color:var(--muted)}
 
-.field{width:100%;background:var(--surface);border:1.5px solid var(--border);border-radius:11px;padding:10px 12px;font-size:14.5px;color:var(--text);outline:none;transition:border-color .14s;resize:none}
+.field{width:100%;background:var(--surface);border:1.5px solid var(--border);border-radius:.6875rem;padding:.625rem .75rem;font-size:.90625rem;color:var(--text);outline:none;transition:border-color .14s;resize:none}
 .field::placeholder{color:var(--faint)}
 .field:focus{border-color:var(--accent)}
 textarea.field{line-height:1.55}
-.field+.field{margin-top:8px}
+.field+.field{margin-top:.5rem}
 .fielderr{border-color:var(--warn-border)!important}
-.errmsg{font-size:12.5px;color:var(--warn-ink);margin-top:6px}
+.errmsg{font-size:.78125rem;color:var(--warn-ink);margin-top:.375rem}
 
 .btn{width:100%;display:flex;align-items:center;justify-content:center;gap:7px;font-size:16px;font-weight:600;border-radius:12px;padding:13px;transition:.14s}
 .btn-primary{color:var(--on-primary);background:var(--primary);box-shadow:var(--shadow)}
@@ -126,22 +126,22 @@ textarea.field{line-height:1.55}
 .sublink.on{color:var(--accent-ink);font-weight:600}
 
 /* entry — 중앙 단일 입력 히어로 */
-.entryMain{display:flex;flex-direction:column;padding:18px}
+.entryMain{display:flex;flex-direction:column;padding:var(--entry-pad)}
 .hero{flex:1;display:flex;flex-direction:column;justify-content:center}
-.heroTitle{font-size:25.5px;font-weight:700;letter-spacing:-.02em;text-align:center;line-height:1.32}
-.heroSub{font-size:14.5px;color:var(--muted);text-align:center;margin:9px 0 22px;line-height:1.5}
-.composer{background:var(--surface);border:1.5px solid var(--border);border-radius:16px;padding:13px 14px 11px;box-shadow:var(--shadow);transition:border-color .15s}
+.heroTitle{font-size:1.59375rem;font-weight:700;letter-spacing:-.02em;text-align:center;line-height:1.32}
+.heroSub{font-size:.90625rem;color:var(--muted);text-align:center;margin:.5625rem 0 1.375rem;line-height:1.5}
+.composer{background:var(--surface);border:1.5px solid var(--border);border-radius:1rem;padding:.8125rem .875rem .6875rem;box-shadow:var(--shadow);transition:border-color .15s}
 .composer:focus-within{border-color:var(--accent);box-shadow:var(--glow-ring)}
 .composer.err{border-color:var(--warn-border)}
-.composerInput{width:100%;border:none;background:none;outline:none;resize:none;font-size:16px;line-height:1.55;color:var(--text);max-height:160px;display:block}
+.composerInput{width:100%;border:none;background:none;outline:none;resize:none;font-size:1rem;line-height:1.55;color:var(--text);max-height:10rem;display:block}
 .composerInput::placeholder{color:var(--faint)}
-.composerBar{display:flex;align-items:center;justify-content:space-between;margin-top:9px}
-.condToggle{font-size:13px;color:var(--muted)}
+.composerBar{display:flex;align-items:center;justify-content:space-between;margin-top:.5625rem}
+.condToggle{font-size:.8125rem;color:var(--muted)}
 .condToggle:hover{color:var(--text)}
-.send{width:34px;height:34px;border-radius:10px;background:var(--primary);color:var(--on-primary);display:flex;align-items:center;justify-content:center;font-size:19.5px;box-shadow:var(--shadow)}
+.send{width:2.125rem;height:2.125rem;border-radius:.625rem;background:var(--primary);color:var(--on-primary);display:flex;align-items:center;justify-content:center;font-size:1.21875rem;box-shadow:var(--shadow)}
 .send:hover{filter:brightness(1.06)}
 /* 파일 첨부(pro 전용) — composerBar 왼쪽에 붙이고 send는 오른쪽 고정 */
-.composerBar{justify-content:flex-start;gap:12px}
+.composerBar{justify-content:flex-start;gap:.75rem}
 .composerBar .send{margin-left:auto}
 .attach{font-size:13px;color:var(--muted);padding:2px}
 .attach:hover{color:var(--accent-ink)}
@@ -149,25 +149,25 @@ textarea.field{line-height:1.55}
 .filechip{display:inline-flex;align-items:center;gap:8px;max-width:100%;margin-top:9px;font-size:12.5px;font-weight:600;color:var(--accent-ink);background:var(--accent-soft);border:1px solid var(--accent);border-radius:99px;padding:5px 6px 5px 11px}
 .filechip .fn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .filechip button{flex:0 0 auto;width:18px;height:18px;border-radius:99px;background:var(--surface);color:var(--muted);font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center}
-.condField{margin-top:10px}
-.suggest{position:relative;display:flex;flex-wrap:wrap;gap:7px;justify-content:center;align-items:center;margin-top:18px;padding-bottom:26px}
-.sg{font-size:10.5px;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:5.5px 9.5px;line-height:1.3;transition:border-color .12s,color .12s,background .12s;animation:chipFloatA 5.5s ease-in-out infinite}
+.condField{margin-top:.625rem}
+.suggest{position:relative;display:flex;flex-wrap:wrap;gap:.4375rem;justify-content:center;align-items:center;margin-top:1.125rem;padding-bottom:1.625rem}
+.sg{font-size:.65625rem;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:.34375rem .59375rem;line-height:1.3;transition:border-color .12s,color .12s,background .12s;animation:chipFloatA 5.5s ease-in-out infinite}
 .sg:hover{border-color:var(--accent);color:var(--text);background:var(--accent-soft)}
 /* 예시 칩이 은은하게 떠다니는 호흡. 칩마다 인라인으로 키프레임 종류와 속도, 시작 위상을 무작위로 달리해 그룹이 아니라 개별로 움직인다. */
-@keyframes chipFloatA{0%,100%{transform:translate(0,0)}50%{transform:translate(0.5px,-4px)}}
-@keyframes chipFloatB{0%,100%{transform:translate(0,0)}50%{transform:translate(-1px,-3px)}}
-@keyframes chipFloatC{0%,100%{transform:translate(0,0)}33%{transform:translate(1px,-2px)}66%{transform:translate(-1px,-3.5px)}}
+@keyframes chipFloatA{0%,100%{transform:translate(0,0)}50%{transform:translate(.03125rem,-.25rem)}}
+@keyframes chipFloatB{0%,100%{transform:translate(0,0)}50%{transform:translate(-.0625rem,-.1875rem)}}
+@keyframes chipFloatC{0%,100%{transform:translate(0,0)}33%{transform:translate(.0625rem,-.125rem)}66%{transform:translate(-.0625rem,-.21875rem)}}
 @media (prefers-reduced-motion: reduce){.sg{animation:none!important}}
 /* 진입 오로라 하이라이트. 입력창부터 예시칩까지 감싸는 영역(제목과 부제 위, 하단 history 제외). 좌우는 페이지 끝단까지. 하늘 청록을 크게 보라를 작은 포인트로 세 겹이 흐르고, 위아래 모두 마스크로 부드럽게 사라져 경계선이 없다. */
 .heroGlow{position:relative;z-index:0}
-.aurora{position:absolute;top:-95px;bottom:0;left:-18px;right:-18px;z-index:-1;pointer-events:none;overflow:hidden;opacity:.5;background:radial-gradient(50% 130% at 46% 122%,var(--aurora2),transparent 84%),radial-gradient(52% 98% at 72% 126%,color-mix(in srgb,var(--aurora3) 64%,transparent),transparent 88%),radial-gradient(128% 152% at 34% 120%,var(--aurora1),transparent 90%);background-size:220% 145%,120% 130%,188% 162%;-webkit-mask-image:linear-gradient(to top,transparent 0%,#000 8%,transparent 100%);mask-image:linear-gradient(to top,transparent 0%,#000 8%,transparent 100%);animation:auroraWave 30s ease-in-out infinite}
+.aurora{position:absolute;top:-5.9375rem;bottom:0;left:calc(-1 * var(--entry-pad));right:calc(-1 * var(--entry-pad));z-index:-1;pointer-events:none;overflow:hidden;opacity:.5;background:radial-gradient(50% 130% at 46% 122%,var(--aurora2),transparent 84%),radial-gradient(52% 98% at 72% 126%,color-mix(in srgb,var(--aurora3) 64%,transparent),transparent 88%),radial-gradient(128% 152% at 34% 120%,var(--aurora1),transparent 90%);background-size:220% 145%,120% 130%,188% 162%;-webkit-mask-image:linear-gradient(to top,transparent 0%,#000 8%,transparent 100%);mask-image:linear-gradient(to top,transparent 0%,#000 8%,transparent 100%);animation:auroraWave 30s ease-in-out infinite}
 /* 레이어 앞→뒤 = 보라(front)·청록(mid)·하늘(back base). 비율 하늘4 청록2 보라4. 청록과 보라를 크게 움직이고 하늘 베이스는 천천히 흐른다. 강도(opacity·saturate)는 유지. */
 @keyframes auroraWave{0%{background-position:8% 100%,82% 100%,30% 100%;filter:hue-rotate(0deg) saturate(1.08)}25%{background-position:52% 95%,50% 100%,38% 98%;filter:hue-rotate(-5deg) saturate(1.14)}50%{background-position:95% 100%,20% 95%,24% 100%;filter:hue-rotate(-9deg) saturate(1.18)}75%{background-position:52% 96%,56% 100%,40% 98%;filter:hue-rotate(-5deg) saturate(1.12)}100%{background-position:8% 100%,82% 100%,30% 100%;filter:hue-rotate(0deg) saturate(1.08)}}
 @media (prefers-reduced-motion: reduce){.aurora{animation:none}}
 /* 예시 다시 뽑기. 칩 길이에 휘둘리지 않도록 suggest 블록의 우측 하단에 고정해 마지막 칩 줄과 수평으로 둔다. 평소 투명도 30이고 호버 시 진해진다. */
-.shuffle{position:absolute;right:0;bottom:28px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;color:var(--muted);opacity:.3;transition:opacity .15s}
+.shuffle{position:absolute;right:0;bottom:1.75rem;width:1.375rem;height:1.375rem;display:flex;align-items:center;justify-content:center;color:var(--muted);opacity:.3;transition:opacity .15s}
 .shuffle:hover{opacity:.7}
-.shuffle svg{width:16px;height:16px}
+.shuffle svg{width:1rem;height:1rem}
 .prolock svg{width:11px;height:11px}
 .entryNote{margin-top:18px;text-align:center}
 
@@ -542,7 +542,7 @@ textarea.field{line-height:1.55}
 .backlink:hover{color:var(--accent-ink)}
 
 /* 화면 전환. 짧은 페이드와 미세 상승만 둬서 화면이 많아도 뚝뚝 끊기지 않게 한다. 역동적이지 않고 조용하게. */
-@keyframes screenIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes screenIn{from{opacity:0;transform:translateY(.375rem)}to{opacity:1;transform:none}}
 .screenIn{animation:screenIn .2s ease-out both}
 /* 세션 화면만 드로어가 왼쪽에서 열리는 느낌을 살짝 준다. 가로 이동은 작게 둔다. */
 @keyframes screenInLeft{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}

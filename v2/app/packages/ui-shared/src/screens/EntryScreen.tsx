@@ -8,7 +8,6 @@ import { EXAMPLES, pickRandom } from "../i18n/examples.js";
 
 const FLOAT_NAMES = ["chipFloatA", "chipFloatB", "chipFloatC"];
 const CHIP_COUNT = 8;
-const MAX_INPUT_HEIGHT = 160;
 
 interface Chip {
   text: string;
@@ -52,11 +51,14 @@ export function EntryScreen({ onSubmit }: EntryScreenProps) {
   const chips = useMemo(() => buildChips(chipSeed), [chipSeed]);
 
   // 입력 줄 수에 맞춰 높이를 늘리되 상한을 둔다.
+  // 상한은 CSS의 max-height를 그대로 읽어 쓴다. 여기에 숫자를 따로 적어 두면 CSS 값이 바뀌었을 때
+  // 조용히 어긋나고 아무도 알아채지 못한다. 이제 상한도 화면 크기를 따라 함께 변한다.
   const grow = () => {
     const el = taRef.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = Math.min(el.scrollHeight, MAX_INPUT_HEIGHT) + "px";
+    const max = parseFloat(getComputedStyle(el).maxHeight);
+    el.style.height = Math.min(el.scrollHeight, Number.isFinite(max) ? max : el.scrollHeight) + "px";
   };
 
   const submit = () => {
@@ -78,9 +80,14 @@ export function EntryScreen({ onSubmit }: EntryScreenProps) {
 
   return (
     <main className="scroll entryMain screenIn" style={{ position: "relative" }}>
-      <div className="hero" style={{ transform: "translateY(-90px)" }}>
-        <h1 className="heroTitle">{tr("entry_title")}</h1>
-        <p className="heroSub">{tr("entry_sub")}</p>
+      {/* 입력창은 불변 위치다. 위로는 제목 영역이 높이를 고정하고, 아래로는 칩이 몇 줄이든 흘러내린다.
+          그래서 제목이나 부제가 길어져도, 아래 내용이 늘어나도 입력창은 같은 자리에 남는다.
+          자리를 정하는 규칙은 shell.css의 .heroHead에 있다. */}
+      <div className="hero">
+        <div className="heroHead">
+          <h1 className="heroTitle">{tr("entry_title")}</h1>
+          <p className="heroSub">{tr("entry_sub")}</p>
+        </div>
         <div className="heroGlow">
           <div className="aurora" aria-hidden="true" />
           <div className={inputErr ? "composer err" : "composer"}>

@@ -43,4 +43,6 @@ v2/   리빌딩(진행 중) — 웹사이트 + 데스크톱 프로그램(Windows
 - v1 동결 완료(최종 커밋에 계약 §9 포트원 Phase 1 SoT, 테스트용 pro 토글 포함).
 - **설계 3각 확정**: SRS v1.0(요구) · ADR v1.0(기술 — AWS 전면·Tauri·Vite+Astro·pnpm) · 인터페이스계약 SoT v2.0(상세설계, 4렌즈 적대 검토 반영). 승계원장으로 v1 기획 무손실 승계, 설득 논거 정본화.
 - **C1 완료(뼈대)**: `v2/app/` pnpm 모노레포 스캐폴딩 + v1 shared/core·프롬프트 무손실 이식 + 경계 게이트 3중(TS 레퍼런스·portability-guard·boundary-check) + 코드규약 검사(파일 크기·프롬프트 패리티) + local mock e2e(`/classify→/next→/recommend`) 관통. 전 게이트 PASS.
-- 다음 = **C2**(AWS 백엔드·인증·게이팅) → C3(웹·랜딩) → C4(데스크톱) → C5(마인드맵·결제 재설계).
+- **C2 완료(서버 전량)**: 영속(PG·SqlRunner 포트) → 인증(자체 JWT·Google OAuth PKCE) → 게이팅(티어·한도·고위험) → 실 공급자(DeepSeek SSE·Tavily·Upstash) → aws 부트(DataApiSqlRunner·streamHandle). 로컬 e2e 38건 + 실키 스모크 7/7 통과. 실 AWS 배포만 핸즈온으로 남음(`v2/app/DEPLOY.md`).
+- **C3 진행 중(웹·랜딩, 6슬라이스 중 S1)**: ui-shared 화면 계층 + web Vite SPA + 진입 화면. 반응형 2열 셸과 치수 정책 확정(길이는 rem, 글자는 창 크기에 반응하지 않음, 레이아웃만 반응, 입력창은 불변 위치). 기준값은 `ui-shared/styles/scale.css` 단일 지점.
+- 다음 = **C3 S2**(API 클라 SSE·entry→classify 실연동·아키네이터) → S3~S6 → C4(데스크톱) → C5(마인드맵·결제 재설계).
