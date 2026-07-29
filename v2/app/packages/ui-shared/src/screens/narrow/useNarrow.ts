@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import type { ApiPort } from "../../api/index.js";
 import { initialNarrow, reduce } from "./machine.js";
 import { NarrowRunner, type NarrowEffects } from "./runner.js";
-import type { DoneReason, NarrowCmd, NarrowConfig, NarrowCtx, NarrowEvent, NarrowState } from "./types.js";
+import type { DoneReason, NarrowCmd, NarrowConfig, NarrowCtx, NarrowEvent, NarrowState, Question } from "./types.js";
 
 interface Wrapped {
   state: NarrowState;
@@ -16,7 +16,7 @@ interface Wrapped {
 export interface UseNarrowOptions {
   api: ApiPort;
   cfg: NarrowConfig;
-  saveSnapshot?(ctx: NarrowCtx): void;
+  saveSnapshot?(ctx: NarrowCtx, question: Question | null): void;
   onRefusal(): void;
   onEntryNotice(notice: "weekly"): void;
   onHandoff(ctx: NarrowCtx, reason: DoneReason): void;
@@ -41,7 +41,7 @@ export function useNarrow(opts: UseNarrowOptions) {
     const fx: NarrowEffects = {
       api: opts.api,
       send: (e) => dispatch(e),
-      saveSnapshot: (ctx) => optsRef.current.saveSnapshot?.(ctx),
+      saveSnapshot: (ctx, question) => optsRef.current.saveSnapshot?.(ctx, question),
       goRefusal: () => optsRef.current.onRefusal(),
       goEntryWithNotice: (n) => optsRef.current.onEntryNotice(n),
       goHandoff: (ctx, reason) => optsRef.current.onHandoff(ctx, reason),

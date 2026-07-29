@@ -104,6 +104,18 @@ export const ko = {
   refine_loading: "AI가 정리하는 중…",
   refine_failed: "정리에 실패했어요.",
 
+  // 세션 목록 [신규]. v1은 확장 로컬 저장이라 로그인 조건이 없었다
+  sessions_off: "로그인하면 탐색이 저장돼요.",
+  sessions_search_ph: "탐색 검색",
+  sessions_more: "더 보기",
+  session_untitled: "제목 없는 탐색",
+  session_generating: "생성 중",
+  session_delete: "삭제",
+  session_deleted: "삭제했어요.",
+  session_undo_expired: "되돌릴 수 있는 기간이 지났어요.",
+  session_undo: "실행취소",
+  sessions_loading: "불러오는 중…",
+
   // 로그인 [신규]. v1은 확장이라 로그인 화면이 따로 없었다
   auth_sign_in: "구글로 로그인",
   auth_sign_out: "로그아웃",

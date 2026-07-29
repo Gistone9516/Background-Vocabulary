@@ -20,6 +20,8 @@ export type TermsState =
 
 export type TermsEvent =
   | { t: "start"; input: RecommendInput; append: boolean }
+  // 저장된 세션의 어휘 목록 되살리기(FR-702). 스트림을 열지 않는다.
+  | { t: "restore"; items: Term[] }
   | { t: "event"; runId: number; ev: StreamEvent }
   | { t: "failed"; runId: number; error: ApiError }
   | { t: "watchdog"; runId: number }

@@ -3,6 +3,9 @@
 
 import type {
   ClientLimits,
+  Page,
+  SessionRec,
+  SessionSummary,
   PreviewIn,
   PreviewOut,
   PrimerDoc,
@@ -16,9 +19,12 @@ import type {
   RecommendInput,
   StreamEvent,
 } from "@vock/shared";
-import { createSseParser, isPrimerDoc } from "@vock/shared";
-import type { ApiPort, AuthPort, AuthSession } from "./port.js";
+import { createSseParser, isPage, isPrimerDoc, isSessionSummary } from "@vock/shared";
+import type { ApiPort, AuthPort, AuthSession, KeepBody, ListSessionsArgs } from "./port.js";
 import { classifyResponse, isApiError, type ApiError } from "./errors.js";
+
+// 목록 형태 검사기는 한 번만 만든다. 매 호출마다 만들면 같은 함수가 계속 새로 생긴다.
+const SESSION_PAGE = isPage(isSessionSummary);
 
 export interface HttpApiConfig {
   baseUrl: string;
@@ -101,6 +107,50 @@ export class HttpApiClient implements ApiPort, AuthPort {
     // 이 응답만 형태를 검사한다. 본문 조립이 배열을 직접 훑기 때문에
     // 어긋난 형태가 화면 렌더 중에 터진다(스펙 P-7 — 실패는 기본 정리로 떨어져야 한다).
     return this.send<PrimerDoc>("POST", "/summarize", input, signal, isPrimerDoc);
+  }
+
+  // ── 영속(S5). 전부 로그인 필수다 ──────────────────────
+  listSessions(q: ListSessionsArgs, signal?: AbortSignal): Promise<Page<SessionSummary>> {
+    const p = new URLSearchParams();
+    if (q.projectId) p.set("project_id", q.projectId);
+    if (q.q) p.set("q", q.q);
+    if (q.pinned !== undefined) p.set("pinned", String(q.pinned));
+    if (q.cursor) p.set("cursor", q.cursor);
+    const qs = p.toString();
+    return this.send<Page<SessionSummary>>("GET", `/sessions${qs ? "?" + qs : ""}`, undefined, signal, SESSION_PAGE);
+  }
+
+  // 없는 세션은 실패가 아니라 없음이다. 목록에서 지워진 것을 눌렀을 때가 그 경우다.
+  async getSession(id: string, signal?: AbortSignal): Promise<SessionRec | null> {
+    try {
+      return await this.send<SessionRec>("GET", `/sessions/${encodeURIComponent(id)}`, undefined, signal);
+    } catch (e) {
+      if (isApiError(e) && e.kind === "not_found") return null;
+      throw e;
+    }
+  }
+
+  putSession(rec: Omit<SessionRec, "user_id">, signal?: AbortSignal): Promise<SessionRec> {
+    return this.send<SessionRec>("PUT", `/sessions/${encodeURIComponent(rec.session_id)}`, rec, signal);
+  }
+
+  deleteSession(id: string, signal?: AbortSignal): Promise<void> {
+    return this.send<void>("DELETE", `/sessions/${encodeURIComponent(id)}`, undefined, signal);
+  }
+
+  // 유예가 지나면 서버가 NOT_RESTORABLE을 준다. 되돌릴 수 없다는 답이지 오류가 아니다.
+  async restoreSession(id: string, signal?: AbortSignal): Promise<boolean> {
+    try {
+      await this.send<{ restored: boolean }>("POST", `/sessions/${encodeURIComponent(id)}/restore`, undefined, signal);
+      return true;
+    } catch (e) {
+      if (isApiError(e) && e.kind === "not_found") return false;
+      throw e;
+    }
+  }
+
+  keep(sessionId: string, body: KeepBody, signal?: AbortSignal): Promise<void> {
+    return this.send<void>("PUT", `/sessions/${encodeURIComponent(sessionId)}/keep`, body, signal);
   }
 
   // 스트림은 send를 쓰지 않는다. 본문을 끝까지 읽지 않고 조각마다 넘겨야 하기 때문이다.

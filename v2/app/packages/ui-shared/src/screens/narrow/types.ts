@@ -1,16 +1,15 @@
 // 좁히기 상태 기계의 타입. 상태와 이벤트와 명령만 있고 동작은 machine.ts에 있다.
 
-import type { Choice, Prompt1In, Prompt1Out, Prompt2In, Prompt2Out } from "@vock/shared";
+import type { AnswerTurn, Question, Prompt1In, Prompt1Out, Prompt2In, Prompt2Out } from "@vock/shared";
 import type { ApiError } from "../../api/index.js";
 
-export interface Question {
-  question: string;
-  choices: Choice[];
-}
+// 질문 정의는 shared가 갖는다. 저장 형태와 화면 형태가 같아야 한다(S5 S-20).
+export type { Question } from "@vock/shared";
 
 // 한 턴의 답. "어려워요"는 답이 아니라 난이도 신호라서 종류를 나눈다.
 // 이 구분이 있어야 질문 횟수를 셀 때 신호를 제외할 수 있다(스펙 D-2).
-export type AnswerTurn = { kind: "picks"; labels: string[] } | { kind: "tooHard" };
+// 저장 형태와 같아야 하므로 정의는 shared가 갖는다(S5 S-23).
+export type { AnswerTurn } from "@vock/shared";
 
 // 좁히기가 만들어 내는 값. 끝나면 통째로 다음 화면에 넘어간다.
 // 남은 턴 수는 여기 없다. answers에서 계산한다(스펙 D-4). 저장하지 않으면 어긋날 수 없다.
@@ -50,6 +49,8 @@ export type NarrowState =
 
 export type NarrowEvent =
   | { t: "submit"; sessionId: string; raw: string; cond: string }
+  // 저장된 세션 이어하기(S5 S-6). /classify를 다시 부르지 않으므로 ctx를 통째로 받는다.
+  | { t: "resume"; ctx: NarrowCtx; question: Question }
   | { t: "classified"; runId: number; out: Prompt1Out }
   | { t: "advanced"; runId: number; out: Prompt2Out }
   | { t: "failed"; runId: number; error: ApiError }
@@ -66,7 +67,7 @@ export type NarrowCmd =
   | { c: "callClassify"; runId: number; input: Prompt1In }
   | { c: "callNext"; runId: number; input: Prompt2In }
   | { c: "abort"; runId: number }
-  | { c: "saveSnapshot"; ctx: NarrowCtx }
+  | { c: "saveSnapshot"; ctx: NarrowCtx; question: Question | null }
   | { c: "goRefusal" }
   | { c: "goEntryWithNotice"; notice: "weekly" }
   | { c: "goHandoff"; ctx: NarrowCtx; reason: DoneReason };

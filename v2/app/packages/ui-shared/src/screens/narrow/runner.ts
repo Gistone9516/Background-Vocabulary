@@ -4,12 +4,12 @@
 
 import type { ApiPort } from "../../api/index.js";
 import { isApiError, type ApiError } from "../../api/index.js";
-import type { NarrowCmd, NarrowCtx, NarrowEvent, DoneReason } from "./types.js";
+import type { NarrowCmd, NarrowCtx, NarrowEvent, DoneReason, Question } from "./types.js";
 
 export interface NarrowEffects {
   api: ApiPort;
   send(e: NarrowEvent): void;
-  saveSnapshot(ctx: NarrowCtx): void;
+  saveSnapshot(ctx: NarrowCtx, question: Question | null): void;
   goRefusal(): void;
   goEntryWithNotice(notice: "weekly"): void;
   goHandoff(ctx: NarrowCtx, reason: DoneReason): void;
@@ -57,7 +57,7 @@ export class NarrowRunner {
         return;
       }
       case "saveSnapshot":
-        this.fx.saveSnapshot(cmd.ctx);
+        this.fx.saveSnapshot(cmd.ctx, cmd.question);
         return;
       case "goRefusal":
         this.fx.goRefusal();

@@ -1,7 +1,7 @@
 // 영속 도메인 타입(서버 정본). 정본 = 인터페이스계약-v2 §2-3. 목록·페이지 타입도 함께 둔다.
 // MindMap(GET /map)·RefinePrimer(FR-607)은 C5에서 추가한다.
 
-import type { Choice, Term } from "./pipeline-io.js";
+import type { Choice, Prompt1Out, Term } from "./pipeline-io.js";
 import type { DomainRisk, JobType, GapType, Tag, OutputLocale } from "./enums.js";
 
 // 구조화 프라이머(FR-604). 서버 정본은 SessionRec.primer.
@@ -16,11 +16,35 @@ export interface PrimerDoc {
   refined?: { audience?: string; goal_detail?: string; constraints?: string[] }; // FR-607 산출
 }
 
-// 좁히기 진행 스냅샷(매 턴 저장, FR-701).
-export interface NarrowSnap {
+// 좁히기 질문 한 개. 화면과 저장이 같은 형태를 쓴다.
+export interface Question {
   question: string;
   choices: Choice[];
-  answers: { label: string; action: "선택" | "더깊이제외" | "어려워요"; at?: number }[]; // at = 클릭 시각(NFR-503 계측 자리)
+}
+
+// 좁히기 한 턴의 답. 여러 개를 한 번에 고를 수 있으므로 턴이 단위이고 라벨은 그 안의 배열이다.
+// "어려워요"는 답이 아니라 난이도 신호라 턴으로 세지 않는다(v1 최종 교정).
+export type AnswerTurn = { kind: "picks"; labels: string[] } | { kind: "tooHard" };
+
+// 좁히기 진행 스냅샷(매 턴 저장, FR-701).
+// 재개에 필요한 것을 전부 담는다(S5 S-20). SessionRec의 스칼라 컬럼만으로는 좁히기 맥락을
+// 복원할 수 없다 — search_locale이 컬럼에 없어 재개 후 추천이 다른 로케일로 나가고,
+// 첫 질문이 없어 되돌리기 기준점이 사라지고, usedUndo가 없으면 재개마다 되돌리기가 새로 생긴다.
+export interface NarrowSnap {
+  // 분류 결과 정본. 컬럼(area·job_type·domain_risk)은 여기서 파생한 목록용 색인이며,
+  // 재개할 때 컬럼을 되읽지 않는다(S-21). 첫 질문도 여기 question/choices다.
+  classify: Prompt1Out;
+  // 지금 떠 있는 질문. null이면 좁히기는 끝났고 난이도 선택 앞이다.
+  // 이 한 필드가 재개 지점을 정한다 — 따로 단계 플래그를 두면 질문 유무와 어긋날 수 있다.
+  question: Question | null;
+  // 상태 기계가 쓰는 형태 그대로다(S-23). 저장용 형태로 바꾸지 않는다 —
+  // 라벨당 한 행으로 펴면 한 턴에 여러 개를 고른 경우가 여러 턴으로 세어져
+  // 답변 수와 턴 수가 어긋난다. 종료 판정은 턴을 센다.
+  answers: AnswerTurn[];
+  // 좁히기 진행 플래그. 답변에서 파생되지 않는 것만 담는다.
+  simplify: boolean; // "어려워요"가 눌린 뒤인가
+  usedUndo: boolean; // 되돌리기 1회를 썼는가
+  confidence: number; // 직전 /next의 확신도. 종료 판정이 읽는다
   // 남은 턴은 저장하지 않는다. answers에서 "어려워요"를 뺀 수와 현재 티어 상한으로 계산한다.
   // 저장하면 답변 수와 예산이 각각 움직여 어긋난다. v1이 정확히 그 형태로 버그를 냈다.
 }

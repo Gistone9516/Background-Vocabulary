@@ -10,6 +10,7 @@ import {
   HttpApiClient,
   KeptScreen,
   NarrowScreen,
+  SessionList,
   TermsScreen,
   useAuth,
   emptyKept,
@@ -20,8 +21,11 @@ import {
   useDetail,
   useNarrow,
   usePreview,
+  useSessionSync,
+  resumeTarget,
   usePrimer,
   useTerms,
+  detailInputOf,
   type Difficulty,
   type DoneReason,
   type KeptMap,
@@ -98,11 +102,6 @@ export function App() {
     []
   );
 
-  const narrow = useNarrow({ api, cfg, onHandoff, onRefusal, onEntryNotice });
-  const terms = useTerms({ api, cfg: termsCfg, onRefusal });
-  const detail = useDetail(api);
-  const primer = usePrimer(api);
-
   // 로그인. client_id가 없으면(콘솔 등록 전) 버튼 자체가 뜨지 않는다(S5a A-2).
   const auth = useAuth({
     auth: api,
@@ -111,26 +110,52 @@ export function App() {
     redirectUri: typeof location === "undefined" ? "" : location.origin + location.pathname,
   });
 
+  // 로그인 여부. 저장은 로그인한 사용자만 한다(스펙 S-1).
+  const signedIn = auth.state.phase === "signed_in";
+  const sync = useSessionSync({ api, enabled: signedIn });
+
+  const narrow = useNarrow({
+    api,
+    cfg,
+    onHandoff,
+    onRefusal,
+    onEntryNotice,
+    // 저장 시점은 상태 기계가 정한다. 여기서는 옮기기만 한다.
+    saveSnapshot: sync.saveSnapshot,
+  });
+  const terms = useTerms({
+    api,
+    cfg: termsCfg,
+    onRefusal,
+    // 생성이 끝나면 narrow를 지워 목록의 "생성 중"을 푼다(S-5).
+    onComplete: (items) => {
+      const c = lastCtx.current;
+      if (c) sync.completeSession(c, items);
+    },
+  });
+  const detail = useDetail(api);
+  const primer = usePrimer(api);
+
   // 담기는 화면 상태로만 유지한다. 서버 저장은 로그인 UI와 함께 S5에서 붙는다.
   const [kept, setKept] = useState<KeptMap>(emptyKept);
-  const toggleKept = useCallback((t: TermCard) => setKept((prev) => toggleKeep(prev, t)), []);
+  const toggleKept = useCallback(
+    (t: TermCard) => {
+      // 화면을 먼저 바꾼다. 서버 실패가 담기를 되돌리지 않는다(S-7).
+      setKept((prev) => {
+        const next = toggleKeep(prev, t);
+        const sid = lastCtx.current?.sessionId;
+        if (sid) sync.syncKeep(sid, t, next.size > prev.size);
+        return next;
+      });
+    },
+    [sync]
+  );
   const keptTerms = useMemo(() => keptList(kept), [kept]);
 
   // 상세 요청은 카드와 세션 맥락에서 만든다. 화면은 세션을 모른다.
   const lastCtx = useRef<NarrowCtx | null>(null);
   if (journey.at === "difficulty") lastCtx.current = journey.ctx;
-  const detailInputOf = useCallback((card: TermCard): Prompt5In => {
-    const c = lastCtx.current;
-    return {
-      term: card.term,
-      kind: card.kind,
-      area: c?.classifyOut.domain ?? "",
-      job_type: c?.classifyOut.job_type ?? [],
-      domain: c?.classifyOut.domain ?? "",
-      topic: c?.topic ?? "",
-      locale: c?.classifyOut.search_locale ?? "en",
-    };
-  }, []);
+  const detailInput = useCallback((card: TermCard) => detailInputOf(card, lastCtx.current), []);
 
   // 난이도 화면에 들어가면 깊이별 대표 어휘를 미리 부른다. 한도에 집계되지 않는다.
   // 요청 조립은 훅 안에서 한다. 여기서 만들면 매 렌더마다 새 객체가 되어 effect가 끝없이 돈다.
@@ -164,6 +189,27 @@ export function App() {
     [journey, terms]
   );
 
+  // 세션 재개. /classify를 다시 부르지 않는다(S-6). 어디로 갈지는 순수 함수가 정한다.
+  const resume = useCallback(
+    async (id: string) => {
+      const target = resumeTarget(await sync.load(id).catch(() => null));
+      if (target.to === "none") return;
+      if (target.to === "terms") {
+        setJourney({ at: "terms" });
+        terms.send({ t: "restore", items: target.items ?? [] });
+        return;
+      }
+      lastCtx.current = target.ctx;
+      if (target.to === "narrow") {
+        setJourney({ at: "narrow" });
+        narrow.send({ t: "resume", ctx: target.ctx, question: target.question });
+      } else {
+        setJourney({ at: "difficulty", ctx: target.ctx, reason: "user_jump" });
+      }
+    },
+    [narrow, sync, terms]
+  );
+
   const home = useCallback(() => {
     narrow.send({ t: "leave" });
     terms.send({ t: "leave" });
@@ -172,6 +218,20 @@ export function App() {
 
   return (
     <AppShell
+      sessions={
+        <SessionList
+          items={sync.list.items}
+          off={sync.list.off}
+          loading={sync.list.loading}
+          hasMore={sync.list.cursor !== null}
+          query={sync.query}
+          onSearch={sync.search}
+          onOpen={resume}
+          onRemove={sync.remove}
+          onRestore={sync.restore}
+          onMore={sync.more}
+        />
+      }
       footer={
         <AuthButton state={auth.state} available={auth.available} onSignIn={auth.signIn} onSignOut={auth.signOut} />
       }
@@ -190,7 +250,7 @@ export function App() {
         <TermsScreen
           state={terms.state}
           detail={detail.state}
-          detailInputOf={detailInputOf}
+          detailInputOf={detailInput}
           onToggleDetail={detail.toggle}
           onRetryDetail={detail.retry}
           isKept={(term) => isKeptIn(kept, term)}

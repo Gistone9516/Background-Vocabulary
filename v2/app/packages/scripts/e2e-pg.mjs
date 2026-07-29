@@ -2,6 +2,7 @@
 // 마이그레이션 → 시드(FK 대상 user) → 세션 생성/조회/목록/담기/knowledge/소프트삭제/restore/소유권409/프로젝트삭제.
 // 빌드 산출물(dist) 소비 — 실행 전 pnpm build 선행(gate-db가 보장).
 import { createPgPool, PgSqlRunner, buildLocalPgDeps, migrate, bootLocal } from "@vock/local";
+import { toSessionRec, toSnapshot } from "@vock/ui-shared";
 
 const DB = process.env.DATABASE_URL || "postgres://vock:vock@localhost:5433/vock";
 const U = "u_e2e_pg";
@@ -41,13 +42,44 @@ const { server, port } = await bootLocal({ port: 0, deps: buildLocalPgDeps(sql) 
 const base = `http://127.0.0.1:${port}`;
 console.log(`local PG 부트 기동: ${base}  (DB=${DB})`);
 
+// 클라이언트가 만드는 좁히기 맥락. 저장 형태를 손으로 적지 않기 위한 재료다.
+const CLASSIFY = {
+  domain: "pid_control",
+  job_type: ["이해학습"],
+  condition_required: false,
+  question: "어느 쪽을 먼저 이해하고 싶으세요?",
+  choices: [{ label: "제어기가 흔들리는 이유" }],
+  search_locale: "en",
+  domain_risk: "low",
+};
+const CTX = (sessionId) => ({
+  sessionId,
+  topic: "PID 제어 배경",
+  cond: "",
+  classifyOut: CLASSIFY,
+  firstQuestion: { question: CLASSIFY.question, choices: CLASSIFY.choices },
+  answers: [{ kind: "picks", labels: ["제어기가 흔들리는 이유"] }],
+  simplify: true,
+  usedUndo: true,
+  confidence: 0.7,
+});
+const CUR = { question: "구체적으로 어떤 상황인가요?", choices: [{ label: "적분이 쌓이는 경우" }] };
+
 const sid = crypto.randomUUID();
 try {
-  // 1. 세션 upsert
-  const put = await req(base, "PUT", `/sessions/${sid}`, U, { topic: "PID 제어 배경", domain_risk: "low", job_type: ["이해학습"], narrow: { question: "q", choices: [], answers: [] } });
+  // 1. 세션 upsert. 본문은 클라이언트가 실제로 만드는 것을 그대로 쓴다 —
+  // 손으로 적은 본문은 클라 형태가 바뀌어도 계속 통과해서 이음매가 어긋난 걸 못 잡는다.
+  const draft = toSessionRec({ ctx: CTX(sid), narrow: toSnapshot(CTX(sid), CUR), generated: null, prev: null, now: Date.now() });
+  const put = await req(base, "PUT", `/sessions/${sid}`, U, draft);
   check("PUT /sessions 200", put.status === 200, `status=${put.status}`);
   check("세션 소유자·id", put.json?.session_id === sid && put.json?.user_id === U);
   check("세션 생성중(narrow 존재)", put.json?.narrow !== null);
+  // S-20: 재개에 필요한 것이 서버를 왕복해도 남아 있어야 한다.
+  check("분류 결과가 왕복에서 살아남는다", put.json?.narrow?.classify?.search_locale === "en");
+  check("좁히기 플래그가 왕복에서 살아남는다", put.json?.narrow?.usedUndo === true && put.json?.narrow?.simplify === true);
+  check("답변이 턴 단위로 남는다", put.json?.narrow?.answers?.[0]?.kind === "picks");
+  // S-4: 파생값은 저장되지 않는다.
+  check("남은 턴은 저장되지 않는다", !Object.keys(put.json?.narrow ?? {}).some((k) => /turns|remain|left/i.test(k)));
 
   // 2. 단건·목록
   const get = await req(base, "GET", `/sessions/${sid}`, U);

@@ -4,6 +4,10 @@
 
 import type {
   ClientLimits,
+  Page,
+  SessionRec,
+  SessionSummary,
+  Term,
   PreviewIn,
   PreviewOut,
   PrimerDoc,
@@ -46,4 +50,29 @@ export interface ApiPort {
   summarize(input: Prompt4In, signal?: AbortSignal): Promise<PrimerDoc>;
   // 서버가 흘리는 이벤트를 순서 그대로 넘긴다. 취소는 signal로 전파한다.
   recommendStream(input: RecommendInput, signal: AbortSignal): AsyncIterable<StreamEvent>;
+
+  // 영속(S5). 전부 로그인 필수라 비로그인에서는 호출 자체를 하지 않는다(스펙 S-1).
+  listSessions(q: ListSessionsArgs, signal?: AbortSignal): Promise<Page<SessionSummary>>;
+  getSession(id: string, signal?: AbortSignal): Promise<SessionRec | null>; // null = 없음
+  // 전체 upsert(S-22). user_id는 서버가 토큰에서 정하므로 보내지 않는다.
+  putSession(rec: Omit<SessionRec, "user_id">, signal?: AbortSignal): Promise<SessionRec>;
+  deleteSession(id: string, signal?: AbortSignal): Promise<void>;
+  restoreSession(id: string, signal?: AbortSignal): Promise<boolean>; // false = 유예 경과
+  keep(sessionId: string, body: KeepBody, signal?: AbortSignal): Promise<void>;
+}
+
+// 커서는 서버가 만든 불투명 문자열이다. 클라가 열어 보거나 다시 정렬하지 않는다(S-9).
+export interface ListSessionsArgs {
+  projectId?: string | null;
+  q?: string;
+  pinned?: boolean;
+  cursor?: string | null;
+}
+
+export interface KeepBody {
+  term: Term;
+  term_norm: string; // normTerm()의 결과. 서버는 다시 계산하지 않는다
+  keep: boolean;
+  domain_tags?: string[];
+  project_id?: string | null;
 }

@@ -13,6 +13,11 @@ function itemsOf(s: TermsState): TermCard[] {
   return "items" in s ? s.items : [];
 }
 
+// 카드 id. 스트리밍과 되살리기가 같은 형식을 써야 상세 캐시 키가 어긋나지 않는다.
+function cardId(run: string | number, index: number): string {
+  return `t${run}-${index}`;
+}
+
 export function reduce(s: TermsState, e: TermsEvent, cfg: TermsConfig): [TermsState, TermsCmd[]] {
   // 자기 스트림의 이벤트가 아니면 버린다. 이 대조가 한 곳에만 있다.
   if (e.t === "event" || e.t === "failed" || e.t === "watchdog") {
@@ -39,7 +44,7 @@ export function reduce(s: TermsState, e: TermsEvent, cfg: TermsConfig): [TermsSt
         if (s.items.length >= cfg.maxTotal) {
           return [{ phase: "settled", items: s.items, reason: "capped" }, [{ c: "abort", runId: s.runId }]];
         }
-        const card: TermCard = { ...e.ev.term, id: `t${s.runId}-${s.items.length}` };
+        const card: TermCard = { ...e.ev.term, id: cardId(s.runId, s.items.length) };
         // 이벤트가 올 때마다 감시 시계를 되감는다.
         return [{ ...s, items: [...s.items, card] }, [{ c: "armWatchdog", runId: s.runId }]];
       }
@@ -73,6 +78,11 @@ export function reduce(s: TermsState, e: TermsEvent, cfg: TermsConfig): [TermsSt
       // done도 error도 없이 조용히 멈춘 경우. 로딩을 영원히 돌리지 않는다.
       return [{ phase: "settled", items: s.items, reason: "aborted" }, [{ c: "abort", runId: s.runId }]];
     }
+
+    // 이미 생성이 끝난 세션을 다시 여는 것이라 스트림도 완료 전이도 없다.
+    // 완료 전이를 또 내면 세션이 다시 저장되어 updated_at만 흔들린다.
+    case "restore":
+      return [{ phase: "settled", items: e.items.map((t, i) => ({ ...t, id: cardId("r", i) })), reason: "done" }, NONE];
 
     case "leave": {
       if (s.phase === "idle") return [s, NONE];

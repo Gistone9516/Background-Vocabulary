@@ -2,6 +2,12 @@
 // 스타일은 패키지 exports의 ./styles.css 로 별도 임포트한다(번들러가 처리).
 export { AppShell } from "./app/AppShell.js";
 export type { AppShellProps } from "./app/AppShell.js";
+export { SessionList } from "./app/SessionList.js";
+export type { SessionListProps } from "./app/SessionList.js";
+
+// 세션 서버 동기화(S5). 저장 시점은 좁히기·생성 상태 기계가 이미 정한다.
+export { toSnapshot, fromSnapshot, toSessionRec, resumeTarget, useSessionSync } from "./session/index.js";
+export type { Resume, SnapshotArgs, SessionListState, UseSessionSyncOptions } from "./session/index.js";
 export { EntryScreen } from "./screens/EntryScreen.js";
 export type { EntryScreenProps } from "./screens/EntryScreen.js";
 export { tr } from "./i18n/strings.js";
@@ -11,7 +17,7 @@ export { EXAMPLES, pickRandom } from "./i18n/examples.js";
 // 서버 통로. 구현은 셸(web/desktop)이 만들어 주입한다.
 export type { ApiPort, AuthPort, AuthSession, TokenStore, StoredTokens } from "./api/index.js";
 export { HttpApiClient, classifyResponse, isRetryable, isApiError, memoryTokenStore } from "./api/index.js";
-export type { ApiError, HttpApiConfig } from "./api/index.js";
+export type { ApiError, HttpApiConfig, KeepBody, ListSessionsArgs } from "./api/index.js";
 
 // 로그인(S5a). 로그인은 관문이 아니다. 비로그인으로도 전 여정이 돈다.
 export { AuthButton, useAuth, preparePkce, challengeOf, buildAuthorizeUrl, readCallback } from "./screens/auth/index.js";
@@ -66,6 +72,7 @@ export type { DifficultyScreenProps, Difficulty, PreviewKey, PreviewState } from
 export {
   TermsScreen,
   TermDetail,
+  detailInputOf,
   useTerms,
   useDetail,
   TermsRunner,

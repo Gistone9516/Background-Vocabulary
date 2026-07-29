@@ -12,6 +12,9 @@ export type ApiError =
   | { kind: "auth_failed"; message: string } // 로그인 자체가 실패. 다시 로그인
   | { kind: "session_expired"; message: string } // 토큰 만료·폐기. 재발급 또는 재로그인
   | { kind: "auth_required"; message: string } // 로그인이 필요한 자원에 비로그인 접근
+  // 영속 CRUD 계열(S5). 이전에는 전부 server로 떨어져 화면이 "없음"과 "남의 것"을 구분하지 못했다.
+  | { kind: "not_found"; message: string } // 없거나 이미 지워졌거나 복구 유예가 지났다
+  | { kind: "ownership_conflict"; message: string } // 그 id가 다른 계정 소유다
   | { kind: "network" }
   | { kind: "malformed" }
   | { kind: "server"; status: number; message: string };
@@ -44,7 +47,16 @@ export function classifyResponse(status: number, body: unknown): ApiError {
     case "TOKEN_EXPIRED":
       return { kind: "session_expired", message: say(b, "세션이 만료되었어요. 다시 로그인해 주세요.") };
     case "AUTH_REQUIRED":
+    // 영속 라우트는 비로그인을 UNAUTHENTICATED로 답한다(crud-routes.ts). 같은 뜻이라 같이 묶는다.
+    case "UNAUTHENTICATED":
       return { kind: "auth_required", message: say(b, "로그인이 필요해요.") };
+    case "NOT_FOUND":
+      return { kind: "not_found", message: say(b, "찾을 수 없어요.") };
+    // 복구 유예가 지난 삭제. 되돌릴 수 없다는 점에서 없는 것과 같게 다룬다.
+    case "NOT_RESTORABLE":
+      return { kind: "not_found", message: say(b, "되돌릴 수 있는 기간이 지났어요.") };
+    case "OWNERSHIP_CONFLICT":
+      return { kind: "ownership_conflict", message: say(b, "다른 계정의 기록이라 저장할 수 없어요.") };
     default:
       return { kind: "server", status, message: say(b, "요청을 처리하지 못했어요.") };
   }

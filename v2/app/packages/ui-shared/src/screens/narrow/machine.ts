@@ -68,6 +68,15 @@ export function reduce(s: NarrowState, e: NarrowEvent, cfg: NarrowConfig): [Narr
       return [{ phase: "idle" }, [{ c: "abort", runId: liveRun(s) }]];
     }
 
+    // 이어하기는 분류를 건너뛰고 저장된 맥락으로 바로 질문 화면에 앉는다(스펙 S-6).
+    // runId를 올려 두어야 이전 세션의 늦은 응답이 이 화면에 섞이지 않는다.
+    case "resume": {
+      return [
+        { phase: "asking", runId: liveRun(s) + 1, ctx: e.ctx, question: e.question, picks: EMPTY_PICKS },
+        [{ c: "abort", runId: liveRun(s) }],
+      ];
+    }
+
     case "submit": {
       // 분류 중 재제출은 전이가 없다. 연타 방지 플래그 없이 구조로 막힌다(스펙 B-1).
       if (s.phase === "classifying") return [s, NONE];
@@ -100,11 +109,11 @@ export function reduce(s: NarrowState, e: NarrowEvent, cfg: NarrowConfig): [Narr
       if (!usable) {
         return [
           { phase: "done", ctx, reason: "malformed" },
-          [{ c: "saveSnapshot", ctx }, { c: "goHandoff", ctx, reason: "malformed" }],
+          [{ c: "saveSnapshot", ctx, question: null }, { c: "goHandoff", ctx, reason: "malformed" }],
         ];
       }
       // 0답 상태도 저장한다. 여기서 이탈해도 재개할 수 있어야 한다(스펙 B-13).
-      return [{ phase: "asking", runId: s.runId, ctx, question: first, picks: EMPTY_PICKS }, [{ c: "saveSnapshot", ctx }]];
+      return [{ phase: "asking", runId: s.runId, ctx, question: first, picks: EMPTY_PICKS }, [{ c: "saveSnapshot", ctx, question: first }]];
     }
 
     case "toggle": {
@@ -154,13 +163,13 @@ export function reduce(s: NarrowState, e: NarrowEvent, cfg: NarrowConfig): [Narr
       if (d.done) {
         return [
           { phase: "done", ctx, reason: d.reason },
-          [{ c: "saveSnapshot", ctx }, { c: "goHandoff", ctx, reason: d.reason }],
+          [{ c: "saveSnapshot", ctx, question: null }, { c: "goHandoff", ctx, reason: d.reason }],
         ];
       }
       // 다음 질문이 뜬 상태를 저장한다(스펙 B-13).
       return [
         { phase: "asking", runId: s.runId, ctx, question: questionOf(e.out), picks: EMPTY_PICKS },
-        [{ c: "saveSnapshot", ctx }],
+        [{ c: "saveSnapshot", ctx, question: questionOf(e.out) }],
       ];
     }
 
@@ -213,7 +222,7 @@ export function reduce(s: NarrowState, e: NarrowEvent, cfg: NarrowConfig): [Narr
       // 사용자가 직접 끊은 것이라 종료 사유를 따로 알리지 않는다(스펙 D-9).
       return [
         { phase: "done", ctx: s.ctx, reason: "user_jump" },
-        [{ c: "saveSnapshot", ctx: s.ctx }, { c: "goHandoff", ctx: s.ctx, reason: "user_jump" }],
+        [{ c: "saveSnapshot", ctx: s.ctx, question: null }, { c: "goHandoff", ctx: s.ctx, reason: "user_jump" }],
       ];
     }
 

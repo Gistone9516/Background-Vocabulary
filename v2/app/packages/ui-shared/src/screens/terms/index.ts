@@ -2,6 +2,7 @@
 export { TermsScreen, type TermsScreenProps } from "./TermsScreen.js";
 export { TermDetail, type TermDetailProps } from "./TermDetail.js";
 export { useDetail } from "./useDetail.js";
+export { detailInputOf } from "./detail-input.js";
 export { reduce as reduceDetail, initialDetail } from "./detail-machine.js";
 export type { DetailCache, DetailCmd, DetailEvent, DetailState } from "./detail-machine.js";
 export { useTerms, type UseTermsOptions } from "./useTerms.js";
