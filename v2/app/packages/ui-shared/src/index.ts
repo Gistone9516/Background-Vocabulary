@@ -9,9 +9,13 @@ export type { StringKey } from "./i18n/strings.js";
 export { EXAMPLES, pickRandom } from "./i18n/examples.js";
 
 // 서버 통로. 구현은 셸(web/desktop)이 만들어 주입한다.
-export type { ApiPort } from "./api/index.js";
-export { HttpApiClient, classifyResponse, isRetryable, isApiError } from "./api/index.js";
+export type { ApiPort, AuthPort, AuthSession, TokenStore, StoredTokens } from "./api/index.js";
+export { HttpApiClient, classifyResponse, isRetryable, isApiError, memoryTokenStore } from "./api/index.js";
 export type { ApiError, HttpApiConfig } from "./api/index.js";
+
+// 로그인(S5a). 로그인은 관문이 아니다. 비로그인으로도 전 여정이 돈다.
+export { AuthButton, useAuth, preparePkce, challengeOf, buildAuthorizeUrl, readCallback } from "./screens/auth/index.js";
+export type { AuthButtonProps, AuthState, AuthUser, UseAuthOptions, PkcePrep } from "./screens/auth/index.js";
 
 // 좁히기. 상태 기계는 React와 무관한 순수 로직이라 게이트가 서버 없이 검증한다.
 export { NarrowScreen, useNarrow } from "./screens/narrow/index.js";

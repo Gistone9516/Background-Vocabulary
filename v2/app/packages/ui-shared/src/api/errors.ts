@@ -7,6 +7,11 @@ export type ApiError =
   | { kind: "pro_only"; message: string }
   | { kind: "high_risk"; message: string }
   | { kind: "rate_limited"; message: string }
+  // 인증 계열. 이전에는 전부 server로 떨어져 화면이 로그인 실패와 세션 만료를
+  // 구분하지 못했다(스펙 A-9).
+  | { kind: "auth_failed"; message: string } // 로그인 자체가 실패. 다시 로그인
+  | { kind: "session_expired"; message: string } // 토큰 만료·폐기. 재발급 또는 재로그인
+  | { kind: "auth_required"; message: string } // 로그인이 필요한 자원에 비로그인 접근
   | { kind: "network" }
   | { kind: "malformed" }
   | { kind: "server"; status: number; message: string };
@@ -33,6 +38,13 @@ export function classifyResponse(status: number, body: unknown): ApiError {
     case "RATE_LIMITED":
     case "CAPACITY":
       return { kind: "rate_limited", message: say(b, "잠시 후 다시 시도해 주세요.") };
+    case "AUTH_FAILED":
+      return { kind: "auth_failed", message: say(b, "로그인에 실패했어요. 다시 시도해 주세요.") };
+    case "TOKEN_REVOKED":
+    case "TOKEN_EXPIRED":
+      return { kind: "session_expired", message: say(b, "세션이 만료되었어요. 다시 로그인해 주세요.") };
+    case "AUTH_REQUIRED":
+      return { kind: "auth_required", message: say(b, "로그인이 필요해요.") };
     default:
       return { kind: "server", status, message: say(b, "요청을 처리하지 못했어요.") };
   }

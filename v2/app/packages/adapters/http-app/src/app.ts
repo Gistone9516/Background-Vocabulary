@@ -19,6 +19,9 @@ export interface AppDeps extends PipelineDeps {
   repos?: Repositories;
   authService?: AuthService;
   counters?: CounterStore;
+  // 구글 OAuth 클라이언트 식별자. 부트가 env에서 읽어 넣는다.
+  // 운영 한도가 아니라 클라이언트 설정이라 Limits가 아니라 여기로 받는다.
+  googleClientId?: string;
 }
 
 // 운영 한도에서 클라이언트 게이팅용 부분집합(/config 응답)을 파생한다.
@@ -36,7 +39,11 @@ function toClientLimits(l: Limits): ClientLimits {
 
 export function createApp(deps: AppDeps): Hono {
   const pipeline = createPipeline(deps);
-  const clientLimits = toClientLimits(deps.limits ?? DEFAULT_LIMITS);
+  // client_id는 있을 때만 싣는다. 없으면 키 자체가 없어야 클라가 로그인을 감춘다(S5a A-2).
+  const clientLimits: ClientLimits = {
+    ...toClientLimits(deps.limits ?? DEFAULT_LIMITS),
+    ...(deps.googleClientId ? { googleClientId: deps.googleClientId } : {}),
+  };
 
   const app = new Hono();
   app.get("/health", (c) => c.json({ ok: true }));

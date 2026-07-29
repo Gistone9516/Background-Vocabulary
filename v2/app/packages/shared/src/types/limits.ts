@@ -50,8 +50,13 @@ export const DEFAULT_LIMITS: Limits = {
   maxContextChars: 12000,
 };
 
-// 클라이언트가 게이팅에 쓰는 한도 부분집합. /config 응답 형태.
+// 서버가 클라이언트에게 알려 주는 설정. /config 응답 형태.
+// 대부분은 게이팅에 쓰는 한도 부분집합이고, 한도가 아닌 값은 아래 주석으로 구분한다.
 export interface ClientLimits {
+  // 한도가 아님. 구글 OAuth 클라이언트 식별자(공개값이라 클라에 실어도 된다).
+  // 없으면 클라가 로그인 UI를 아예 띄우지 않는다. 실 콘솔 등록 전에는 없는 것이 정상이고,
+  // 없는 채로 버튼을 띄우면 눌러서 깨진다(스펙 S5a A-2).
+  googleClientId?: string;
   narrowMax: { free: number; paid: number };
   narrowMin: number; // 좁히기 최소 턴. 클라가 종료 판정에 쓴다.
   detailLimitFree: number;

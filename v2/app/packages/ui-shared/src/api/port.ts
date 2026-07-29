@@ -14,7 +14,25 @@ import type {
   Prompt5Out,
   RecommendInput,
   StreamEvent,
+  Tier,
 } from "@vock/shared";
+
+// 로그인 응답. 서버가 주는 필드명을 그대로 쓴다.
+// SoT §3-2 표는 {access, refresh, user}로 축약돼 있지만 실제 응답은 아래다(auth-routes.ts:22).
+// 표만 보고 짜면 토큰을 못 읽고 조용히 실패한다.
+export interface AuthSession {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+  user: { email: string; tier: Tier };
+}
+
+// 인증은 ApiPort와 분리한다. 파이프라인 호출과 수명이 다르고 로그인 없이도 앱이 돌아야 한다.
+export interface AuthPort {
+  login(args: { code: string; codeVerifier: string; redirectUri: string }): Promise<AuthSession>;
+  refresh(refreshToken: string): Promise<AuthSession | null>; // null이면 재로그인 필요
+  logout(refreshToken: string): Promise<void>;
+}
 
 export interface ApiPort {
   config(signal?: AbortSignal): Promise<ClientLimits>;

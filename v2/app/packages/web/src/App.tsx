@@ -4,12 +4,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AppShell,
+  AuthButton,
   DifficultyScreen,
   EntryScreen,
   HttpApiClient,
   KeptScreen,
   NarrowScreen,
   TermsScreen,
+  useAuth,
   emptyKept,
   isKept as isKeptIn,
   keptList,
@@ -27,6 +29,7 @@ import {
   type TermCard,
 } from "@vock/ui-shared";
 import type { ClientLimits, Prompt5In, RecommendInput } from "@vock/shared";
+import { localTokenStore } from "./auth-storage.js";
 
 // 개발 중에는 vite 프록시를 지나 로컬 서버로 간다. 배포 주소는 빌드 시 주입한다.
 const BASE_URL = import.meta.env.VITE_API_BASE ?? "/api";
@@ -51,7 +54,29 @@ function doneNotice(reason: DoneReason): string | null {
 }
 
 export function App() {
-  const api = useMemo(() => new HttpApiClient({ baseUrl: BASE_URL }), []);
+  // 토큰 저장은 셸이 정한다. ui-shared는 저장 방식을 모른다.
+  const tokens = useMemo(() => localTokenStore(), []);
+  const api = useMemo<HttpApiClient>(() => {
+    // onUnauthorized가 자기 자신을 부르므로 타입을 명시해 추론 순환을 끊는다.
+    // 클로저는 생성 이후에만 실행되니 런타임에는 문제가 없다.
+    const client: HttpApiClient = new HttpApiClient({
+      baseUrl: BASE_URL,
+      getAccessToken: () => tokens.read()?.access ?? null,
+      // 401 한 번에 한해 재발급하고 원 요청을 한 번만 다시 보낸다(S5a A-7).
+      onUnauthorized: async (): Promise<string | null> => {
+        const held = tokens.read();
+        if (!held) return null;
+        const next = await client.refresh(held.refresh).catch(() => null);
+        if (!next) {
+          tokens.clear();
+          return null;
+        }
+        tokens.write({ access: next.access_token, refresh: next.refresh_token });
+        return next.access_token;
+      },
+    });
+    return client;
+  }, [tokens]);
   const [limits, setLimits] = useState<ClientLimits | null>(null);
   const [journey, setJourney] = useState<Journey>({ at: "entry" });
 
@@ -75,6 +100,14 @@ export function App() {
   const narrow = useNarrow({ api, cfg, onHandoff, onRefusal, onEntryNotice });
   const terms = useTerms({ api, cfg: termsCfg, onRefusal });
   const detail = useDetail(api);
+
+  // 로그인. client_id가 없으면(콘솔 등록 전) 버튼 자체가 뜨지 않는다(S5a A-2).
+  const auth = useAuth({
+    auth: api,
+    tokens,
+    clientId: limits?.googleClientId ?? null,
+    redirectUri: typeof location === "undefined" ? "" : location.origin + location.pathname,
+  });
 
   // 담기는 화면 상태로만 유지한다. 서버 저장은 로그인 UI와 함께 S5에서 붙는다.
   const [kept, setKept] = useState<KeptMap>(emptyKept);
@@ -136,7 +169,11 @@ export function App() {
   }, [narrow, terms]);
 
   return (
-    <AppShell>
+    <AppShell
+      footer={
+        <AuthButton state={auth.state} available={auth.available} onSignIn={auth.signIn} onSignOut={auth.signOut} />
+      }
+    >
       {journey.at === "entry" ? (
         <EntryScreen onSubmit={submit} notice={journey.notice === "weekly" ? tr("weekly_exhausted") : null} />
       ) : null}

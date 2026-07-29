@@ -132,6 +132,16 @@ body { display: block; }
 }
 .sbItem:hover { background: var(--surface-2); }
 .sbItem.on { background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+/* 사이드바 맨 아래 자리. 목록이 길어져도 항상 바닥에 붙어 있다. */
+.sbFoot {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--border);
+  padding: .625rem .875rem;
+}
+/* 안에 든 것이 아무것도 그리지 않으면 테두리만 남은 빈 띠가 된다.
+   셸은 자식이 null을 반환할지 알 수 없으므로 호출부에 맡기지 않고 여기서 막는다.
+   같은 유형의 결함을 넓은 화면 헤더에서 이미 한 번 겪었다. */
+.sbFoot:empty { display: none; }
 .sbEmpty {
   font-size: .78125rem;
   color: var(--faint);
