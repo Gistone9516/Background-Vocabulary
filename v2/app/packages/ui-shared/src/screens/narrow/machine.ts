@@ -87,6 +87,7 @@ export function reduce(s: NarrowState, e: NarrowEvent, cfg: NarrowConfig): [Narr
       const first: Question = usable ? questionOf(e.out) : { question: "", choices: [] };
       const ctx: NarrowCtx = {
         sessionId: s.sessionId,
+        topic: s.raw,
         cond: s.cond,
         classifyOut: e.out,
         firstQuestion: first,

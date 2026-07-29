@@ -1,7 +1,18 @@
 // ApiPort의 fetch 구현. 브라우저와 Tauri가 같은 화면 코드를 쓰도록 fetch 자체를 주입받는다.
 // 이 파일 밖으로 상태 코드나 서버 에러 문자열이 새지 않는다. 실패는 전부 ApiError로 바꿔 던진다.
 
-import type { Prompt1In, Prompt1Out, Prompt2In, Prompt2Out, ClientLimits } from "@vock/shared";
+import type {
+  ClientLimits,
+  PreviewIn,
+  PreviewOut,
+  Prompt1In,
+  Prompt1Out,
+  Prompt2In,
+  Prompt2Out,
+  RecommendInput,
+  StreamEvent,
+} from "@vock/shared";
+import { createSseParser } from "@vock/shared";
 import type { ApiPort } from "./port.js";
 import { classifyResponse, type ApiError } from "./errors.js";
 
@@ -37,6 +48,52 @@ export class HttpApiClient implements ApiPort {
 
   next(input: Prompt2In, signal?: AbortSignal): Promise<Prompt2Out> {
     return this.send<Prompt2Out>("POST", "/next", input, signal);
+  }
+
+  preview(input: PreviewIn, signal?: AbortSignal): Promise<PreviewOut> {
+    return this.send<PreviewOut>("POST", "/preview", input, signal);
+  }
+
+  // 스트림은 send를 쓰지 않는다. 본문을 끝까지 읽지 않고 조각마다 넘겨야 하기 때문이다.
+  async *recommendStream(input: RecommendInput, signal: AbortSignal): AsyncIterable<StreamEvent> {
+    const headers: Record<string, string> = { "content-type": "application/json" };
+    const tok = this.token();
+    if (tok) headers["authorization"] = `Bearer ${tok}`;
+
+    let res: Response;
+    try {
+      res = await this.doFetch(this.base + "/recommend", {
+        method: "POST",
+        headers,
+        signal,
+        body: JSON.stringify(input),
+      });
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") throw e;
+      return fail({ kind: "network" });
+    }
+
+    // 스트림이 시작되기 전의 실패는 보통 응답처럼 분류한다(게이팅 402·403·429가 여기서 온다).
+    if (!res.ok) {
+      const body = await this.readJson(res);
+      return fail(classifyResponse(res.status, body));
+    }
+    if (!res.body) return fail({ kind: "malformed" });
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    const parser = createSseParser();
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        for (const ev of parser.push(decoder.decode(value, { stream: true }))) yield ev;
+      }
+      for (const ev of parser.push(decoder.decode())) yield ev;
+    } finally {
+      // 소비자가 중간에 멈추면(상한 도달 등) 남은 본문을 붙들지 않는다.
+      await reader.cancel().catch(() => undefined);
+    }
   }
 
   private async send<T>(method: string, path: string, body: unknown, signal?: AbortSignal): Promise<T> {

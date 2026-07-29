@@ -18,7 +18,15 @@ src/
 │  ├ runner.ts          명령 실행과 요청 취소
 │  ├ useNarrow.ts       React 배선
 │  ├ NarrowScreen.tsx   질문 화면
-│  └ HandoffScreen.tsx  S2 확인 화면(S3에서 어휘 목록으로 교체)
+│  └ HandoffScreen.tsx  S2 확인 화면(S3에서 난이도 화면이 대체, 참고용으로 남김)
+├ screens/difficulty/   난이도 선택
+│  ├ usePreview.ts      깊이별 예시 로딩. 요청 조립을 안에서 해 의존성을 원시값으로 묶는다
+│  └ DifficultyScreen.tsx
+└ screens/terms/        어휘 생성 스트리밍
+   ├ machine.ts         전이 규칙. 누적 상한 검사가 여기 있다
+   ├ runner.ts          스트림 구독과 취소, 감시 시계를 한 객체가 소유
+   ├ useTerms.ts        React 배선
+   └ TermsScreen.tsx    카드 목록(상세 펼치기는 S3b)
 ├ i18n/strings.ts       UI 문구(v1 한국어 원문 그대로). 4개 언어 전량은 S5
 ├ i18n/examples.ts      예시 칩 풀(v1에서 verbatim 복사)
 └ styles/

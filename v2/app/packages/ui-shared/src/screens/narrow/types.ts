@@ -16,6 +16,7 @@ export type AnswerTurn = { kind: "picks"; labels: string[] } | { kind: "tooHard"
 // 남은 턴 수는 여기 없다. answers에서 계산한다(스펙 D-4). 저장하지 않으면 어긋날 수 없다.
 export interface NarrowCtx {
   sessionId: string;
+  topic: string; // 사용자가 처음 적은 문장. 뒤 단계가 앵커 회피와 캐시 키에 쓴다
   cond: string;
   classifyOut: Prompt1Out;
   firstQuestion: Question; // 되돌리기가 돌아갈 지점

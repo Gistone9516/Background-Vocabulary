@@ -5,6 +5,7 @@ export type { AppShellProps } from "./app/AppShell.js";
 export { EntryScreen } from "./screens/EntryScreen.js";
 export type { EntryScreenProps } from "./screens/EntryScreen.js";
 export { tr } from "./i18n/strings.js";
+export type { StringKey } from "./i18n/strings.js";
 export { EXAMPLES, pickRandom } from "./i18n/examples.js";
 
 // 서버 통로. 구현은 셸(web/desktop)이 만들어 주입한다.
@@ -37,3 +38,19 @@ export type {
   Question,
   RetryOf,
 } from "./screens/narrow/index.js";
+
+// 난이도 선택과 어휘 생성(S3).
+export { DifficultyScreen, usePreview, pickedLabels, previewKeyOf, sameKey } from "./screens/difficulty/index.js";
+export type { DifficultyScreenProps, Difficulty, PreviewKey, PreviewState } from "./screens/difficulty/index.js";
+export { TermsScreen, useTerms, TermsRunner, reduce as reduceTerms, initialTerms, termsOf, isStreaming, HIGH_RISK_CODE } from "./screens/terms/index.js";
+export type {
+  TermsScreenProps,
+  UseTermsOptions,
+  TermsEffects,
+  SettleReason,
+  TermCard,
+  TermsCmd,
+  TermsConfig,
+  TermsEvent,
+  TermsState,
+} from "./screens/terms/index.js";

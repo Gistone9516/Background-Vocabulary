@@ -50,6 +50,26 @@ export const ko = {
   // [신규] S2 확인 화면. S3에서 어휘 목록으로 교체된다
   handoff_title: "여기까지 좁혔어요",
   handoff_next: "어휘 생성은 다음 단계에서 붙습니다.",
+
+  // 난이도 선택 [v1 원문]
+  diff_eyebrow: "거의 다 왔어요",
+  diff_title: "어느 깊이로 볼까요?",
+  diff_sub: "고른 깊이에 맞춰 어휘를 골라드려요.",
+  diff_basic: "기초",
+  diff_basic_desc: "그 분야가 처음이에요. 가장 기본 어휘부터.",
+  diff_inter: "중급",
+  diff_inter_desc: "기본은 넘었어요. 실무자가 쓰는 전문 어휘로.",
+  diff_adv: "심화",
+  diff_adv_desc: "더 깊이. 전문가도 감탄할 날카로운 어휘까지.",
+  diff_ex_label: "예시 어휘",
+  // [신규] 프리뷰는 보조 정보라 실패해도 선택은 계속된다
+  diff_preview_failed: "예시를 불러오지 못했어요. 깊이는 그대로 고를 수 있어요.",
+
+  // 어휘 목록 [신규]
+  terms_loading: "어휘를 고르는 중…",
+  terms_streaming: "계속 채우는 중…",
+  terms_why: "왜",
+  terms_capped: "이번 탐색에서 담을 수 있는 만큼 다 채웠어요.",
 } as const;
 
 export type StringKey = keyof typeof ko;
