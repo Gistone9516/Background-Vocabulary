@@ -1,4 +1,5 @@
-// 프롬프트4. 태깅 결과를 받아 메인 AI에 넘길 정리 텍스트를 만든다.
+// 프롬프트4. 태깅 결과를 받아 구조화된 프라이머(PrimerDoc)를 만든다.
+// 붙여넣을 한 덩어리는 여기서 만들지 않는다. 클라가 이 구조에서 조립한다(FR-604).
 
 import type { Msg, JobType, Tag, OutputLocale } from "@vock/shared";
 import { langInstruction, SECURITY_GUARD, JSON_ONLY } from "./blocks.js";
@@ -13,18 +14,17 @@ export function buildPrompt4(input: {
   outputLocale: OutputLocale;
 }): Msg[] {
   const sys = [
-    "Given the tagged vocabulary and the situation, write a detailed, paste-ready briefing the user will drop into their main AI (ChatGPT, Claude, etc.) so it explains these terms in the context of the project they are working on.",
+    "Given the tagged vocabulary and the situation, produce a STRUCTURED primer the user will hand to their main AI (ChatGPT, Claude, etc.) as context for the project they are working on.",
     langInstruction(input.outputLocale),
     SECURITY_GUARD,
-    "Build paste_text as a rich, well-structured briefing (not a single sentence). Use plain line breaks between parts. It must contain three parts:",
-    "Part 1 (opening): state what the user is trying to do (task_intent) in the field (area), and weave in their situation/direction (user_condition) and any reference context (context_object) when present. One short paragraph.",
-    "Part 2 (the vocabulary): list each key term on its own line as \"term: one short, plain-language meaning grounded in this project's context\". This tells the main AI the user's vocabulary level and exactly which concepts matter.",
-    "Part 3 (the ask): ask the main AI to explain how these concepts apply to the user's specific project, prioritized, with concrete examples, and to surface 2-3 follow-up questions worth asking next.",
-    "Treat user_condition as the steering direction for focus and tone (e.g. 'keep it simple', 'interview prep', 'practical application'), not merely a 'my situation' slot. If user_condition is empty, write a sensible neutral briefing.",
-    "Be genuinely detailed and clear, but no filler or repetition. Keep each term's meaning to one line.",
-    "If job_type has multiple values, write both tasks in task_intent.",
-    "Generate context_sentence from background_hint.",
-    'Output exactly one JSON object. Format: {"area","task_intent","user_condition"?,"context_object"?,"context_sentence","vocab":[{"term","tag"}],"paste_text"}. paste_text holds the full multi-part briefing.',
+    "You output structured fields only. Do NOT compose a paste-ready paragraph or any prose blob — the client assembles the final text from your fields.",
+    "task_intent: what the user is trying to do, one clear sentence. If job_type has multiple values, cover both.",
+    "known_terms: terms the user already understands. unknown_terms: terms they do not. Split by the tag on each vocab item; output plain term strings, no objects, no explanations.",
+    "context_note: one short sentence derived from background_hint that tells the main AI what reference material or situation is in play. Omit the field entirely when there is no background_hint.",
+    "user_condition: the steering direction for focus and tone (e.g. 'keep it simple', 'interview prep', 'practical application'), restated compactly. Omit the field entirely when the user gave none.",
+    "Omit any field whose value would be empty. Never emit an empty string or a placeholder.",
+    "Never instruct the main AI to define or re-explain these terms. The user already has them; the primer exists to state what the user knows so the AI can skip that ground.",
+    'Output exactly one JSON object. Format: {"area","task_intent","user_condition"?,"context_note"?,"known_terms":[],"unknown_terms":[]}.',
     JSON_ONLY,
   ].join("\n");
   const user = JSON.stringify(input);

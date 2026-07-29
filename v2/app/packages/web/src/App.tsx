@@ -20,6 +20,7 @@ import {
   useDetail,
   useNarrow,
   usePreview,
+  usePrimer,
   useTerms,
   type Difficulty,
   type DoneReason,
@@ -100,6 +101,7 @@ export function App() {
   const narrow = useNarrow({ api, cfg, onHandoff, onRefusal, onEntryNotice });
   const terms = useTerms({ api, cfg: termsCfg, onRefusal });
   const detail = useDetail(api);
+  const primer = usePrimer(api);
 
   // 로그인. client_id가 없으면(콘솔 등록 전) 버튼 자체가 뜨지 않는다(S5a A-2).
   const auth = useAuth({
@@ -203,6 +205,15 @@ export function App() {
           kept={keptTerms}
           topic={lastCtx.current?.topic ?? ""}
           condition={lastCtx.current?.cond ?? ""}
+          primerState={primer.state}
+          onRefine={() =>
+            primer.request({
+              area: lastCtx.current?.classifyOut.domain ?? "",
+              jobType: lastCtx.current?.classifyOut.job_type ?? [],
+              kept: keptTerms,
+              condition: lastCtx.current?.cond ?? "",
+            })
+          }
           onBackToTerms={() => setJourney({ at: "terms" })}
           onHome={home}
           onRemove={(t) => setKept((prev) => toggleKeep(prev, t))}

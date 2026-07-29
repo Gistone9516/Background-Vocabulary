@@ -9,7 +9,7 @@ import type {
   StreamEvent,
   Prompt1Out,
   Prompt2Out,
-  Prompt4Out,
+  PrimerDoc,
   Prompt5Out,
   PreviewOut,
   RelateOut,
@@ -53,16 +53,13 @@ const RELATE: RelateOut = {
   related_terms: [],
 };
 
-const SUMMARIZE: Prompt4Out = {
+const SUMMARIZE: PrimerDoc = {
+  locale: "ko",
   area: "PID 제어",
   task_intent: "PID 제어의 배경 개념을 이해하려 한다",
-  context_sentence: "출력 포화 상황에서 적분 제어의 거동을 배경지식으로 정리한다.",
-  vocab: [
-    { term: "안티와인드업", tag: "몰라" },
-    { term: "적분기 와인드업", tag: "몰라" },
-  ],
-  paste_text:
-    "나는 PID 제어의 배경 개념을 이해하려 한다.\n안티와인드업: 출력 제한 시 적분 축적을 막는 기법\n적분기 와인드업: 출력 포화에도 적분이 계속되는 현상\n이 개념들이 내 상황에 어떻게 적용되는지 우선순위와 예시로 설명해 줘.",
+  context_note: "출력 포화 상황에서 적분 제어의 거동을 정리한다.",
+  known_terms: ["피드백"],
+  unknown_terms: ["안티와인드업", "적분기 와인드업"],
 };
 
 const DETAIL: Prompt5Out = {
@@ -79,7 +76,7 @@ function pickFixture(sys: string): unknown {
   if (sys.includes('"enough"')) return NEXT;
   if (sys.includes('"relevant"')) return RELATE;
   if (sys.includes('"inter"')) return PREVIEW;
-  if (sys.includes('"paste_text"')) return SUMMARIZE;
+  if (sys.includes('"unknown_terms"')) return SUMMARIZE;
   if (sys.includes('"whymine"')) return DETAIL;
   throw new Error("MockLlmClient: 알 수 없는 프롬프트 형식(픽스처 매칭 실패)");
 }

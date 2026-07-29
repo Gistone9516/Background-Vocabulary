@@ -6,6 +6,7 @@
   "devDependencies": {
     "@vock/local": "workspace:*",
     "@vock/providers": "workspace:*",
+    "@vock/shared": "workspace:*",
     "@vock/ui-shared": "workspace:*"
   }
 }

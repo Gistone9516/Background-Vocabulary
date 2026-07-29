@@ -1,7 +1,8 @@
 // local mock e2e(C1 완료 기준). 로컬 부트를 임의 포트로 띄우고 핵심 여정을 관통시킨다:
-// /health → /config → /classify → /next → /recommend(SSE). 실패 시 비정상 종료.
+// /health → /config → /classify → /next → /recommend(SSE) → /summarize. 실패 시 비정상 종료.
 // 빌드 산출물(dist)을 소비하므로 실행 전 `pnpm build`가 선행되어야 한다(gate 스크립트가 보장).
 import { bootLocal } from "@vock/local";
+import { isPrimerDoc } from "@vock/shared";
 
 let failures = 0;
 function check(name, cond, detail) {
@@ -90,6 +91,20 @@ try {
   check("/recommend term 형태", terms[0] && typeof terms[0].term?.term === "string");
   check("/recommend done 이벤트", done);
   check("/recommend [DONE] 마커", doneMarker);
+
+  // 6. summarize. 목 픽스처는 프롬프트의 포맷 지시 토큰으로 골라지므로, 프롬프트를 고치면
+  // 픽스처 판별이 조용히 어긋난다(실측: paste_text 제거 후 매칭 실패).
+  // 여기서 형태까지 확인해야 그 어긋남이 게이트에서 잡힌다.
+  const sum = await postJson(base, "/summarize", {
+    area: clf.json.domain,
+    job_type: clf.json.job_type,
+    vocab: [{ term: "안티와인드업", tag: "몰라" }],
+    outputLocale: "ko",
+    tier: "pro",
+  });
+  check("/summarize 200", sum.status === 200, `status=${sum.status}`);
+  check("/summarize PrimerDoc 형태", isPrimerDoc(sum.json), JSON.stringify(sum.json).slice(0, 120));
+  check("/summarize paste_text를 만들지 않는다", sum.json && sum.json.paste_text === undefined);
 } finally {
   await new Promise((r) => server.close(() => r()));
 }
@@ -98,4 +113,4 @@ if (failures > 0) {
   console.error(`\nlocal mock e2e 실패: ${failures}건.`);
   process.exit(1);
 }
-console.log("\nlocal mock e2e 통과: /classify→/next→/recommend 관통(mock LLM).");
+console.log("\nlocal mock e2e 통과: /classify→/next→/recommend→/summarize 관통(mock LLM).");

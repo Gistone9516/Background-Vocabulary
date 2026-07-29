@@ -9,7 +9,7 @@ import type {
   Prompt2In,
   Prompt2Out,
   Prompt4In,
-  Prompt4Out,
+  PrimerDoc,
   Prompt5In,
   Prompt5Out,
   PreviewIn,
@@ -200,9 +200,9 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
     },
 
     // 프롬프트4: 태깅 결과를 받아 메인 AI에 넘길 정리 텍스트를 만든다.
-    async summarize(input: Prompt4In, outputLocale: OutputLocale): Promise<Prompt4Out> {
+    async summarize(input: Prompt4In, outputLocale: OutputLocale): Promise<PrimerDoc> {
       const messages = prompts.buildPrompt4({ ...input, outputLocale });
-      return deps.llm.complete<Prompt4Out>({
+      return deps.llm.complete<PrimerDoc>({
         model: "flash",
         messages,
         maxTokens: limits.maxTokens.summarize,

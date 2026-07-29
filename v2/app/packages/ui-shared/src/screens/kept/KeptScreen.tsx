@@ -4,20 +4,32 @@
 import { useState } from "react";
 import type { Term } from "@vock/shared";
 import { tr } from "../../i18n/strings.js";
-import { buildBasicPrimer } from "./primer.js";
+import { primerBody, type PrimerState } from "./primer.js";
 
 export interface KeptScreenProps {
   kept: Term[];
   topic: string;
   condition?: string;
+  // AI 정리. 기본 정리를 대체하지 않고 성공했을 때만 본문을 바꾼다(스펙 P-7).
+  primerState?: PrimerState;
+  onRefine?(): void;
   onBackToTerms(): void;
   onHome(): void;
   onRemove(term: Term): void;
 }
 
-export function KeptScreen({ kept, topic, condition, onBackToTerms, onHome, onRemove }: KeptScreenProps) {
+export function KeptScreen({
+  kept,
+  topic,
+  condition,
+  primerState,
+  onRefine,
+  onBackToTerms,
+  onHome,
+  onRemove,
+}: KeptScreenProps) {
   const [copied, setCopied] = useState<"idle" | "ok" | "fail">("idle");
-  const primer = buildBasicPrimer({ topic, kept, ...(condition ? { condition } : {}) });
+  const primer = primerBody(primerState, { topic, kept, ...(condition ? { condition } : {}) });
 
   const copy = async () => {
     try {
@@ -61,6 +73,20 @@ export function KeptScreen({ kept, topic, condition, onBackToTerms, onHome, onRe
             {copied === "ok" ? tr("copy_done") : tr("copy")}
           </button>
           {copied === "fail" ? <p className="errmsg">{tr("copy_fail")}</p> : null}
+
+          {onRefine ? (
+            <button
+              className="refinebtn"
+              style={{ marginTop: "0.625rem" }}
+              onClick={onRefine}
+              disabled={primerState?.phase === "loading"}
+            >
+              {primerState?.phase === "loading" ? tr("refine_loading") : tr("ai_extra")}
+            </button>
+          ) : null}
+          {/* pro 전용 안내는 페이월로 끌고 가지 않고 그 자리서 알린다(S4 K-7) */}
+          {primerState?.phase === "locked" ? <p className="listnote">{primerState.message}</p> : null}
+          {primerState?.phase === "failed" ? <p className="errmsg">{primerState.message}</p> : null}
         </>
       ) : null}
 

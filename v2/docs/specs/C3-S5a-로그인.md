@@ -13,18 +13,16 @@
 
 지금 앱은 로그인 없이 전 여정이 돈다(entry → 좁히기 → 난이도 → 어휘 → 상세 → 담기). **그 경로를 막지 않는다.** 로그인은 담은 것을 계정에 남기기 위한 선택이다. 비로그인 사용자가 벽을 만나면 안 된다.
 
-## 1. 확인된 계약 (원문 대조 완료)
+## 1. 서버 계약
 
-브리핑이 알려 준 것을 `auth-routes.ts` 전문을 읽어 직접 확인했다. **SoT 표기와 실제가 다른 곳이 있다.**
-
-| # | 확인 결과 | 근거 |
+| # | 계약 | 근거 |
 |---|---|---|
-| C-1 | `/auth/google` 응답은 `{access_token, refresh_token, expires_in, user}`다. **SoT §3-2 표의 `{access, refresh, user}` 축약과 필드명이 다르다.** SoT 표만 보고 짰으면 토큰을 못 읽고 조용히 실패했다 | auth-routes.ts:22 |
-| C-2 | 요청 바디는 snake_case 고정: `code`·`code_verifier`·`redirect_uri`·`platform`. 셋 중 하나라도 없으면 401 `AUTH_FAILED` | auth-routes.ts:13-18 |
-| C-3 | `/auth/refresh`는 `{refresh_token}`을 받아 같은 모양을 돌려준다. 실패는 401 `TOKEN_REVOKED` | auth-routes.ts:30-37 |
-| C-4 | `/auth/logout`은 `{refresh_token}`, 204. 멱등 | auth-routes.ts:40-45 |
+| C-1 | `/auth/google` 응답은 `{access_token, refresh_token, expires_in, user}` | auth-routes.ts:22 |
+| C-2 | 요청 바디는 snake_case: `code`·`code_verifier`·`redirect_uri`·`platform`. 셋 중 하나라도 없으면 401 `AUTH_FAILED` | auth-routes.ts:13-18 |
+| C-3 | `/auth/refresh`는 `{refresh_token}`을 받아 같은 모양을 돌려준다. 무효는 401 `TOKEN_REVOKED` | auth-routes.ts:30-37 |
+| C-4 | `/auth/logout`은 `{refresh_token}`, 204, 멱등 | auth-routes.ts:40-45 |
 
-`state`는 백엔드 계약에 없다. **없는 것이 맞다.** state는 리다이렉트 위조를 막는 클라이언트 측 장치이고 서버는 볼 일이 없다. 그래도 **클라는 반드시 쓴다**(A-3).
+`state`는 서버 계약에 없다. 리다이렉트 위조를 막는 클라이언트 측 장치라 서버가 볼 일이 없기 때문이며, 클라는 반드시 쓴다(A-3·A-4).
 
 ## 2. 동작 규칙
 
@@ -77,11 +75,9 @@ export interface AuthSession {                // 서버 응답 그대로. 필드
   access_token: string;
   refresh_token: string;
   expires_in: number;
-  user: { email: string; tier: Tier };        // core/auth-service.ts:17 LoginResult 확인
+  user: { email: string; tier: Tier };        // LoginResult(auth-service.ts:15-18)
 }
 ```
-
-**C-5 (초안 정정)**: 초안에 `user`를 `{user_id, email, name}`으로 적었으나 `LoginResult`(auth-service.ts:15-18)는 `{email, tier}`다. 이 문서가 "추측해서 적지 않는다"고 써 놓고 추측한 자리였다. `UserRecord`에는 `user_id`가 있지만 로그인 응답은 그것을 싣지 않는다.
 
 ## 5. 검증
 

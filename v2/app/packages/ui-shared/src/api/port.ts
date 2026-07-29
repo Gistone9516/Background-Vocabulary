@@ -6,7 +6,9 @@ import type {
   ClientLimits,
   PreviewIn,
   PreviewOut,
+  PrimerDoc,
   Prompt1In,
+  Prompt4In,
   Prompt1Out,
   Prompt2In,
   Prompt2Out,
@@ -40,6 +42,8 @@ export interface ApiPort {
   next(input: Prompt2In, signal?: AbortSignal): Promise<Prompt2Out>;
   preview(input: PreviewIn, signal?: AbortSignal): Promise<PreviewOut>;
   detail(input: Prompt5In, signal?: AbortSignal): Promise<Prompt5Out>;
+  // pro 전용. 구조만 돌려주고 붙여넣을 본문은 클라가 조립한다.
+  summarize(input: Prompt4In, signal?: AbortSignal): Promise<PrimerDoc>;
   // 서버가 흘리는 이벤트를 순서 그대로 넘긴다. 취소는 signal로 전파한다.
   recommendStream(input: RecommendInput, signal: AbortSignal): AsyncIterable<StreamEvent>;
 }

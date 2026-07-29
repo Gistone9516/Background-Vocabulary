@@ -4,5 +4,6 @@ export * from "./types/index.js";
 export * from "./ports/index.js";
 export * from "./pipeline-contract.js";
 export * from "./utils.js";
+export * from "./guards.js";
 export * from "./sse.js";
 export * from "./fixtures.js";

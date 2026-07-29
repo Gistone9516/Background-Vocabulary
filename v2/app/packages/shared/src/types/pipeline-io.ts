@@ -111,15 +111,8 @@ export interface Prompt4In {
   context_object?: string;
   background_hint?: string;
 }
-export interface Prompt4Out {
-  area: string;
-  task_intent: string;
-  user_condition?: string;
-  context_object?: string;
-  context_sentence: string;
-  vocab: { term: string; tag: Tag }[];
-  paste_text: string; // 복사와 공유가 넘기는 최종 한 덩어리
-}
+// 프롬프트4의 출력은 PrimerDoc이다(types/persistence.ts). 구조만 서버가 만들고
+// 붙여넣을 본문은 클라가 조립한다.
 
 export interface Prompt5In {
   term: string;

@@ -13,8 +13,6 @@ Allowed job_type values (choose only from these; do not invent keys):
 Already-shown terms (exclude):
 Assume the reader is a non-expert hearing this for the first time (P15). Each `line` is ONE short, plain-language sentence (a single period) explaining the term with no jargon. Keep a term commonly used in its English original in that field as-is.
 Assume the reader is a non-expert hearing this for the first time; write short and easy (P15). one_line is one sentence; why is also exactly one sentence (a single period, never two or more sentences). No jargon, no verbosity.
-Be genuinely detailed and clear, but no filler or repetition. Keep each term's meaning to one line.
-Build paste_text as a rich, well-structured briefing (not a single sentence). Use plain line breaks between parts. It must contain three parts:
 Current narrowing choices:
 Decide relevance and, if relevant, produce the connection question and 2-3 directions, as JSON.
 Difficulty target =
@@ -24,29 +22,22 @@ Explain the detail of one vocabulary card the user opened, as if speaking to a n
 Field-on rules (P30): turn on `direction` for gap_type c/d/e, or for job_type 의사결정/진단판단/협상설득준비. Turn on `use_example` for the writing task (글쓰기) or gap_type c. Turn on `context_note` for gap_type d/e. Turn on `relates_to` and `order` for gap_type b.
 Free-form input:
 From the user's selection history, create the next question and 3 to 4 choices that further narrow their intent.
-Generate context_sentence from background_hint.
 Give one representative term per depth (기초/중급/심화) for this narrowed topic, as JSON.
-Given the tagged vocabulary and the situation, write a detailed, paste-ready briefing the user will drop into their main AI (ChatGPT, Claude, etc.) so it explains these terms in the context of the project they are working on.
 If a list of already-shown terms is given, exclude them and fill with the next-priority terms (no duplicates).
 If a user condition is given, treat it as the narrowing direction the user already chose: tailor the first question and choices to it (do not ask what it already answers), and carry it into user_condition in the output.
 If context_object or user_condition is given, narrow the choices to fit that context.
 If it IS a procedure: keep the natural domain label (do not rewrite it into an academic English phrase — the domain feeds search). Do NOT offer procedural steps as choices. Instead make the question and choices about the BACKGROUND understanding of the field behind that activity: each choice is one concrete vocabulary or concept angle (the science, the materials, the principles, the cultural context, the terminology practitioners use). Every choice label must name the user's original goal or object (e.g. the dish, the system) so the user recognizes their own intent, and at least one choice should cover the practitioner vocabulary of tools and techniques (the terms, not the steps). Frame the question naturally around the user's goal without using the words 'recipe' or 'procedure' and without announcing that this is a vocabulary tool.
-If job_type has multiple values, write both tasks in task_intent.
 If the user already described their situation, do not ask again; instead offer choices that split their finer intent.
 Judge whether the history has narrowed the intent enough, and output enough (boolean) and confidence (0-1). The goal is to finish within 3 turns — once about 3 answers are gathered, usually end with enough=true. Ask additional questions (max 8) only when intent genuinely splits widely. Do not pad questions just to fill turns (D1).
 Kept background vocabulary from earlier sessions in this project:\n
 NEVER output an umbrella/combined option ('both', 'all', 'A and B together') or a meta-option ('not sure', 'unrelated', 'none') — the UI already provides a separate 'unrelated' escape. Each choice is one concrete direction, not a restatement of a kept term.
 Narrowing choices so far:
-Output exactly one JSON object. Format: {"area","task_intent","user_condition"?,"context_object"?,"context_sentence","vocab":[{"term","tag"}],"paste_text"}. paste_text holds the full multi-part briefing.
 Output exactly one JSON object. Format: {"basic":{"term","line"},"inter":{"term","line"},"adv":{"term","line"}}.
 Output exactly one JSON object. Format: {"domain","job_type":[],"user_condition"?,"condition_required":bool,"search_locale":"en|ko","domain_risk":"low|high","question","choices":[{"label","domain_tag"}]}
 Output exactly one JSON object. Format: {"question","choices":[{"label","domain_tag"}],"enough":bool,"confidence":0~1}.
 Output exactly one JSON object. Format: {"relevant":bool,"question","choices":[{"label","domain_tag"}],"related_terms":[]}. When relevant is false, question must be "", choices must be [], and related_terms must be [].
 Output exactly one JSON object. Format: {"terms":[{"term","kind","group","priority","why","one_line","tag","direction"?,"use_example"?,"context_note"?,"relates_to"?,"order"?}]}. priority: 1 is top (ascending). why: why this priority in this situation. Always set tag to "몰라".
 Output exactly one JSON object. Format: {"what","whymine","how","misc"?,"related":[],"sources":[{"title","url"}]}.
-Part 1 (opening): state what the user is trying to do (task_intent) in the field (area), and weave in their situation/direction (user_condition) and any reference context (context_object) when present. One short paragraph.
-Part 2 (the vocabulary): list each key term on its own line as \"term: one short, plain-language meaning grounded in this project's context\". This tells the main AI the user's vocabulary level and exactly which concepts matter.
-Part 3 (the ask): ask the main AI to explain how these concepts apply to the user's specific project, prioritized, with concrete examples, and to surface 2-3 follow-up questions worth asking next.
 Pick three terms at clearly different depths. CRITICAL: BOTH 중급(intermediate) and 심화(advanced) must be genuinely DEEP, specialized terms — the kind that makes a domain expert think 'oh, you even know that?'. Only 기초(basic) is beginner-level. 기초: the very first everyday word a total newcomer meets on page one of any intro (instantly recognizable). 중급: a real practitioner's term that casual learners and intro guides never mention — already expert-flavored, NOT introductory. 심화: even sharper and more obscure than 중급 — a niche technique, a subtle pitfall, or an insider concept that even many working practitioners might not know; the deepest of the three. The jump from 기초 to 중급 is large, and 심화 goes deeper still. All three belong to the narrowed topic; none is a fancier synonym of another.
 Procedure/recipe reframe (run before generating choices): Decide whether the free-form input is primarily a request to EXECUTE or PRODUCE something through a sequence of concrete steps (cook a dish, install or set up a system, build an object, complete a document) — the procedure case — versus a field, topic, or concept the user wants to UNDERSTAND. This test is semantic, not keyword-based, and applies equally in Korean, English, Japanese, and Chinese. It is NOT a procedure when method-words appear but the user wants understanding (e.g. 'how does X work', 'X 공부법', 'approaches to X', 'X 전략'); treat borderline cases as normal.
 Project context (broad area, gentle prior only):
@@ -61,7 +52,6 @@ Simplified Chinese (简体中文)
 The grounding is English source material. Read the English sources and convert them into mental-container terms in the OUTPUT language (translate a foreign term into the output language's settled term; if none exists, write the output-language form with the original term in parentheses; but keep a term that is commonly used in its English original in that field as-is).
 The user has, in earlier sessions of THIS project, curated (kept) the background vocabulary terms listed below. They are now narrowing a NEW task in the same field. Decide whether any kept term genuinely connects to the new narrowed task in a way that should shape what vocabulary they learn next, and if so, surface that connection as one short recognition question.
 The user signaled the previous choices were too hard to understand. From now on write the question and every choice in the simplest everyday language with concrete familiar examples, and avoid technical jargon and abbreviations. Treat any 'too hard' marker in the history as this simplification request, not as a content preference.
-Treat user_condition as the steering direction for focus and tone (e.g. 'keep it simple', 'interview prep', 'practical application'), not merely a 'my situation' slot. If user_condition is empty, write a sensible neutral briefing.
 User's current task (original request):
 User's original request (terms appearing here are anchors, so exclude them from the output):
 User's original request (terms here are anchors — avoid them):

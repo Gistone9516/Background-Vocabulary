@@ -101,6 +101,8 @@ export const ko = {
   copy_done: "복사됐어요",
   copy_fail: "복사 실패 · 아래 글을 직접 선택해 복사하세요",
   ai_extra: "AI로 더 정리",
+  refine_loading: "AI가 정리하는 중…",
+  refine_failed: "정리에 실패했어요.",
 
   // 로그인 [신규]. v1은 확장이라 로그인 화면이 따로 없었다
   auth_sign_in: "구글로 로그인",

@@ -9,7 +9,7 @@ import type {
   Prompt2Out,
   Prompt3In,
   Prompt4In,
-  Prompt4Out,
+  PrimerDoc,
   Prompt5In,
   Prompt5Out,
   PreviewIn,
@@ -50,7 +50,7 @@ export interface Pipeline {
   // 검색 실패는 캐시 폴백 후 근거 제한으로 진행하거나 고위험이면 거부한다.
   // tier에 따라 어휘 개수와 출력 토큰 상한이 갈린다(free는 적게, paid는 많이).
   recommendStream(input: RecommendInput, tier: Tier, outputLocale: OutputLocale, signal?: AbortSignal): ReadableStream<StreamEvent>;
-  summarize(input: Prompt4In, outputLocale: OutputLocale): Promise<Prompt4Out>;
+  summarize(input: Prompt4In, outputLocale: OutputLocale): Promise<PrimerDoc>;
   // tier에 따라 출력 토큰 상한이 갈린다. 출처 RAG는 양 티어 동일.
   detail(input: Prompt5In, tier: Tier, outputLocale: OutputLocale): Promise<Prompt5Out>;
   // 난이도 선택 직전 깊이별 대표 어휘 프리뷰. RAG 없이 LLM 1회, 한도 미집계(좁히기와 같은 비용 등급).

@@ -5,7 +5,9 @@ import type {
   ClientLimits,
   PreviewIn,
   PreviewOut,
+  PrimerDoc,
   Prompt1In,
+  Prompt4In,
   Prompt1Out,
   Prompt2In,
   Prompt2Out,
@@ -14,7 +16,7 @@ import type {
   RecommendInput,
   StreamEvent,
 } from "@vock/shared";
-import { createSseParser } from "@vock/shared";
+import { createSseParser, isPrimerDoc } from "@vock/shared";
 import type { ApiPort, AuthPort, AuthSession } from "./port.js";
 import { classifyResponse, isApiError, type ApiError } from "./errors.js";
 
@@ -95,6 +97,12 @@ export class HttpApiClient implements ApiPort, AuthPort {
     return this.send<Prompt5Out>("POST", "/detail", input, signal);
   }
 
+  summarize(input: Prompt4In, signal?: AbortSignal): Promise<PrimerDoc> {
+    // 이 응답만 형태를 검사한다. 본문 조립이 배열을 직접 훑기 때문에
+    // 어긋난 형태가 화면 렌더 중에 터진다(스펙 P-7 — 실패는 기본 정리로 떨어져야 한다).
+    return this.send<PrimerDoc>("POST", "/summarize", input, signal, isPrimerDoc);
+  }
+
   // 스트림은 send를 쓰지 않는다. 본문을 끝까지 읽지 않고 조각마다 넘겨야 하기 때문이다.
   async *recommendStream(input: RecommendInput, signal: AbortSignal): AsyncIterable<StreamEvent> {
     const headers: Record<string, string> = { "content-type": "application/json" };
@@ -137,9 +145,22 @@ export class HttpApiClient implements ApiPort, AuthPort {
     }
   }
 
-  private async send<T>(method: string, path: string, body: unknown, signal?: AbortSignal): Promise<T> {
+  // guard를 준 호출은 서버 응답을 그대로 믿지 않는다. 형태가 어긋나면 malformed로 떨어뜨린다.
+  // 검사 없이 캐스팅하면 어긋난 응답이 화면 렌더 도중에 터져 화면 전체를 죽인다(실측: /summarize).
+  private async send<T>(
+    method: string,
+    path: string,
+    body: unknown,
+    signal?: AbortSignal,
+    guard?: (v: unknown) => v is T
+  ): Promise<T> {
+    const take = (v: unknown): T => {
+      if (guard && !guard(v)) return fail({ kind: "malformed" });
+      return v as T;
+    };
+
     const first = await this.attempt(method, path, body, signal, this.token());
-    if (first.kind === "ok") return first.value as T;
+    if (first.kind === "ok") return take(first.value);
 
     // 401 한 번에 한해 재발급하고 원 요청을 한 번만 다시 보낸다(스펙 A-7).
     // 인증 경로 자체는 제외한다. /auth/refresh 가 401일 때 다시 refresh 하면 순환이다.
@@ -150,7 +171,7 @@ export class HttpApiClient implements ApiPort, AuthPort {
     if (!fresh) return fail(first.error);
 
     const second = await this.attempt(method, path, body, signal, fresh);
-    if (second.kind === "ok") return second.value as T;
+    if (second.kind === "ok") return take(second.value);
     return fail(second.error);
   }
 
