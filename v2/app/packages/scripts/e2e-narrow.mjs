@@ -1,7 +1,7 @@
 // 좁히기 상태 기계 검증(C3 S2). 네트워크도 브라우저도 없이 전이 규칙만 돌린다.
 // v1은 이 판정들이 컴포넌트 안에 흩어져 있어 검증할 수 없었다. 각 케이스는 스펙의 규칙 ID를 가리킨다.
 // 빌드 산출물(dist)을 소비하므로 실행 전 `pnpm build`가 선행되어야 한다(gate 스크립트가 보장).
-import { reduceNarrow as reduce, initialNarrow, realAnswers, turnsLeft } from "@vock/ui-shared";
+import { reduceNarrow as reduce, initialNarrow, realAnswers, turnsLeft, NO_RELATION } from "@vock/ui-shared";
 
 let failures = 0;
 function check(name, cond, detail) {
@@ -219,6 +219,59 @@ console.log("좁히기 상태 기계 검증:");
   ]);
   const n = realAnswers(s.ctx.answers);
   check("D-4 불변식 실답변 + 남은턴 = narrowMax", n + turnsLeft(s.ctx, CFG.narrowMax) === CFG.narrowMax, `n=${n}`);
+}
+
+// ── 연결 턴(S5 S-11~S-14) ─────────────────────────────
+{
+  const CFG_C = { narrowMin: 3, narrowMax: 3, connect: true };
+  // 3답을 채워 종료 조건을 만든 뒤 연결 턴이 끼는지 본다.
+  const ctx = {
+    sessionId: "s", topic: "t", cond: "", classifyOut: p1(),
+    firstQuestion: { question: p1().question, choices: p1().choices },
+    answers: [{ kind: "picks", labels: ["a"] }, { kind: "picks", labels: ["b"] }, { kind: "picks", labels: ["c"] }],
+    simplify: false, usedUndo: false, confidence: 0.9,
+  };
+  const advancing = { phase: "advancing", runId: 3, ctx, question: { question: "q", choices: [] } };
+  const [st, cmds] = reduce(advancing, { t: "advanced", runId: 3, out: p2({ enough: true, confidence: 0.9 }) }, CFG_C);
+  check("S-11 연결 턴을 켜면 종료 대신 조회로 간다", st.phase === "relating" && cmds.some((c) => c.c === "callRelate"));
+  check("S-11 조회 중에는 아직 넘기지 않는다", !cmds.some((c) => c.c === "goHandoff"));
+
+  // 관련 없음 → 원래 사유로 종료
+  const [skip, skipCmds] = reduce(st, { t: "related", runId: 3, out: { relevant: false, question: "", choices: [], related_terms: [] } }, CFG_C);
+  check("S-12 관련 없으면 그대로 끝난다", skip.phase === "done" && skipCmds.some((c) => c.c === "goHandoff"));
+
+  // 실패 → 같은 길
+  const [fail, failCmds] = reduce(st, { t: "related", runId: 3, out: null }, CFG_C);
+  check("S-12 실패도 같은 길로 끝난다", fail.phase === "done" && failCmds.some((c) => c.c === "goHandoff"));
+  check("S-12 실패가 재시도 화면을 만들지 않는다", fail.phase !== "failed");
+
+  // 관련 있음 → 질문 한 번 더 + 탈출구
+  const [ask] = reduce(st, { t: "related", runId: 3, out: { relevant: true, question: "어느 쪽과 이어지나요?", choices: [{ label: "예산 배분" }], related_terms: ["예산"] } }, CFG_C);
+  check("S-11 관련 있으면 질문이 한 번 더 뜬다", ask.phase === "asking" && ask.connect !== undefined);
+  check("S-13 관련 없어요 탈출구가 붙는다", ask.question.choices.some((c) => c.label === NO_RELATION));
+  check("연결 턴은 답변 예산을 쓰지 않는다", realAnswers(ask.ctx.answers) === 3);
+
+  // 연결 답 확정 → connection 기록 후 종료
+  const picked = { ...ask, picks: { selected: ["예산 배분"], custom: "", tooHard: false } };
+  const [after, afterCmds] = reduce(picked, { t: "confirm" }, CFG_C);
+  check("연결 답이 확정되면 끝난다", after.phase === "done" && afterCmds.some((c) => c.c === "goHandoff"));
+  check("고른 방향이 맥락에 남는다", after.ctx.connection === "예산 배분");
+  check("연결 답도 예산을 쓰지 않는다", realAnswers(after.ctx.answers) === 3);
+
+  // 탈출구를 고르면 연결로 치지 않는다
+  const escaped = { ...ask, picks: { selected: [NO_RELATION], custom: "", tooHard: false } };
+  const [esc] = reduce(escaped, { t: "confirm" }, CFG_C);
+  check("S-13 탈출구를 고르면 연결이 기록되지 않는다", esc.phase === "done" && esc.ctx.connection === undefined);
+
+  // 연결 턴에서는 되돌리기·난이도 신호가 없다
+  const [u] = reduce(ask, { t: "undo" }, CFG_C);
+  check("연결 턴에서 되돌리기는 무효다", u === ask);
+  const [h] = reduce(ask, { t: "tooHard" }, CFG_C);
+  check("연결 턴에서 난이도 신호는 무효다", h === ask);
+
+  // 연결 턴을 끄면 종전과 같다
+  const [plain, plainCmds] = reduce(advancing, { t: "advanced", runId: 3, out: p2({ enough: true, confidence: 0.9 }) }, { narrowMin: 3, narrowMax: 3 });
+  check("연결 턴을 끄면 곧장 끝난다", plain.phase === "done" && plainCmds.some((c) => c.c === "goHandoff"));
 }
 
 if (failures) {

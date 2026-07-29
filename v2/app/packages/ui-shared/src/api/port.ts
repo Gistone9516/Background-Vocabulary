@@ -4,7 +4,11 @@
 
 import type {
   ClientLimits,
+  AssetSummary,
   Page,
+  Project,
+  RelateIn,
+  RelateOut,
   SessionRec,
   SessionSummary,
   Term,
@@ -59,6 +63,14 @@ export interface ApiPort {
   deleteSession(id: string, signal?: AbortSignal): Promise<void>;
   restoreSession(id: string, signal?: AbortSignal): Promise<boolean>; // false = 유예 경과
   keep(sessionId: string, body: KeepBody, signal?: AbortSignal): Promise<void>;
+
+  // 프로젝트와 어휘 자산(S5-2).
+  listAssets(projectId: string | null, cursor?: string | null, signal?: AbortSignal): Promise<Page<AssetSummary>>;
+  listProjects(signal?: AbortSignal): Promise<Project[]>;
+  createProject(name: string, signal?: AbortSignal): Promise<Project>;
+  deleteProject(id: string, signal?: AbortSignal): Promise<void>;
+  // 연결 턴. 프로젝트에 담은 어휘가 있을 때만 부른다(S-11).
+  relate(input: RelateIn, signal?: AbortSignal): Promise<RelateOut>;
 }
 
 // 커서는 서버가 만든 불투명 문자열이다. 클라가 열어 보거나 다시 정렬하지 않는다(S-9).

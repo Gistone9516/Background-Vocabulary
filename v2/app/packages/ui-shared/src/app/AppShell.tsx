@@ -29,12 +29,14 @@ export interface AppShellProps {
   children: ReactNode;
   // 이전 탐색 자리. 셸은 목록을 어떻게 얻는지 모른다(S5).
   sessions?: ReactNode;
+  // 프로젝트 자리. 같은 이유로 주입받는다.
+  projects?: ReactNode;
   // 사이드바 맨 아래 자리. 로그인 버튼처럼 화면 전환과 무관한 것이 들어간다.
   // 셸이 내용을 모르게 두어야 ui-shared가 인증을 몰라도 된다.
   footer?: ReactNode;
 }
 
-export function AppShell({ children, sessions, footer }: AppShellProps) {
+export function AppShell({ children, sessions, projects, footer }: AppShellProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   return (
     <div className="appRoot">
@@ -46,7 +48,7 @@ export function AppShell({ children, sessions, footer }: AppShellProps) {
           <div className="sbSection">{tr("nav_sessions")}</div>
           {sessions ?? <p className="sbEmpty">{tr("sessions_empty")}</p>}
           <div className="sbSection">{tr("nav_projects")}</div>
-          <p className="sbEmpty">{tr("projects_empty")}</p>
+          {projects ?? <p className="sbEmpty">{tr("projects_empty")}</p>}
         </div>
         {footer ? <div className="sbFoot">{footer}</div> : null}
       </aside>

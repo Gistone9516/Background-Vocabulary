@@ -7,6 +7,7 @@ import { decideNext, isUsableQuestion, realAnswers } from "./decide.js";
 import {
   EMPTY_PICKS,
   type AnswerTurn,
+  type DoneReason,
   type NarrowCmd,
   type NarrowConfig,
   type NarrowCtx,
@@ -53,6 +54,29 @@ function navOnFailure(e: { kind: string }): NarrowCmd[] | null {
   if (e.kind === "weekly_exhausted") return [{ c: "goEntryWithNotice", notice: "weekly" }];
   if (e.kind === "high_risk") return [{ c: "goRefusal" }];
   return null;
+}
+
+// "관련 없어요" 탈출구 라벨. 서버 choices에 없으므로 프론트가 붙이고, 고르면 연결로 치지 않는다(S-13).
+export const NO_RELATION = "관련 없어요";
+
+// 좁히기를 끝낸다. 연결 턴을 켠 경우에만 한 턴이 끼어들고, 그 외에는 곧장 넘긴다.
+// 종료 경로가 여러 곳에 흩어지면 연결 턴이 어떤 경로에서만 빠지는 일이 생긴다.
+function finish(runId: number, ctx: NarrowCtx, reason: DoneReason, cfg: NarrowConfig): [NarrowState, NarrowCmd[]] {
+  if (cfg.connect) {
+    return [{ phase: "relating", runId, ctx, reason }, [{ c: "callRelate", runId, ctx }]];
+  }
+  return [
+    { phase: "done", ctx, reason },
+    [{ c: "saveSnapshot", ctx, question: null }, { c: "goHandoff", ctx, reason }],
+  ];
+}
+
+// 연결 턴을 건너뛰고 원래 사유로 끝낸다. 실패와 "관련 없음"이 같은 길을 쓴다(S-12).
+function skipRelate(ctx: NarrowCtx, reason: DoneReason): [NarrowState, NarrowCmd[]] {
+  return [
+    { phase: "done", ctx, reason },
+    [{ c: "saveSnapshot", ctx, question: null }, { c: "goHandoff", ctx, reason }],
+  ];
 }
 
 export function reduce(s: NarrowState, e: NarrowEvent, cfg: NarrowConfig): [NarrowState, NarrowCmd[]] {
@@ -130,7 +154,7 @@ export function reduce(s: NarrowState, e: NarrowEvent, cfg: NarrowConfig): [Narr
     }
 
     case "tooHard": {
-      if (s.phase !== "asking") return [s, NONE];
+      if (s.phase !== "asking" || s.connect !== undefined) return [s, NONE];
       // 이미 쉬운 모드면 누를 것이 없다. 두 번째 누름은 정보가 없고 서버 비용만 든다(스펙 D-5).
       if (s.ctx.simplify) return [s, NONE];
       return [{ ...s, picks: { selected: [], custom: "", tooHard: true } }, NONE];
@@ -139,6 +163,15 @@ export function reduce(s: NarrowState, e: NarrowEvent, cfg: NarrowConfig): [Narr
     case "confirm": {
       if (s.phase !== "asking") return [s, NONE];
       const runId = s.runId + 1;
+
+      // 연결 턴의 답은 좁히기 예산을 쓰지 않는다. 좁히기는 이미 끝났고
+      // 이 답은 상세 설명에 얹을 방향일 뿐이다(connection_hint).
+      if (s.connect !== undefined) {
+        const picked = [...s.picks.selected, s.picks.custom.trim()].filter(Boolean);
+        const chosen = picked.filter((l) => l !== NO_RELATION);
+        const ctx: NarrowCtx = chosen.length ? { ...s.ctx, connection: chosen.join(", ") } : s.ctx;
+        return skipRelate(ctx, s.connect);
+      }
 
       if (s.picks.tooHard) {
         // 난이도 신호는 질문 횟수도 예산도 쓰지 않는다(스펙 D-2). 쉬운 모드는 이후 턴에 계속 적용된다.
@@ -160,16 +193,23 @@ export function reduce(s: NarrowState, e: NarrowEvent, cfg: NarrowConfig): [Narr
       const confidence = Number.isFinite(e.out.confidence) ? e.out.confidence : s.ctx.confidence;
       const ctx: NarrowCtx = { ...s.ctx, confidence };
       const d = decideNext({ answers: ctx.answers, out: e.out, cfg });
-      if (d.done) {
-        return [
-          { phase: "done", ctx, reason: d.reason },
-          [{ c: "saveSnapshot", ctx, question: null }, { c: "goHandoff", ctx, reason: d.reason }],
-        ];
-      }
+      if (d.done) return finish(s.runId, ctx, d.reason, cfg);
       // 다음 질문이 뜬 상태를 저장한다(스펙 B-13).
       return [
         { phase: "asking", runId: s.runId, ctx, question: questionOf(e.out), picks: EMPTY_PICKS },
         [{ c: "saveSnapshot", ctx, question: questionOf(e.out) }],
+      ];
+    }
+
+    case "related": {
+      if (s.phase !== "relating") return [s, NONE];
+      // 실패(null)와 관련 없음이 같은 처리다. 좁히기는 멈추지 않는다(S-12).
+      if (!e.out || !e.out.relevant || e.out.choices.length === 0) return skipRelate(s.ctx, s.reason);
+      // "관련 없어요" 탈출구는 프론트가 덧붙인다. 서버 choices에 기대지 않는다(S-13).
+      const question: Question = { question: e.out.question, choices: [...e.out.choices, { label: NO_RELATION }] };
+      return [
+        { phase: "asking", runId: s.runId, ctx: s.ctx, question, picks: EMPTY_PICKS, connect: s.reason },
+        NONE,
       ];
     }
 
@@ -208,7 +248,7 @@ export function reduce(s: NarrowState, e: NarrowEvent, cfg: NarrowConfig): [Narr
     }
 
     case "undo": {
-      if (s.phase !== "asking") return [s, NONE];
+      if (s.phase !== "asking" || s.connect !== undefined) return [s, NONE];
       // 세션당 1회. 한 단계가 아니라 첫 질문으로 돌아간다. 한 단계씩 되돌리면
       // 다시 진행할 때마다 서버를 부르게 되어 왕복 비용이 통제 불능이 된다(스펙 D-1).
       if (s.ctx.usedUndo || s.ctx.answers.length === 0) return [s, NONE];

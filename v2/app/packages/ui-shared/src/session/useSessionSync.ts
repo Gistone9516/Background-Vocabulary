@@ -21,11 +21,13 @@ export interface UseSessionSyncOptions {
   api: ApiPort;
   // 로그인 여부. 이것이 false면 서버를 부르지 않는다(S-1).
   enabled: boolean;
+  // 사이드바에서 고른 프로젝트. 목록의 범위이자 새 탐색의 배속처다(S-15).
+  projectId?: string | null;
 }
 
 const EMPTY: SessionListState = { items: [], cursor: null, loading: false, off: true };
 
-export function useSessionSync({ api, enabled }: UseSessionSyncOptions) {
+export function useSessionSync({ api, enabled, projectId = null }: UseSessionSyncOptions) {
   const [list, setList] = useState<SessionListState>(EMPTY);
   const [query, setQuery] = useState("");
 
@@ -43,25 +45,25 @@ export function useSessionSync({ api, enabled }: UseSessionSyncOptions) {
       }
       setList((p) => ({ ...p, loading: true, off: false }));
       api
-        .listSessions({ ...(q ? { q } : {}) })
+        .listSessions({ projectId, ...(q ? { q } : {}) })
         .then((page: Page<SessionSummary>) =>
           setList({ items: page.items, cursor: page.nextCursor, loading: false, off: false })
         )
         .catch(() => setList((p) => ({ ...p, loading: false })));
     },
-    [api, enabled]
+    [api, enabled, projectId]
   );
 
   const more = useCallback(() => {
     if (!enabled || !list.cursor || list.loading) return;
     setList((p) => ({ ...p, loading: true }));
     api
-      .listSessions({ cursor: list.cursor, ...(query ? { q: query } : {}) })
+      .listSessions({ projectId, cursor: list.cursor, ...(query ? { q: query } : {}) })
       .then((page) =>
         setList((p) => ({ items: [...p.items, ...page.items], cursor: page.nextCursor, loading: false, off: false }))
       )
       .catch(() => setList((p) => ({ ...p, loading: false })));
-  }, [api, enabled, list.cursor, list.loading, query]);
+  }, [api, enabled, list.cursor, list.loading, query, projectId]);
 
   useEffect(() => refresh(), [refresh]);
 
@@ -85,10 +87,10 @@ export function useSessionSync({ api, enabled }: UseSessionSyncOptions) {
       if (!enabled) return;
       const prev = known.current.get(ctx.sessionId) ?? null;
       void put(
-        toSessionRec({ ctx, narrow: toSnapshot(ctx, current), generated: null, prev, now: Date.now() })
+        toSessionRec({ ctx, narrow: toSnapshot(ctx, current), generated: null, prev, projectId, now: Date.now() })
       );
     },
-    [enabled, put]
+    [enabled, put, projectId]
   );
 
   // 생성이 끝난 시점. narrow를 지워야 목록에서 "생성 중"이 풀린다(S-5).
@@ -96,11 +98,11 @@ export function useSessionSync({ api, enabled }: UseSessionSyncOptions) {
     (ctx: NarrowCtx, items: Term[]) => {
       if (!enabled) return;
       const prev = known.current.get(ctx.sessionId) ?? null;
-      void put(toSessionRec({ ctx, narrow: null, generated: items, prev, now: Date.now() })).then(() =>
+      void put(toSessionRec({ ctx, narrow: null, generated: items, prev, projectId, now: Date.now() })).then(() =>
         refresh(query)
       );
     },
-    [enabled, put, refresh, query]
+    [enabled, put, refresh, query, projectId]
   );
 
   const remove = useCallback(
@@ -136,9 +138,11 @@ export function useSessionSync({ api, enabled }: UseSessionSyncOptions) {
   const syncKeep = useCallback(
     (sessionId: string, term: Term, keeping: boolean) => {
       if (!enabled) return;
-      void api.keep(sessionId, { term, term_norm: normTerm(term.term), keep: keeping }).catch(() => undefined);
+      void api
+        .keep(sessionId, { term, term_norm: normTerm(term.term), keep: keeping, project_id: projectId })
+        .catch(() => undefined);
     },
-    [api, enabled]
+    [api, enabled, projectId]
   );
 
   const load = useCallback((id: string) => api.getSession(id), [api]);

@@ -116,6 +116,15 @@ export const ko = {
   session_undo: "실행취소",
   sessions_loading: "불러오는 중…",
 
+  // 프로젝트 [신규]
+  projects_off: "로그인하면 프로젝트로 묶을 수 있어요.",
+  project_new_ph: "＋ 새 프로젝트 이름",
+  project_delete: "프로젝트 삭제",
+  project_delete_hint: "프로젝트만 지우고 탐색은 남겨요",
+
+  // 연결 턴 [v1 후반 승계]
+  relate_lead: "이 프로젝트에서 이미 담은 어휘와 이어지나요?",
+
   // 로그인 [신규]. v1은 확장이라 로그인 화면이 따로 없었다
   auth_sign_in: "구글로 로그인",
   auth_sign_out: "로그아웃",

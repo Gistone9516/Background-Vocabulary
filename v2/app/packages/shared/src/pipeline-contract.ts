@@ -40,6 +40,9 @@ export interface RecommendInput extends Prompt3In {
   locale: Locale;
   domain_risk: DomainRisk; // LLM 판정 고위험을 recommend서 재차단.
   exclude?: string[]; // 이미 보여준 term명. 다음 우선순위 배치(더보기).
+  // 이 탐색이 속한 세션. 서버가 여기서 프로젝트를 찾아 dedup 목록을 병합한다(S5 S-25).
+  // 프로젝트 id를 직접 받지 않는다 — 본문이 프로젝트를 지정하면 남의 프로젝트를 조회시킬 수 있다.
+  session_id?: string;
 }
 
 // 모든 메서드는 outputLocale를 받아 사용자에게 보일 텍스트를 그 언어로 출력한다(RAG 검색 언어와 별개).

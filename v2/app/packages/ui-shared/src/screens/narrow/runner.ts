@@ -4,6 +4,7 @@
 
 import type { ApiPort } from "../../api/index.js";
 import { isApiError, type ApiError } from "../../api/index.js";
+import type { RelateOut } from "@vock/shared";
 import type { NarrowCmd, NarrowCtx, NarrowEvent, DoneReason, Question } from "./types.js";
 
 export interface NarrowEffects {
@@ -13,6 +14,9 @@ export interface NarrowEffects {
   goRefusal(): void;
   goEntryWithNotice(notice: "weekly"): void;
   goHandoff(ctx: NarrowCtx, reason: DoneReason): void;
+  // 연결 턴 조회. 프로젝트와 누적 자산을 아는 쪽이 입력을 만든다 —
+  // 기계도 러너도 프로젝트를 몰라야 한다. 실패는 null로 돌려준다(S-12).
+  relate?(ctx: NarrowCtx): Promise<RelateOut | null>;
 }
 
 function asApiError(e: unknown): ApiError {
@@ -47,6 +51,19 @@ export class NarrowRunner {
           this.fx.send({ t: "advanced", runId, out })
         );
         return;
+      case "callRelate": {
+        const ask = this.fx.relate;
+        // 연결 턴은 실패해도 좁히기를 멈추지 않는다. 그래서 공용 call을 쓰지 않는다 —
+        // 공용 call은 실패를 failed 이벤트로 올려 화면을 재시도 상태로 만든다.
+        if (!ask) {
+          this.fx.send({ t: "related", runId: cmd.runId, out: null });
+          return;
+        }
+        void ask(cmd.ctx)
+          .then((out) => this.fx.send({ t: "related", runId: cmd.runId, out }))
+          .catch(() => this.fx.send({ t: "related", runId: cmd.runId, out: null }));
+        return;
+      }
       case "abort": {
         for (const [id, ac] of this.inflight) {
           if (id <= cmd.runId) {

@@ -3,7 +3,11 @@
 
 import type {
   ClientLimits,
+  AssetSummary,
   Page,
+  Project,
+  RelateIn,
+  RelateOut,
   SessionRec,
   SessionSummary,
   PreviewIn,
@@ -19,12 +23,14 @@ import type {
   RecommendInput,
   StreamEvent,
 } from "@vock/shared";
-import { createSseParser, isPage, isPrimerDoc, isSessionSummary } from "@vock/shared";
+import { createSseParser, isAssetSummary, isPage, isPrimerDoc, isProject, isRelateOut, isSessionSummary } from "@vock/shared";
 import type { ApiPort, AuthPort, AuthSession, KeepBody, ListSessionsArgs } from "./port.js";
 import { classifyResponse, isApiError, type ApiError } from "./errors.js";
 
 // 목록 형태 검사기는 한 번만 만든다. 매 호출마다 만들면 같은 함수가 계속 새로 생긴다.
 const SESSION_PAGE = isPage(isSessionSummary);
+const ASSET_PAGE = isPage(isAssetSummary);
+const isProjectList = (v: unknown): v is Project[] => Array.isArray(v) && v.every(isProject);
 
 export interface HttpApiConfig {
   baseUrl: string;
@@ -151,6 +157,31 @@ export class HttpApiClient implements ApiPort, AuthPort {
 
   keep(sessionId: string, body: KeepBody, signal?: AbortSignal): Promise<void> {
     return this.send<void>("PUT", `/sessions/${encodeURIComponent(sessionId)}/keep`, body, signal);
+  }
+
+  // ── 프로젝트와 어휘 자산(S5-2) ────────────────────────
+  listAssets(projectId: string | null, cursor?: string | null, signal?: AbortSignal): Promise<Page<AssetSummary>> {
+    const p = new URLSearchParams();
+    if (projectId) p.set("project_id", projectId);
+    if (cursor) p.set("cursor", cursor);
+    const qs = p.toString();
+    return this.send<Page<AssetSummary>>("GET", `/assets${qs ? "?" + qs : ""}`, undefined, signal, ASSET_PAGE);
+  }
+
+  listProjects(signal?: AbortSignal): Promise<Project[]> {
+    return this.send<Project[]>("GET", "/projects", undefined, signal, isProjectList);
+  }
+
+  createProject(name: string, signal?: AbortSignal): Promise<Project> {
+    return this.send<Project>("POST", "/projects", { name }, signal, isProject);
+  }
+
+  deleteProject(id: string, signal?: AbortSignal): Promise<void> {
+    return this.send<void>("DELETE", `/projects/${encodeURIComponent(id)}`, undefined, signal);
+  }
+
+  relate(input: RelateIn, signal?: AbortSignal): Promise<RelateOut> {
+    return this.send<RelateOut>("POST", "/relate", input, signal, isRelateOut);
   }
 
   // 스트림은 send를 쓰지 않는다. 본문을 끝까지 읽지 않고 조각마다 넘겨야 하기 때문이다.

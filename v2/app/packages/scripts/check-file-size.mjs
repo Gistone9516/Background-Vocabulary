@@ -15,6 +15,12 @@ const SCAN_ROOT = join(APP_ROOT, "packages");
 // 등록 조건은 "이 파일이 책임 하나인가"에 예라고 답할 수 있는 경우뿐이다.
 const ALLOWLIST = [
   {
+    file: "packages/ui-shared/src/api/http-client.ts",
+    maxLines: 360,
+    reason:
+      "ApiPort·AuthPort의 fetch 구현 하나. 엔드포인트별로 쪼개면 401 재발급·형태 검사·취소 전파 같은 전송 규칙이 파일마다 복제되고, '클라가 계약을 다 구현했나'를 한 곳에서 답할 수 없게 된다.",
+  },
+  {
     file: "packages/ui-shared/src/styles/tokens.css",
     maxLines: 700,
     reason: "v1 theme.css에서 계승한 디자인 시스템 정본 한 벌. 색과 타이포와 컴포넌트 클래스가 서로를 참조하므로 쪼개면 관계가 흩어진다. 책임은 하나다.",

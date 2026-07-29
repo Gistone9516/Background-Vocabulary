@@ -4,10 +4,12 @@ export { AppShell } from "./app/AppShell.js";
 export type { AppShellProps } from "./app/AppShell.js";
 export { SessionList } from "./app/SessionList.js";
 export type { SessionListProps } from "./app/SessionList.js";
+export { ProjectList } from "./app/ProjectList.js";
+export type { ProjectListProps } from "./app/ProjectList.js";
 
 // 세션 서버 동기화(S5). 저장 시점은 좁히기·생성 상태 기계가 이미 정한다.
-export { toSnapshot, fromSnapshot, toSessionRec, resumeTarget, useSessionSync } from "./session/index.js";
-export type { Resume, SnapshotArgs, SessionListState, UseSessionSyncOptions } from "./session/index.js";
+export { toSnapshot, fromSnapshot, toSessionRec, resumeTarget, useSessionSync, useProjects } from "./session/index.js";
+export type { Resume, SnapshotArgs, SessionListState, UseSessionSyncOptions, UseProjectsOptions } from "./session/index.js";
 export { EntryScreen } from "./screens/EntryScreen.js";
 export type { EntryScreenProps } from "./screens/EntryScreen.js";
 export { tr } from "./i18n/strings.js";
@@ -35,6 +37,7 @@ export {
   realAnswers,
   turnsLeft,
   EMPTY_PICKS,
+  NO_RELATION,
 } from "./screens/narrow/index.js";
 export type {
   AnswerTurn,

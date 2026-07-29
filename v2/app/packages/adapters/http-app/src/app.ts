@@ -66,7 +66,16 @@ export function createApp(deps: AppDeps): Hono {
     installGating(app, { counters: deps.counters, limits: deps.limits ?? DEFAULT_LIMITS, resolveIdentity });
   }
 
-  registerPipelineRoutes(app, pipeline);
+  // 세션에서 프로젝트를 읽는다. 요청 본문이 프로젝트를 지정하지 않는다(S5 S-25) —
+  // 세션 조회가 소유자 대조를 하므로 남의 프로젝트 어휘는 구조적으로 못 읽는다.
+  const repos = deps.repos;
+  const dedup = repos
+    ? async (userId: string, sessionId: string): Promise<string[]> => {
+        const rec = await repos.sessions.get(userId, sessionId);
+        return rec?.project_id ? repos.assets.termNormsByProject(userId, rec.project_id) : [];
+      }
+    : undefined;
+  registerPipelineRoutes(app, pipeline, dedup);
   if (deps.authService) registerAuthRoutes(app, deps.authService);
   const resolveUserId = deps.authService ? jwtResolveUserId(deps.authService) : devResolveUserId();
   if (deps.repos) registerCrudRoutes(app, deps.repos, resolveUserId);

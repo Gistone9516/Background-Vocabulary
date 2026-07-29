@@ -2,7 +2,7 @@
 export { NarrowScreen, type NarrowScreenProps } from "./NarrowScreen.js";
 export { useNarrow, type UseNarrowOptions } from "./useNarrow.js";
 export { NarrowRunner, type NarrowEffects } from "./runner.js";
-export { reduce, initialNarrow, answeredCount } from "./machine.js";
+export { reduce, initialNarrow, answeredCount, NO_RELATION } from "./machine.js";
 export { decideNext, isUsableQuestion, realAnswers, turnsLeft, type Decision } from "./decide.js";
 export { EMPTY_PICKS } from "./types.js";
 export type {

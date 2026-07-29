@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import type { ApiPort } from "../../api/index.js";
 import { initialNarrow, reduce } from "./machine.js";
 import { NarrowRunner, type NarrowEffects } from "./runner.js";
+import type { RelateOut } from "@vock/shared";
 import type { DoneReason, NarrowCmd, NarrowConfig, NarrowCtx, NarrowEvent, NarrowState, Question } from "./types.js";
 
 interface Wrapped {
@@ -17,6 +18,8 @@ export interface UseNarrowOptions {
   api: ApiPort;
   cfg: NarrowConfig;
   saveSnapshot?(ctx: NarrowCtx, question: Question | null): void;
+  // 연결 턴 조회. cfg.connect가 켜졌을 때만 불린다.
+  relate?(ctx: NarrowCtx): Promise<RelateOut | null>;
   onRefusal(): void;
   onEntryNotice(notice: "weekly"): void;
   onHandoff(ctx: NarrowCtx, reason: DoneReason): void;
@@ -42,6 +45,7 @@ export function useNarrow(opts: UseNarrowOptions) {
       api: opts.api,
       send: (e) => dispatch(e),
       saveSnapshot: (ctx, question) => optsRef.current.saveSnapshot?.(ctx, question),
+      relate: (ctx) => optsRef.current.relate?.(ctx) ?? Promise.resolve(null),
       goRefusal: () => optsRef.current.onRefusal(),
       goEntryWithNotice: (n) => optsRef.current.onEntryNotice(n),
       goHandoff: (ctx, reason) => optsRef.current.onHandoff(ctx, reason),

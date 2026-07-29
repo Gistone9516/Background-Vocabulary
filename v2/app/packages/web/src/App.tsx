@@ -10,7 +10,6 @@ import {
   HttpApiClient,
   KeptScreen,
   NarrowScreen,
-  SessionList,
   TermsScreen,
   useAuth,
   emptyKept,
@@ -21,6 +20,7 @@ import {
   useDetail,
   useNarrow,
   usePreview,
+  useProjects,
   useSessionSync,
   resumeTarget,
   usePrimer,
@@ -35,6 +35,7 @@ import {
 } from "@vock/ui-shared";
 import type { ClientLimits, Prompt5In, RecommendInput } from "@vock/shared";
 import { localTokenStore } from "./auth-storage.js";
+import { sidebarSlots } from "./Sidebar.js";
 
 // 개발 중에는 vite 프록시를 지나 로컬 서버로 간다. 배포 주소는 빌드 시 주입한다.
 const BASE_URL = import.meta.env.VITE_API_BASE ?? "/api";
@@ -92,7 +93,7 @@ export function App() {
   }, [api]);
 
   // 티어가 붙는 것은 S4다. 그전까지는 free 기준으로 본다.
-  const cfg: NarrowConfig = limits ? { narrowMin: limits.narrowMin, narrowMax: limits.narrowMax.free } : FALLBACK;
+  const base: NarrowConfig = limits ? { narrowMin: limits.narrowMin, narrowMax: limits.narrowMax.free } : FALLBACK;
   const termsCfg = useMemo(() => ({ maxTotal: limits?.maxTotal.free ?? FALLBACK_MAX_TOTAL }), [limits]);
 
   const onRefusal = useCallback(() => setJourney({ at: "refusal" }), []);
@@ -112,11 +113,16 @@ export function App() {
 
   // 로그인 여부. 저장은 로그인한 사용자만 한다(스펙 S-1).
   const signedIn = auth.state.phase === "signed_in";
-  const sync = useSessionSync({ api, enabled: signedIn });
+  const projects = useProjects({ api, enabled: signedIn });
+  const sync = useSessionSync({ api, enabled: signedIn, projectId: projects.selected });
+
+  // 연결 턴은 선택한 프로젝트에 담은 어휘가 있을 때만 켠다(S-11).
+  const cfg = useMemo<NarrowConfig>(() => ({ ...base, connect: projects.canConnect }), [base, projects.canConnect]);
 
   const narrow = useNarrow({
     api,
     cfg,
+    relate: projects.relate,
     onHandoff,
     onRefusal,
     onEntryNotice,
@@ -174,6 +180,9 @@ export function App() {
       if (journey.at !== "difficulty") return;
       const c = journey.ctx;
       const input: RecommendInput = {
+        // 서버가 이 세션의 프로젝트를 찾아 이미 담은 어휘를 exclude에 병합한다(S-24).
+        // 클라가 exclude를 채우지 않는다 — 채우면 그것을 빠뜨린 호출부마다 중복이 나온다.
+        session_id: c.sessionId,
         area: c.classifyOut.domain ?? "",
         job_type: c.classifyOut.job_type ?? [],
         domain: c.classifyOut.domain ?? "",
@@ -216,22 +225,12 @@ export function App() {
     setJourney({ at: "entry" });
   }, [narrow, terms]);
 
+  const slots = sidebarSlots({ sync, projects, onOpenSession: resume });
+
   return (
     <AppShell
-      sessions={
-        <SessionList
-          items={sync.list.items}
-          off={sync.list.off}
-          loading={sync.list.loading}
-          hasMore={sync.list.cursor !== null}
-          query={sync.query}
-          onSearch={sync.search}
-          onOpen={resume}
-          onRemove={sync.remove}
-          onRestore={sync.restore}
-          onMore={sync.more}
-        />
-      }
+      sessions={slots.sessions}
+      projects={slots.projects}
       footer={
         <AuthButton state={auth.state} available={auth.available} onSignIn={auth.signIn} onSignOut={auth.signOut} />
       }

@@ -17,11 +17,32 @@ function tierOf(c: unknown): Tier {
   return t === "paid" ? "paid" : "free";
 }
 
+// 게이팅이 심어 둔 신원. 없으면 익명이다.
+function userIdOf(c: unknown): string | null {
+  const v = (c as { get(k: string): unknown }).get("gateUserId");
+  return typeof v === "string" && v ? v : null;
+}
+
 // 라우트 핸들러가 받은 JSON 바디. 파이프라인 입력 + 로케일 메타.
 // tier는 여기 없다. 요청 입력이 권한을 정하지 않는다.
 type Body = Record<string, unknown> & { outputLocale?: unknown };
 
-export function registerPipelineRoutes(app: Hono, pipeline: Pipeline): void {
+// 프로젝트 dedup 조회. Repositories 전체가 아니라 필요한 질문 하나만 받는다 —
+// 라우트가 영속 계층 전체에 결합되면 파이프라인 계약만 의존한다는 성질이 깨진다.
+// 로그인하지 않았거나 세션이 프로젝트에 안 붙어 있으면 빈 배열이다(S5 S-26).
+async function mergeProjectExclude(body: Body, userId: string | null, dedup?: ProjectDedup): Promise<Body> {
+  const sessionId = typeof body.session_id === "string" ? body.session_id : null;
+  if (!dedup || !userId || !sessionId) return body;
+  // 조회 실패가 추천 실패가 되면 안 된다. dedup은 품질 보정이지 관문이 아니다.
+  const norms = await dedup(userId, sessionId).catch(() => []);
+  if (norms.length === 0) return body;
+  const shown = Array.isArray(body.exclude) ? (body.exclude as string[]) : [];
+  return { ...body, exclude: [...new Set([...shown, ...norms])] };
+}
+
+export type ProjectDedup = (userId: string, sessionId: string) => Promise<string[]>;
+
+export function registerPipelineRoutes(app: Hono, pipeline: Pipeline, dedup?: ProjectDedup): void {
   app.post("/classify", async (c) => {
     const body = (await c.req.json()) as Body;
     return c.json(await pipeline.classify(body as never, readLocale(body)));
@@ -44,8 +65,11 @@ export function registerPipelineRoutes(app: Hono, pipeline: Pipeline): void {
 
   app.post("/recommend", async (c) => {
     const body = (await c.req.json()) as Body;
+    // FR-706 dedup은 서버 책임이다(SoT §3-3). 클라가 보낸 exclude에 프로젝트 어휘를 기대하지 않는다 —
+    // 클라에 맡기면 그것을 빠뜨린 호출자마다 중복이 나온다.
+    const merged = await mergeProjectExclude(body, userIdOf(c), dedup);
     // 클라 끊김을 업스트림 취소로 전파한다(node-server 한정 유효).
-    const stream = pipeline.recommendStream(body as never, tierOf(c), readLocale(body), c.req.raw.signal);
+    const stream = pipeline.recommendStream(merged as never, tierOf(c), readLocale(body), c.req.raw.signal);
     return streamEventsToResponse(stream);
   });
 

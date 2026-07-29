@@ -45,6 +45,9 @@ export interface SnapshotArgs {
   generated: Term[] | null;
   // 이미 서버에 있는 레코드. 전체 upsert라서 보내지 않은 필드는 지워진다(S-22).
   prev?: SessionRec | null;
+  // 사이드바에서 선택한 프로젝트. 이미 배속된 세션은 그대로 둔다 —
+  // 재개한 옛 세션이 지금 보고 있는 프로젝트로 끌려가면 안 된다(S-15).
+  projectId?: string | null;
   now: number;
 }
 
@@ -66,7 +69,7 @@ export function toSessionRec(args: SnapshotArgs): SessionDraft {
     generated: args.generated ?? prev?.generated ?? null,
     // 프라이머는 /summarize가 채우는 서버 정본이다. 여기서 만들지 않고 있던 것을 지키기만 한다.
     primer: prev?.primer ?? null,
-    project_id: prev?.project_id ?? null,
+    project_id: prev?.project_id ?? args.projectId ?? null,
     pinned: prev?.pinned ?? false,
     deleted_at: null,
     created_at: prev?.created_at ?? args.now,
