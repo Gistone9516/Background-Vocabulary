@@ -252,8 +252,11 @@ export function reduce(s: NarrowState, e: NarrowEvent, cfg: NarrowConfig): [Narr
       // 세션당 1회. 한 단계가 아니라 첫 질문으로 돌아간다. 한 단계씩 되돌리면
       // 다시 진행할 때마다 서버를 부르게 되어 왕복 비용이 통제 불능이 된다(스펙 D-1).
       if (s.ctx.usedUndo || s.ctx.answers.length === 0) return [s, NONE];
-      // 쓴 예산은 돌려주지 않는다. 쉬운 모드는 유지한다.
-      const ctx: NarrowCtx = { ...s.ctx, answers: [], usedUndo: true, confidence: 0 };
+      // 쓴 예산은 돌려주지 않는다(스펙 B-11). 그래서 답을 지우지 않고 버린 것으로 표시한다 —
+      // 배열을 비우면 남은 턴이 그 배열에서 파생되므로 비우는 순간이 곧 환불이 된다.
+      // 쉬운 모드는 유지한다.
+      const answers: AnswerTurn[] = s.ctx.answers.map((a) => (a.kind === "picks" ? { kind: "discarded" } : a));
+      const ctx: NarrowCtx = { ...s.ctx, answers, usedUndo: true, confidence: 0 };
       return [{ phase: "asking", runId: s.runId, ctx, question: ctx.firstQuestion, picks: EMPTY_PICKS }, NONE];
     }
 

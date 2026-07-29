@@ -11,9 +11,11 @@ export function isUsableQuestion(out: unknown): out is Question {
 }
 
 // 실제 답변 턴 수. "어려워요"는 난이도 신호라 세지 않는다(스펙 D-2).
+// 예산을 쓴 턴 수. 되돌려서 버린 턴도 예산은 이미 썼으므로 함께 센다(스펙 B-11).
+// "어려워요"는 답이 아니라 난이도 신호라 세지 않는다(스펙 D-2).
 export function realAnswers(answers: AnswerTurn[]): number {
   let n = 0;
-  for (const a of answers) if (a.kind === "picks") n += 1;
+  for (const a of answers) if (a.kind === "picks" || a.kind === "discarded") n += 1;
   return n;
 }
 

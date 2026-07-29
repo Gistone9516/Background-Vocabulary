@@ -14,5 +14,8 @@ export function detailInputOf(card: TermCard, ctx: NarrowCtx | null): Prompt5In 
     domain: ctx?.classifyOut.domain ?? "",
     topic: ctx?.topic ?? "",
     locale: ctx?.classifyOut.search_locale ?? "en",
+    // 연결 턴에서 고른 방향. 없으면 필드를 아예 넣지 않는다 —
+    // 빈 문자열을 보내면 프롬프트가 "연결이 있다"고 읽는다.
+    ...(ctx?.connection ? { connection_hint: ctx.connection } : {}),
   };
 }

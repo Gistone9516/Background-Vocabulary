@@ -108,9 +108,13 @@ console.log("좁히기 상태 기계 검증:");
 {
   const base = drive([SUBMIT, classified(p1()), ...answerTurn(), ...answerTurn()]);
   const once = drive([{ t: "undo" }], CFG, base.s);
-  check("B-11 되돌리기 1회는 첫 질문으로", once.s.ctx.answers.length === 0 && once.s.ctx.usedUndo === true);
+  // 규칙을 검사한다. answers 배열의 길이는 구현 형태이지 규칙이 아니다 —
+  // 길이 0을 "회귀했다"의 대용으로 쓰면 배열을 비우는 구현만 통과하고, 비우는 것이 곧 예산 환불이었다.
+  check("B-11 되돌리기는 첫 질문으로 회귀한다", once.s.phase === "asking" && once.s.question === once.s.ctx.firstQuestion);
+  check("B-11 되돌리면 되돌리기를 썼다고 표시된다", once.s.ctx.usedUndo === true);
+  check("B-11 되돌린 답은 히스토리에서 빠진다", once.s.ctx.answers.every((a) => a.kind !== "picks"));
   const twice = drive([...answerTurn(), { t: "undo" }], CFG, once.s);
-  check("B-11 두 번째 되돌리기는 무시", twice.s.ctx.answers.length === 1);
+  check("B-11 두 번째 되돌리기는 아무 일도 하지 않는다", twice.s.ctx.answers.some((a) => a.kind === "picks"));
 }
 
 // D-1 되돌려도 쓴 예산은 돌아오지 않는다
@@ -118,11 +122,16 @@ console.log("좁히기 상태 기계 검증:");
   const base = drive([SUBMIT, classified(p1()), ...answerTurn(), ...answerTurn()]);
   const before = turnsLeft(base.s.ctx, CFG.narrowMax);
   const after = drive([{ t: "undo" }], CFG, base.s);
+  // 스펙 원문(B-11): "되돌리기는 세션당 1회이고 첫 질문으로 회귀한다. 쓴 예산은 복구하지 않는다"
+  // 이 문장에서 나오는 단언은 하나뿐이다 — 되돌린 뒤 남은 턴이 되돌리기 전과 같아야 한다.
+  const after2 = turnsLeft(after.s.ctx, CFG.narrowMax);
   check(
-    "D-1 되돌린 뒤 남은 턴은 복구되지 않음",
-    turnsLeft(after.s.ctx, CFG.narrowMax) === CFG.narrowMax && before === CFG.narrowMax - 2,
-    `before=${before}`
+    "B-11 되돌려도 쓴 예산은 복구되지 않는다",
+    after2 === before,
+    `되돌리기 전 ${before} -> 후 ${after2}`
   );
+  check("B-11 되돌리면 첫 질문으로 간다", after.s.phase === "asking" && after.s.question === after.s.ctx.firstQuestion);
+  check("B-11 되돌린 뒤 히스토리는 비어 있다", after.s.ctx.answers.every((a) => a.kind !== "picks"));
 }
 
 // D-2 난이도 신호는 질문 횟수도 예산도 쓰지 않는다

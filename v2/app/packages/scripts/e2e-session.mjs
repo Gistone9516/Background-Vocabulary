@@ -8,6 +8,9 @@ import {
   initialTerms,
   turnsLeft,
   realAnswers,
+  detailInputOf,
+  limitsFor,
+  FALLBACK_LIMITS,
 } from "@vock/ui-shared";
 import { isSessionSummary, isPage } from "@vock/shared";
 
@@ -178,6 +181,31 @@ console.log("세션 저장과 재개 검증:");
   check("항목 형태가 어긋나면 거부한다", !page({ items: [{ session_id: 1 }], nextCursor: null }));
   check("items가 없으면 거부한다", !page({ nextCursor: null }));
   check("커서가 숫자면 거부한다", !page({ items: [], nextCursor: 3 }));
+}
+
+// B-1 연결 턴 산출물(S-20 "재개에 필요한 것을 전부 담는다", S3b connection_hint)
+{
+  const withConn = { ...CTX, connection: "예산 배분" };
+  const snap = toSnapshot(withConn, CUR);
+  const rec = { ...toSessionRec({ ctx: withConn, narrow: snap, generated: null, prev: null, now: 1 }), user_id: "u1" };
+  const back = fromSnapshot(rec, snap);
+  check("연결 턴의 답이 스냅샷에 담긴다", back.connection === "예산 배분", `connection=${back.connection}`);
+
+  const req = detailInputOf({ id: "t1", term: "안티와인드업", kind: "기법" }, withConn);
+  check("연결 턴의 답이 상세 요청에 실린다", req.connection_hint === "예산 배분", `hint=${req.connection_hint}`);
+  const none = detailInputOf({ id: "t1", term: "x", kind: "개념" }, CTX);
+  check("연결 턴이 없으면 상세 요청에도 없다", none.connection_hint === undefined);
+}
+
+// A-2 티어별 한도 (S2 B-4 narrowMax[tier], S3 R-5 maxTotal[tier])
+{
+  const cfg = { narrowMin: 3, narrowMax: { free: 3, paid: 8 }, maxTotal: { free: 8, paid: 32 } };
+  const free = limitsFor(cfg, "free");
+  const paid = limitsFor(cfg, "paid");
+  check("free는 free 한도를 받는다", free.narrowMax === 3 && free.maxTotal === 8);
+  check("paid는 paid 한도를 받는다", paid.narrowMax === 8 && paid.maxTotal === 32, JSON.stringify(paid));
+  check("narrowMin은 티어와 무관하다", free.narrowMin === 3 && paid.narrowMin === 3);
+  check("설정을 못 받으면 임시값으로 떨어진다", limitsFor(null, "paid").narrowMax === FALLBACK_LIMITS.narrowMax);
 }
 
 if (failures) {

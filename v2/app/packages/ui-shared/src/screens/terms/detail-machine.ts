@@ -74,7 +74,8 @@ export function reduce(
     case "failed": {
       if (s.phase !== "loading" || s.id !== e.id) return [s, NONE, cache];
       // 무료 열람 소진과 pro 전용은 재시도할 일이 아니라 안내할 일이다.
-      if (e.error.kind === "weekly_exhausted" || e.error.kind === "pro_only") {
+      // 잠김 = 지금 다시 눌러도 안 되는 것. 재시도 버튼을 띄우면 사용자가 헛되이 누른다.
+      if (e.error.kind === "weekly_exhausted" || e.error.kind === "pro_only" || e.error.kind === "detail_limit") {
         return [{ phase: "locked", id: e.id, message: e.error.message }, NONE, cache];
       }
       return [{ phase: "failed", id: e.id, runId: s.runId, error: e.error }, NONE, cache];

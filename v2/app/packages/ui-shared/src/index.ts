@@ -18,7 +18,8 @@ export { EXAMPLES, pickRandom } from "./i18n/examples.js";
 
 // 서버 통로. 구현은 셸(web/desktop)이 만들어 주입한다.
 export type { ApiPort, AuthPort, AuthSession, TokenStore, StoredTokens } from "./api/index.js";
-export { HttpApiClient, classifyResponse, isRetryable, isApiError, memoryTokenStore } from "./api/index.js";
+export { HttpApiClient, classifyResponse, isRetryable, isApiError, memoryTokenStore, limitsFor, FALLBACK_LIMITS } from "./api/index.js";
+export type { TierLimits } from "./api/index.js";
 export type { ApiError, HttpApiConfig, KeepBody, ListSessionsArgs } from "./api/index.js";
 
 // 로그인(S5a). 로그인은 관문이 아니다. 비로그인으로도 전 여정이 돈다.

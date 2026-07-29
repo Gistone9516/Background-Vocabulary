@@ -16,6 +16,7 @@ export function toSnapshot(ctx: NarrowCtx, current: Question | null): NarrowSnap
     simplify: ctx.simplify,
     usedUndo: ctx.usedUndo,
     confidence: ctx.confidence,
+    ...(ctx.connection === undefined ? {} : { connection: ctx.connection }),
   };
 }
 
@@ -31,6 +32,7 @@ export function fromSnapshot(rec: SessionRec, snap: NarrowSnap): NarrowCtx {
     simplify: snap.simplify,
     usedUndo: snap.usedUndo,
     confidence: snap.confidence,
+    ...(snap.connection === undefined ? {} : { connection: snap.connection }),
   };
 }
 

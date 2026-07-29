@@ -22,6 +22,7 @@ import {
   usePreview,
   useProjects,
   useSessionSync,
+  limitsFor,
   resumeTarget,
   usePrimer,
   useTerms,
@@ -33,7 +34,7 @@ import {
   type NarrowCtx,
   type TermCard,
 } from "@vock/ui-shared";
-import type { ClientLimits, Prompt5In, RecommendInput } from "@vock/shared";
+import type { ClientLimits, RecommendInput, Tier } from "@vock/shared";
 import { localTokenStore } from "./auth-storage.js";
 import { sidebarSlots } from "./Sidebar.js";
 
@@ -92,10 +93,6 @@ export function App() {
     return () => ac.abort();
   }, [api]);
 
-  // 티어가 붙는 것은 S4다. 그전까지는 free 기준으로 본다.
-  const base: NarrowConfig = limits ? { narrowMin: limits.narrowMin, narrowMax: limits.narrowMax.free } : FALLBACK;
-  const termsCfg = useMemo(() => ({ maxTotal: limits?.maxTotal.free ?? FALLBACK_MAX_TOTAL }), [limits]);
-
   const onRefusal = useCallback(() => setJourney({ at: "refusal" }), []);
   const onEntryNotice = useCallback((notice: "weekly") => setJourney({ at: "entry", notice }), []);
   const onHandoff = useCallback(
@@ -110,6 +107,13 @@ export function App() {
     clientId: limits?.googleClientId ?? null,
     redirectUri: typeof location === "undefined" ? "" : location.origin + location.pathname,
   });
+
+  // 한도는 로그인한 사용자의 티어로 고른다(B-4 narrowMax[tier], R-5 maxTotal[tier]).
+  // .free를 여기서 직접 읽으면 유료 사용자가 무료 한도를 받는다.
+  const tier: Tier = auth.state.phase === "signed_in" ? auth.state.user.tier : "free";
+  const tierLimits = useMemo(() => limitsFor(limits, tier), [limits, tier]);
+  const base: NarrowConfig = { narrowMin: tierLimits.narrowMin, narrowMax: tierLimits.narrowMax };
+  const termsCfg = useMemo(() => ({ maxTotal: tierLimits.maxTotal }), [tierLimits]);
 
   // 로그인 여부. 저장은 로그인한 사용자만 한다(스펙 S-1).
   const signedIn = auth.state.phase === "signed_in";

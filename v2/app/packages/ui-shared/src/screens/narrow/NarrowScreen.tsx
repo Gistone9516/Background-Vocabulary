@@ -17,7 +17,8 @@ export interface NarrowScreenProps {
 export function NarrowScreen({ state, cfg, send }: NarrowScreenProps) {
   const customRef = useRef<HTMLTextAreaElement>(null);
 
-  if (state.phase === "classifying" || state.phase === "advancing") {
+  // relating = 연결 턴 조회 중. 다른 대기 구간과 같은 화면을 쓴다(S-29 아님, S-28).
+  if (state.phase === "classifying" || state.phase === "advancing" || state.phase === "relating") {
     return (
       <main className="scroll pad screenIn">
         <p className="lead" style={{ textAlign: "center", marginTop: "3rem" }}>{tr("thinking")}</p>
@@ -46,7 +47,9 @@ export function NarrowScreen({ state, cfg, send }: NarrowScreenProps) {
   const answered = answeredCount(ctx);
   const left = turnsLeft(ctx, cfg.narrowMax);
   const canConfirm = picks.tooHard || picks.selected.length > 0 || picks.custom.trim().length > 0;
-  const canUndo = !ctx.usedUndo && ctx.answers.length > 0;
+  // 연결 턴이면 좁히기는 이미 끝났다. 기계가 두 이벤트를 무시하므로 버튼도 내린다(S-29).
+  const connecting = state.connect !== undefined;
+  const canUndo = !connecting && !ctx.usedUndo && ctx.answers.some((a) => a.kind === "picks");
 
   return (
     <main className="scroll pad screenIn">
@@ -91,13 +94,13 @@ export function NarrowScreen({ state, cfg, send }: NarrowScreenProps) {
       <div className="subrow">
         {canUndo ? (
           <button className="sublink" title={tr("undo_title")} onClick={() => send({ t: "undo" })}>
-            {tr("undo_left", { n: cfg.narrowMax - answered })}
+            {tr("undo_left", { n: left })}
           </button>
         ) : (
           <span />
         )}
         {/* 쉬운 모드가 켜지면 감춘다. 두 번째 누름은 정보가 없고 서버 비용만 든다(스펙 D-5) */}
-        {ctx.simplify ? null : (
+        {connecting || ctx.simplify ? null : (
           <button className={picks.tooHard ? "sublink on" : "sublink"} onClick={() => send({ t: "tooHard" })}>
             {tr("narrow_hard")}
           </button>

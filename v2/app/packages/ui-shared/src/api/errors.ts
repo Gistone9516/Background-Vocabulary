@@ -5,6 +5,8 @@
 export type ApiError =
   | { kind: "weekly_exhausted"; message: string }
   | { kind: "pro_only"; message: string }
+  // 무료 상세 열람 소진(S3b D-3). pro_only와 달리 이번 주가 지나면 풀린다.
+  | { kind: "detail_limit"; message: string }
   | { kind: "high_risk"; message: string }
   | { kind: "rate_limited"; message: string }
   // 인증 계열. 이전에는 전부 server로 떨어져 화면이 로그인 실패와 세션 만료를
@@ -34,6 +36,8 @@ export function classifyResponse(status: number, body: unknown): ApiError {
   switch (b?.error) {
     case "WEEKLY_LIMIT":
       return { kind: "weekly_exhausted", message: say(b, "이번 주 무료 탐색을 다 썼어요.") };
+    case "DETAIL_LIMIT":
+      return { kind: "detail_limit", message: say(b, "무료 상세 열람을 다 썼어요.") };
     case "PRO_ONLY":
       return { kind: "pro_only", message: say(b, "pro 전용 기능이에요.") };
     case "HIGH_RISK_REFUSED":

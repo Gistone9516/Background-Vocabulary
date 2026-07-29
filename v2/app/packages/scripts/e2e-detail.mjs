@@ -1,6 +1,6 @@
 // 카드 상세 상태 기계 검증(C3 S3b). 네트워크 없이 전이 규칙만 돌린다.
 // 핵심은 무료 열람 횟수를 클라가 세지 않는다는 것이다. 소진은 서버 402로만 알 수 있다.
-import { reduceDetail as reduce, initialDetail } from "@vock/ui-shared";
+import { reduceDetail as reduce, initialDetail, classifyResponse, isRetryable } from "@vock/ui-shared";
 
 let failures = 0;
 function check(name, cond, detail) {
@@ -111,6 +111,21 @@ console.log("카드 상세 상태 기계 검증:");
   const a = drive([open("t1")]);
   const b = drive([{ t: "close" }], a.s, a.cache);
   check("로딩 중 닫으면 요청을 끊는다", b.s.phase === "closed" && b.cmds.some((c) => c.c === "abort"));
+}
+
+// A-3 상세 한도 소진(S3b D-3). 서버 gating.ts가 실제로 보내는 본문을 그대로 넣는다 —
+// 화면이 만들어 낸 kind로 검사하면 서버가 그 kind를 보내지 않아도 초록이 된다.
+{
+  const got = classifyResponse(402, { error: "DETAIL_LIMIT", message: "무료 상세 열람을 다 썼어요." });
+  check("D-3 상세 한도 402는 재시도 가능한 서버 오류가 아니다", got.kind !== "server", `kind=${got.kind}`);
+  check("D-3 상세 한도는 잠김으로 분류된다", got.kind === "detail_limit", `kind=${got.kind}`);
+  check("D-3 상세 한도는 재시도 대상이 아니다", !isRetryable(got));
+
+  // 분류만 맞아도 화면이 그 kind를 모르면 잠기지 않는다. 상태까지 관통시킨다.
+  const a = drive([open("t1")]);
+  const b = drive([failedWith("t1", got)], a.s, a.cache);
+  check("D-3 상세 한도는 화면을 잠근다", b.s.phase === "locked", `phase=${b.s.phase}`);
+  check("D-3 잠김에는 서버 문구가 실린다", b.s.phase === "locked" && b.s.message === "무료 상세 열람을 다 썼어요.");
 }
 
 if (failures) {

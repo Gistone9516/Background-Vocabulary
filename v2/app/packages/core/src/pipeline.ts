@@ -202,11 +202,14 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
     // 프롬프트4: 태깅 결과를 받아 메인 AI에 넘길 정리 텍스트를 만든다.
     async summarize(input: Prompt4In, outputLocale: OutputLocale): Promise<PrimerDoc> {
       const messages = prompts.buildPrompt4({ ...input, outputLocale });
-      return deps.llm.complete<PrimerDoc>({
+      const doc = await deps.llm.complete<Omit<PrimerDoc, "locale">>({
         model: "flash",
         messages,
         maxTokens: limits.maxTokens.summarize,
       });
+      // 로케일은 서버가 붙인다(FR-952). 이미 아는 값을 LLM에게 되돌려 달라고 시키면
+      // 프롬프트에 없는 필드를 응답 가드가 요구하는 상태가 되어 실 LLM에서만 전부 깨진다.
+      return { ...doc, locale: outputLocale };
     },
 
     // 프롬프트5: 단어 상세. 자세히 클릭 시에만 호출한다(on-demand, lazy).

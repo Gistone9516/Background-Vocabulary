@@ -24,7 +24,13 @@ export interface Question {
 
 // 좁히기 한 턴의 답. 여러 개를 한 번에 고를 수 있으므로 턴이 단위이고 라벨은 그 안의 배열이다.
 // "어려워요"는 답이 아니라 난이도 신호라 턴으로 세지 않는다(v1 최종 교정).
-export type AnswerTurn = { kind: "picks"; labels: string[] } | { kind: "tooHard" };
+// discarded = 되돌리기로 버린 턴. 답으로는 죽었지만 예산은 이미 썼다.
+// 예산 카운터를 따로 두지 않기 위해 여기 남긴다 — 두 값이 한 배열에서 각각 파생된다.
+// 히스토리는 picks만 모으고(버린 답은 LLM에 보내지 않는다), 예산은 picks+discarded를 센다.
+export type AnswerTurn =
+  | { kind: "picks"; labels: string[] }
+  | { kind: "tooHard" }
+  | { kind: "discarded" };
 
 // 좁히기 진행 스냅샷(매 턴 저장, FR-701).
 // 재개에 필요한 것을 전부 담는다(S5 S-20). SessionRec의 스칼라 컬럼만으로는 좁히기 맥락을
@@ -45,6 +51,9 @@ export interface NarrowSnap {
   simplify: boolean; // "어려워요"가 눌린 뒤인가
   usedUndo: boolean; // 되돌리기 1회를 썼는가
   confidence: number; // 직전 /next의 확신도. 종료 판정이 읽는다
+  // 연결 턴에서 고른 방향. 카드 상세가 connection_hint로 쓴다(S3b).
+  // 재개해도 남아야 하므로 여기 담는다 — 좁히기가 끝난 뒤에야 쓰이는 값이다.
+  connection?: string;
   // 남은 턴은 저장하지 않는다. answers에서 "어려워요"를 뺀 수와 현재 티어 상한으로 계산한다.
   // 저장하면 답변 수와 예산이 각각 움직여 어긋난다. v1이 정확히 그 형태로 버그를 냈다.
 }

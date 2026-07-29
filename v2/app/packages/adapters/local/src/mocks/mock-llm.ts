@@ -53,8 +53,9 @@ const RELATE: RelateOut = {
   related_terms: [],
 };
 
-const SUMMARIZE: PrimerDoc = {
-  locale: "ko",
+// 프롬프트4가 지시하는 출력 형태 그대로다. locale은 지시에 없으므로 여기에도 없다 —
+// 픽스처가 프롬프트보다 후해지면 실 LLM에서만 깨지는 경로가 생긴다(실측: /summarize).
+const SUMMARIZE: Omit<PrimerDoc, "locale"> = {
   area: "PID 제어",
   task_intent: "PID 제어의 배경 개념을 이해하려 한다",
   context_note: "출력 포화 상황에서 적분 제어의 거동을 정리한다.",

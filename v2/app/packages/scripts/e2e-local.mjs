@@ -105,6 +105,9 @@ try {
   check("/summarize 200", sum.status === 200, `status=${sum.status}`);
   check("/summarize PrimerDoc 형태", isPrimerDoc(sum.json), JSON.stringify(sum.json).slice(0, 120));
   check("/summarize paste_text를 만들지 않는다", sum.json && sum.json.paste_text === undefined);
+  // FR-952. 출력 로케일을 아는 쪽은 서버다. LLM에게 되돌려 달라고 시키지 않는다 —
+  // 프롬프트가 지시하지 않은 필드를 응답 가드가 요구하면 실 LLM에서만 전부 malformed로 떨어진다.
+  check("/summarize 응답에 로케일이 실린다", sum.json && sum.json.locale === "ko", `locale=${sum.json && sum.json.locale}`);
 } finally {
   await new Promise((r) => server.close(() => r()));
 }
