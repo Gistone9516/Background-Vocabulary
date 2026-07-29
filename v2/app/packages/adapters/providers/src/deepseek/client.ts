@@ -1,7 +1,7 @@
 // DeepSeek LLM 클라이언트(공급자 어댑터). 웹표준 fetch·Web Streams만 사용. v1 core/llm 이식.
 // complete=구조화 JSON 1회(P1·P2·P4·P5), streamTerms=term 단위 스트리밍(P3). 취소는 업스트림 fetch까지 전파.
 
-import type { LlmClient, LlmRequest, StreamEvent } from "@vock/shared";
+import type { LlmClient, LlmRequest, ModelId, StreamEvent } from "@vock/shared";
 import { consumeSseStream } from "./sse-parser.js";
 
 const DEEPSEEK_ENDPOINT = "https://api.deepseek.com/chat/completions";
@@ -37,9 +37,10 @@ export class DeepSeekLlmClient implements LlmClient {
     this.proModel = opts.proModel ?? "deepseek-v4-pro";
   }
 
-  private resolveModel(model: string): string {
-    if (model === this.proModel) return this.proModel;
-    return this.flashModel;
+  // 논리 등급을 설정된 벤더 모델로 옮긴다. 문자열 비교가 없으므로
+  // 설정이 무엇이든 pro 요청이 조용히 flash로 떨어지는 일이 생길 수 없다.
+  private resolveModel(model: ModelId): string {
+    return model === "pro" ? this.proModel : this.flashModel;
   }
 
   private buildHeaders(): Record<string, string> {

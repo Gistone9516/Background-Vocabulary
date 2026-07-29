@@ -47,8 +47,13 @@ export function createApp(deps: AppDeps): Hono {
     const authService = deps.authService;
     const resolveIdentity = authService
       ? async (b: string | null): Promise<{ tier: Tier; userId: string | null }> => {
+          // tier 판정은 AuthService.resolveTier 하나만 쓴다. 여기서 claims.tier를 직접 읽으면
+          // 같은 결정에 구현이 둘이 되고, resolveTier에만 있는 DEV_FORCE_TIER override가
+          // 게이팅 경로에서만 조용히 무시된다(실측 2026-07-29).
+          // 토큰 검증이 두 번 도는 비용은 감수한다. HS256 로컬 검증이라 networkless다(SoT §4).
+          const tier = await authService.resolveTier(b);
           const claims = b ? await authService.verifyAccessToken(b) : null;
-          return claims ? { tier: claims.tier, userId: claims.sub } : { tier: "free", userId: null };
+          return { tier, userId: claims ? claims.sub : null };
         }
       : async (): Promise<{ tier: Tier; userId: string | null }> => ({ tier: "free", userId: null });
     installGating(app, { counters: deps.counters, limits: deps.limits ?? DEFAULT_LIMITS, resolveIdentity });

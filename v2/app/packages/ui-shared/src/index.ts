@@ -14,8 +14,8 @@ export { HttpApiClient, classifyResponse, isRetryable, isApiError } from "./api/
 export type { ApiError, HttpApiConfig } from "./api/index.js";
 
 // 좁히기. 상태 기계는 React와 무관한 순수 로직이라 게이트가 서버 없이 검증한다.
-export { NarrowScreen, HandoffScreen, useNarrow } from "./screens/narrow/index.js";
-export type { NarrowScreenProps, HandoffScreenProps, UseNarrowOptions } from "./screens/narrow/index.js";
+export { NarrowScreen, useNarrow } from "./screens/narrow/index.js";
+export type { NarrowScreenProps, UseNarrowOptions } from "./screens/narrow/index.js";
 export {
   reduce as reduceNarrow,
   initialNarrow,

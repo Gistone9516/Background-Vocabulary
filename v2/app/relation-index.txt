@@ -114,7 +114,7 @@ packages/shared/src/ports/persistence-ports.ts::SqlRunner readers=12  <- package
 packages/shared/src/ports/pipeline-ports.ts::CacheStore readers=4  <- packages/adapters/local/src/mocks/mem-cache.ts,packages/adapters/providers/src/upstash-cache.ts,packages/core/src/rag/index.ts
 packages/shared/src/ports/pipeline-ports.ts::EnvConfig readers=0
 packages/shared/src/ports/pipeline-ports.ts::LlmClient readers=3  <- packages/adapters/local/src/mocks/mock-llm.ts,packages/adapters/providers/src/deepseek/client.ts,packages/shared/src/pipeline-contract.ts
-packages/shared/src/ports/pipeline-ports.ts::LlmRequest readers=2  <- packages/adapters/local/src/mocks/mock-llm.ts,packages/adapters/providers/src/deepseek/client.ts
+packages/shared/src/ports/pipeline-ports.ts::LlmRequest readers=3  <- packages/adapters/local/src/mocks/mock-llm.ts,packages/adapters/providers/src/deepseek/client.ts,packages/core/src/pipeline.ts
 packages/shared/src/ports/pipeline-ports.ts::Msg readers=7  <- packages/core/src/prompts/classify.ts,packages/core/src/prompts/detail.ts,packages/core/src/prompts/narrow.ts
 packages/shared/src/ports/pipeline-ports.ts::SearchProvider readers=4  <- packages/adapters/local/src/mocks/mock-search.ts,packages/adapters/providers/src/tavily.ts,packages/core/src/rag/index.ts
 packages/shared/src/sse.ts::SSE_DONE_MARKER readers=0
@@ -137,7 +137,7 @@ packages/shared/src/types/enums.ts::GapType readers=4  <- packages/adapters/pers
 packages/shared/src/types/enums.ts::JOB_TYPES readers=1  <- packages/core/src/prompts/blocks.ts
 packages/shared/src/types/enums.ts::JobType readers=9  <- packages/adapters/persistence/src/repositories/session-repo.ts,packages/core/src/prompts/detail.ts,packages/core/src/prompts/narrow.ts
 packages/shared/src/types/enums.ts::Locale readers=6  <- packages/adapters/providers/src/tavily.ts,packages/core/src/locale/index.ts,packages/core/src/rag/index.ts
-packages/shared/src/types/enums.ts::ModelId readers=1  <- packages/shared/src/ports/pipeline-ports.ts
+packages/shared/src/types/enums.ts::ModelId readers=2  <- packages/adapters/providers/src/deepseek/client.ts,packages/shared/src/ports/pipeline-ports.ts
 packages/shared/src/types/enums.ts::OUTPUT_LOCALES readers=0
 packages/shared/src/types/enums.ts::OutputLocale readers=13  <- packages/adapters/http-app/src/routes/pipeline-routes.ts,packages/core/src/pipeline.ts,packages/core/src/prompts/blocks.ts
 packages/shared/src/types/enums.ts::TAGS readers=0
@@ -190,7 +190,7 @@ packages/ui-shared/src/i18n/examples.ts::EXAMPLES readers=1  <- packages/ui-shar
 packages/ui-shared/src/i18n/examples.ts::pickRandom readers=1  <- packages/ui-shared/src/screens/EntryScreen.tsx
 packages/ui-shared/src/i18n/strings.ts::StringKey readers=1  <- packages/ui-shared/src/screens/difficulty/DifficultyScreen.tsx
 packages/ui-shared/src/i18n/strings.ts::ko readers=0
-packages/ui-shared/src/i18n/strings.ts::tr readers=10  <- packages/ui-shared/src/app/AppShell.tsx,packages/ui-shared/src/screens/EntryScreen.tsx,packages/ui-shared/src/screens/difficulty/DifficultyScreen.tsx
+packages/ui-shared/src/i18n/strings.ts::tr readers=9  <- packages/ui-shared/src/app/AppShell.tsx,packages/ui-shared/src/screens/EntryScreen.tsx,packages/ui-shared/src/screens/difficulty/DifficultyScreen.tsx
 packages/ui-shared/src/screens/EntryScreen.tsx::EntryScreen readers=1  <- packages/web/src/App.tsx
 packages/ui-shared/src/screens/EntryScreen.tsx::EntryScreenProps readers=0
 packages/ui-shared/src/screens/difficulty/DifficultyScreen.tsx::DifficultyScreen readers=1  <- packages/web/src/App.tsx
@@ -212,14 +212,12 @@ packages/ui-shared/src/screens/kept/keep.ts::normTerm readers=1  <- packages/scr
 packages/ui-shared/src/screens/kept/keep.ts::toggleKeep readers=2  <- packages/scripts/e2e-keep.mjs,packages/web/src/App.tsx
 packages/ui-shared/src/screens/kept/primer.ts::BasicPrimerArgs readers=0
 packages/ui-shared/src/screens/kept/primer.ts::buildBasicPrimer readers=2  <- packages/scripts/e2e-keep.mjs,packages/ui-shared/src/screens/kept/KeptScreen.tsx
-packages/ui-shared/src/screens/narrow/HandoffScreen.tsx::HandoffScreen readers=0
-packages/ui-shared/src/screens/narrow/HandoffScreen.tsx::HandoffScreenProps readers=0
 packages/ui-shared/src/screens/narrow/NarrowScreen.tsx::NarrowScreen readers=1  <- packages/web/src/App.tsx
 packages/ui-shared/src/screens/narrow/NarrowScreen.tsx::NarrowScreenProps readers=0
 packages/ui-shared/src/screens/narrow/decide.ts::Decision readers=0
 packages/ui-shared/src/screens/narrow/decide.ts::decideNext readers=1  <- packages/ui-shared/src/screens/narrow/machine.ts
 packages/ui-shared/src/screens/narrow/decide.ts::isUsableQuestion readers=1  <- packages/ui-shared/src/screens/narrow/machine.ts
-packages/ui-shared/src/screens/narrow/decide.ts::realAnswers readers=3  <- packages/scripts/e2e-narrow.mjs,packages/ui-shared/src/screens/narrow/HandoffScreen.tsx,packages/ui-shared/src/screens/narrow/machine.ts
+packages/ui-shared/src/screens/narrow/decide.ts::realAnswers readers=2  <- packages/scripts/e2e-narrow.mjs,packages/ui-shared/src/screens/narrow/machine.ts
 packages/ui-shared/src/screens/narrow/decide.ts::turnsLeft readers=2  <- packages/scripts/e2e-narrow.mjs,packages/ui-shared/src/screens/narrow/NarrowScreen.tsx
 packages/ui-shared/src/screens/narrow/machine.ts::answeredCount readers=1  <- packages/ui-shared/src/screens/narrow/NarrowScreen.tsx
 packages/ui-shared/src/screens/narrow/machine.ts::initialNarrow readers=2  <- packages/scripts/e2e-narrow.mjs,packages/ui-shared/src/screens/narrow/useNarrow.ts
@@ -227,11 +225,11 @@ packages/ui-shared/src/screens/narrow/machine.ts::reduce readers=2  <- packages/
 packages/ui-shared/src/screens/narrow/runner.ts::NarrowEffects readers=1  <- packages/ui-shared/src/screens/narrow/useNarrow.ts
 packages/ui-shared/src/screens/narrow/runner.ts::NarrowRunner readers=1  <- packages/ui-shared/src/screens/narrow/useNarrow.ts
 packages/ui-shared/src/screens/narrow/types.ts::AnswerTurn readers=2  <- packages/ui-shared/src/screens/narrow/decide.ts,packages/ui-shared/src/screens/narrow/machine.ts
-packages/ui-shared/src/screens/narrow/types.ts::DoneReason readers=5  <- packages/ui-shared/src/screens/narrow/HandoffScreen.tsx,packages/ui-shared/src/screens/narrow/decide.ts,packages/ui-shared/src/screens/narrow/runner.ts
+packages/ui-shared/src/screens/narrow/types.ts::DoneReason readers=4  <- packages/ui-shared/src/screens/narrow/decide.ts,packages/ui-shared/src/screens/narrow/runner.ts,packages/ui-shared/src/screens/narrow/useNarrow.ts
 packages/ui-shared/src/screens/narrow/types.ts::EMPTY_PICKS readers=1  <- packages/ui-shared/src/screens/narrow/machine.ts
 packages/ui-shared/src/screens/narrow/types.ts::NarrowCmd readers=3  <- packages/ui-shared/src/screens/narrow/machine.ts,packages/ui-shared/src/screens/narrow/runner.ts,packages/ui-shared/src/screens/narrow/useNarrow.ts
 packages/ui-shared/src/screens/narrow/types.ts::NarrowConfig readers=5  <- packages/ui-shared/src/screens/narrow/NarrowScreen.tsx,packages/ui-shared/src/screens/narrow/decide.ts,packages/ui-shared/src/screens/narrow/machine.ts
-packages/ui-shared/src/screens/narrow/types.ts::NarrowCtx readers=7  <- packages/ui-shared/src/screens/difficulty/usePreview.ts,packages/ui-shared/src/screens/narrow/HandoffScreen.tsx,packages/ui-shared/src/screens/narrow/decide.ts
+packages/ui-shared/src/screens/narrow/types.ts::NarrowCtx readers=6  <- packages/ui-shared/src/screens/difficulty/usePreview.ts,packages/ui-shared/src/screens/narrow/decide.ts,packages/ui-shared/src/screens/narrow/machine.ts
 packages/ui-shared/src/screens/narrow/types.ts::NarrowEvent readers=4  <- packages/ui-shared/src/screens/narrow/NarrowScreen.tsx,packages/ui-shared/src/screens/narrow/machine.ts,packages/ui-shared/src/screens/narrow/runner.ts
 packages/ui-shared/src/screens/narrow/types.ts::NarrowState readers=3  <- packages/ui-shared/src/screens/narrow/NarrowScreen.tsx,packages/ui-shared/src/screens/narrow/machine.ts,packages/ui-shared/src/screens/narrow/useNarrow.ts
 packages/ui-shared/src/screens/narrow/types.ts::Picks readers=0
@@ -307,8 +305,7 @@ packages/shared/src/types/persistence.ts:16 PrimerDoc.refined readers=0
 packages/shared/src/types/persistence.ts:16 PrimerDoc.audience readers=0
 packages/shared/src/types/persistence.ts:16 PrimerDoc.goal_detail readers=0
 packages/shared/src/types/persistence.ts:16 PrimerDoc.constraints readers=0
-packages/shared/src/types/persistence.ts:24 NarrowSnap.turns_left readers=0
-packages/shared/src/types/persistence.ts:112 ListSessionsQuery.limit readers=0
+packages/shared/src/types/persistence.ts:113 ListSessionsQuery.limit readers=0
 packages/shared/src/types/pipeline-io.ts:10 Choice.domain_tag readers=0
 packages/shared/src/types/pipeline-io.ts:23 Term.group readers=0
 packages/shared/src/types/pipeline-io.ts:25 Term.direction readers=0
@@ -373,15 +370,12 @@ packages/web/src/vite-env.d.ts:5 ImportMetaEnv.VITE_API_BASE readers=0
 "currentColor" defs=2 packages/ui-shared/src/app/AppShell.tsx,packages/ui-shared/src/screens/EntryScreen.tsx
 "custom" defs=4 packages/scripts/e2e-narrow.mjs,packages/ui-shared/src/screens/narrow/NarrowScreen.tsx,packages/ui-shared/src/screens/narrow/machine.ts,packages/ui-shared/src/screens/narrow/types.ts
 "data: [DONE]\n\n" defs=2 packages/adapters/http-app/src/sse-response.ts,packages/shared/src/sse.ts
-"deepseek-v4-flash" defs=3 packages/adapters/providers/src/deepseek/client.ts,packages/core/src/pipeline.ts,packages/scripts/e2e-real.mjs
-"deepseek-v4-pro" defs=2 packages/adapters/providers/src/deepseek/client.ts,packages/core/src/pipeline.ts
+"deepseek-v4-flash" defs=2 packages/adapters/providers/src/deepseek/client.ts,packages/scripts/e2e-real.mjs
 "desktop" defs=5 packages/adapters/http-app/src/routes/auth-routes.ts,packages/adapters/local/src/mocks/mock-google.ts,packages/adapters/providers/src/google-oauth.ts,packages/core/src/auth/auth-service.ts,packages/shared/src/ports/auth-ports.ts
-"done_enough" defs=2 packages/ui-shared/src/screens/narrow/HandoffScreen.tsx,packages/web/src/App.tsx
-"done_exhausted" defs=2 packages/ui-shared/src/screens/narrow/HandoffScreen.tsx,packages/web/src/App.tsx
-"enough" defs=6 packages/adapters/local/src/mocks/mock-llm.ts,packages/scripts/e2e-narrow.mjs,packages/ui-shared/src/screens/narrow/HandoffScreen.tsx,packages/ui-shared/src/screens/narrow/decide.ts,packages/ui-shared/src/screens/narrow/types.ts,packages/web/src/App.tsx
+"enough" defs=5 packages/adapters/local/src/mocks/mock-llm.ts,packages/scripts/e2e-narrow.mjs,packages/ui-shared/src/screens/narrow/decide.ts,packages/ui-shared/src/screens/narrow/types.ts,packages/web/src/App.tsx
 "err_network" defs=3 packages/ui-shared/src/screens/narrow/NarrowScreen.tsx,packages/ui-shared/src/screens/terms/TermDetail.tsx,packages/ui-shared/src/screens/terms/TermsScreen.tsx
 "errmsg" defs=5 packages/ui-shared/src/screens/EntryScreen.tsx,packages/ui-shared/src/screens/kept/KeptScreen.tsx,packages/ui-shared/src/screens/narrow/NarrowScreen.tsx,packages/ui-shared/src/screens/terms/TermDetail.tsx,packages/ui-shared/src/screens/terms/TermsScreen.tsx
-"exhausted" defs=5 packages/scripts/e2e-narrow.mjs,packages/ui-shared/src/screens/narrow/HandoffScreen.tsx,packages/ui-shared/src/screens/narrow/decide.ts,packages/ui-shared/src/screens/narrow/types.ts,packages/web/src/App.tsx
+"exhausted" defs=4 packages/scripts/e2e-narrow.mjs,packages/ui-shared/src/screens/narrow/decide.ts,packages/ui-shared/src/screens/narrow/types.ts,packages/web/src/App.tsx
 "failed" defs=17 packages/scripts/e2e-detail.mjs,packages/scripts/e2e-narrow.mjs,packages/scripts/e2e-terms.mjs,packages/ui-shared/src/screens/difficulty/DifficultyScreen.tsx,packages/ui-shared/src/screens/difficulty/types.ts,packages/ui-shared/src/screens/difficulty/usePreview.ts,packages/ui-shared/src/screens/narrow/NarrowScreen.tsx,packages/ui-shared/src/screens/narrow/machine.ts,packages/ui-shared/src/screens/narrow/runner.ts,packages/ui-shared/src/screens/narrow/types.ts,packages/ui-shared/src/screens/terms/TermDetail.tsx,packages/ui-shared/src/screens/terms/TermsScreen.tsx,packages/ui-shared/src/screens/terms/detail-machine.ts,packages/ui-shared/src/screens/terms/machine.ts,packages/ui-shared/src/screens/terms/runner.ts,packages/ui-shared/src/screens/terms/types.ts,packages/ui-shared/src/screens/terms/useDetail.ts
 "function" defs=3 packages/scripts/e2e-detail.mjs,packages/scripts/e2e-narrow.mjs,packages/scripts/e2e-terms.mjs
 "goEntryWithNotice" defs=4 packages/scripts/e2e-narrow.mjs,packages/ui-shared/src/screens/narrow/machine.ts,packages/ui-shared/src/screens/narrow/runner.ts,packages/ui-shared/src/screens/narrow/types.ts
@@ -401,7 +395,6 @@ packages/web/src/vite-env.d.ts:5 ImportMetaEnv.VITE_API_BASE readers=0
 "malformed" defs=6 packages/scripts/e2e-narrow.mjs,packages/ui-shared/src/api/errors.ts,packages/ui-shared/src/api/http-client.ts,packages/ui-shared/src/screens/narrow/decide.ts,packages/ui-shared/src/screens/narrow/machine.ts,packages/ui-shared/src/screens/narrow/types.ts
 "monthly" defs=2 packages/adapters/persistence/src/repositories/user-repo.ts,packages/shared/src/types/auth.ts
 "narrow" defs=2 packages/adapters/http-app/src/routes/crud-routes.ts,packages/web/src/App.tsx
-"narrow_hard" defs=2 packages/ui-shared/src/screens/narrow/HandoffScreen.tsx,packages/ui-shared/src/screens/narrow/NarrowScreen.tsx
 "network" defs=11 packages/scripts/e2e-detail.mjs,packages/scripts/e2e-narrow.mjs,packages/scripts/e2e-terms.mjs,packages/ui-shared/src/api/errors.ts,packages/ui-shared/src/api/http-client.ts,packages/ui-shared/src/screens/narrow/NarrowScreen.tsx,packages/ui-shared/src/screens/narrow/runner.ts,packages/ui-shared/src/screens/terms/TermDetail.tsx,packages/ui-shared/src/screens/terms/TermsScreen.tsx,packages/ui-shared/src/screens/terms/runner.ts,packages/ui-shared/src/screens/terms/useDetail.ts
 "node_modules" defs=2 packages/scripts/boundary-check.mjs,packages/scripts/check-file-size.mjs
 "normal" defs=2 packages/scripts/e2e-narrow.mjs,packages/scripts/e2e-terms.mjs
@@ -420,12 +413,12 @@ packages/web/src/vite-env.d.ts:5 ImportMetaEnv.VITE_API_BASE readers=0
 "refresh" defs=2 packages/core/src/auth/jwt.ts,packages/shared/src/types/auth.ts
 "revealCard" defs=3 packages/scripts/e2e-detail.mjs,packages/ui-shared/src/screens/terms/detail-machine.ts,packages/ui-shared/src/screens/terms/useDetail.ts
 "saveSnapshot" defs=4 packages/scripts/e2e-narrow.mjs,packages/ui-shared/src/screens/narrow/machine.ts,packages/ui-shared/src/screens/narrow/runner.ts,packages/ui-shared/src/screens/narrow/types.ts
-"scroll pad screenIn" defs=6 packages/ui-shared/src/screens/difficulty/DifficultyScreen.tsx,packages/ui-shared/src/screens/kept/KeptScreen.tsx,packages/ui-shared/src/screens/narrow/HandoffScreen.tsx,packages/ui-shared/src/screens/narrow/NarrowScreen.tsx,packages/ui-shared/src/screens/terms/TermsScreen.tsx,packages/web/src/App.tsx
+"scroll pad screenIn" defs=5 packages/ui-shared/src/screens/difficulty/DifficultyScreen.tsx,packages/ui-shared/src/screens/kept/KeptScreen.tsx,packages/ui-shared/src/screens/narrow/NarrowScreen.tsx,packages/ui-shared/src/screens/terms/TermsScreen.tsx,packages/web/src/App.tsx
 "server" defs=2 packages/ui-shared/src/api/errors.ts,packages/ui-shared/src/screens/terms/machine.ts
 "sessions" defs=2 packages/scripts/e2e-auth.mjs,packages/scripts/e2e-gate.mjs
 "settled" defs=4 packages/scripts/e2e-terms.mjs,packages/ui-shared/src/screens/terms/TermsScreen.tsx,packages/ui-shared/src/screens/terms/machine.ts,packages/ui-shared/src/screens/terms/types.ts
 "streaming" defs=4 packages/scripts/e2e-terms.mjs,packages/ui-shared/src/screens/terms/TermsScreen.tsx,packages/ui-shared/src/screens/terms/machine.ts,packages/ui-shared/src/screens/terms/types.ts
-"string" defs=85 packages/adapters/aws/src/data-api-runner.ts,packages/adapters/aws/src/deps.ts,packages/adapters/aws/src/handler.ts,packages/adapters/aws/src/secrets.ts,packages/adapters/http-app/src/app.ts,packages/adapters/http-app/src/middleware/auth.ts,packages/adapters/http-app/src/middleware/gating.ts,packages/adapters/http-app/src/routes/auth-routes.ts,packages/adapters/http-app/src/routes/crud-routes.ts,packages/adapters/http-app/src/routes/pipeline-routes.ts,packages/adapters/local/src/mocks/mem-cache.ts,packages/adapters/local/src/mocks/mem-counter.ts,packages/adapters/local/src/mocks/mock-google.ts,packages/adapters/local/src/mocks/mock-llm.ts,packages/adapters/local/src/mocks/mock-search.ts,packages/adapters/local/src/pg-runner.ts,packages/adapters/local/src/real-deps.ts,packages/adapters/persistence/src/cursor.ts,packages/adapters/persistence/src/json.ts,packages/adapters/persistence/src/migrate.ts,packages/adapters/persistence/src/repositories/asset-repo.ts,packages/adapters/persistence/src/repositories/jti-blacklist.ts,packages/adapters/persistence/src/repositories/knowledge-repo.ts,packages/adapters/persistence/src/repositories/project-repo.ts,packages/adapters/persistence/src/repositories/session-repo.ts,packages/adapters/persistence/src/repositories/user-repo.ts,packages/adapters/providers/src/deepseek/client.ts,packages/adapters/providers/src/deepseek/sse-parser.ts,packages/adapters/providers/src/google-oauth.ts,packages/adapters/providers/src/tavily.ts,packages/adapters/providers/src/upstash-cache.ts,packages/adapters/providers/src/upstash-counter.ts,packages/core/src/auth/auth-service.ts,packages/core/src/auth/jwt.ts,packages/core/src/gating/risk.ts,packages/core/src/locale/index.ts,packages/core/src/pipeline.ts,packages/core/src/prompts/blocks.ts,packages/core/src/prompts/classify.ts,packages/core/src/prompts/detail.ts,packages/core/src/prompts/narrow.ts,packages/core/src/prompts/preview.ts,packages/core/src/prompts/recommend.ts,packages/core/src/prompts/relate.ts,packages/core/src/prompts/summarize.ts,packages/core/src/rag/index.ts,packages/scripts/e2e-auth.mjs,packages/scripts/e2e-gate.mjs,packages/scripts/e2e-local.mjs,packages/scripts/e2e-pg.mjs,packages/shared/src/fixtures.ts,packages/shared/src/pipeline-contract.ts,packages/shared/src/ports/auth-ports.ts,packages/shared/src/ports/gating-ports.ts,packages/shared/src/ports/persistence-ports.ts,packages/shared/src/ports/pipeline-ports.ts,packages/shared/src/sse.ts,packages/shared/src/types/auth.ts,packages/shared/src/types/enums.ts,packages/shared/src/types/persistence.ts,packages/shared/src/types/pipeline-io.ts,packages/shared/src/utils.ts,packages/ui-shared/src/api/errors.ts,packages/ui-shared/src/api/http-client.ts,packages/ui-shared/src/i18n/examples.ts,packages/ui-shared/src/i18n/strings.ts,packages/ui-shared/src/screens/EntryScreen.tsx,packages/ui-shared/src/screens/difficulty/DifficultyScreen.tsx,packages/ui-shared/src/screens/difficulty/types.ts,packages/ui-shared/src/screens/difficulty/usePreview.ts,packages/ui-shared/src/screens/kept/KeptScreen.tsx,packages/ui-shared/src/screens/kept/keep.ts,packages/ui-shared/src/screens/kept/primer.ts,packages/ui-shared/src/screens/narrow/HandoffScreen.tsx,packages/ui-shared/src/screens/narrow/NarrowScreen.tsx,packages/ui-shared/src/screens/narrow/decide.ts,packages/ui-shared/src/screens/narrow/machine.ts,packages/ui-shared/src/screens/narrow/types.ts,packages/ui-shared/src/screens/terms/TermDetail.tsx,packages/ui-shared/src/screens/terms/TermsScreen.tsx,packages/ui-shared/src/screens/terms/detail-machine.ts,packages/ui-shared/src/screens/terms/types.ts,packages/ui-shared/src/screens/terms/useDetail.ts,packages/web/src/App.tsx,packages/web/src/vite-env.d.ts
+"string" defs=83 packages/adapters/aws/src/data-api-runner.ts,packages/adapters/aws/src/deps.ts,packages/adapters/aws/src/handler.ts,packages/adapters/aws/src/secrets.ts,packages/adapters/http-app/src/app.ts,packages/adapters/http-app/src/middleware/auth.ts,packages/adapters/http-app/src/middleware/gating.ts,packages/adapters/http-app/src/routes/auth-routes.ts,packages/adapters/http-app/src/routes/crud-routes.ts,packages/adapters/http-app/src/routes/pipeline-routes.ts,packages/adapters/local/src/mocks/mem-cache.ts,packages/adapters/local/src/mocks/mem-counter.ts,packages/adapters/local/src/mocks/mock-google.ts,packages/adapters/local/src/mocks/mock-llm.ts,packages/adapters/local/src/mocks/mock-search.ts,packages/adapters/local/src/pg-runner.ts,packages/adapters/local/src/real-deps.ts,packages/adapters/persistence/src/cursor.ts,packages/adapters/persistence/src/json.ts,packages/adapters/persistence/src/migrate.ts,packages/adapters/persistence/src/repositories/asset-repo.ts,packages/adapters/persistence/src/repositories/jti-blacklist.ts,packages/adapters/persistence/src/repositories/knowledge-repo.ts,packages/adapters/persistence/src/repositories/project-repo.ts,packages/adapters/persistence/src/repositories/session-repo.ts,packages/adapters/persistence/src/repositories/user-repo.ts,packages/adapters/providers/src/deepseek/client.ts,packages/adapters/providers/src/deepseek/sse-parser.ts,packages/adapters/providers/src/google-oauth.ts,packages/adapters/providers/src/tavily.ts,packages/adapters/providers/src/upstash-cache.ts,packages/adapters/providers/src/upstash-counter.ts,packages/core/src/auth/auth-service.ts,packages/core/src/auth/jwt.ts,packages/core/src/gating/risk.ts,packages/core/src/locale/index.ts,packages/core/src/pipeline.ts,packages/core/src/prompts/blocks.ts,packages/core/src/prompts/classify.ts,packages/core/src/prompts/detail.ts,packages/core/src/prompts/narrow.ts,packages/core/src/prompts/preview.ts,packages/core/src/prompts/recommend.ts,packages/core/src/prompts/relate.ts,packages/core/src/prompts/summarize.ts,packages/core/src/rag/index.ts,packages/scripts/e2e-auth.mjs,packages/scripts/e2e-gate.mjs,packages/scripts/e2e-local.mjs,packages/scripts/e2e-pg.mjs,packages/shared/src/fixtures.ts,packages/shared/src/pipeline-contract.ts,packages/shared/src/ports/auth-ports.ts,packages/shared/src/ports/gating-ports.ts,packages/shared/src/ports/persistence-ports.ts,packages/shared/src/ports/pipeline-ports.ts,packages/shared/src/sse.ts,packages/shared/src/types/auth.ts,packages/shared/src/types/persistence.ts,packages/shared/src/types/pipeline-io.ts,packages/shared/src/utils.ts,packages/ui-shared/src/api/errors.ts,packages/ui-shared/src/api/http-client.ts,packages/ui-shared/src/i18n/examples.ts,packages/ui-shared/src/i18n/strings.ts,packages/ui-shared/src/screens/EntryScreen.tsx,packages/ui-shared/src/screens/difficulty/DifficultyScreen.tsx,packages/ui-shared/src/screens/difficulty/types.ts,packages/ui-shared/src/screens/difficulty/usePreview.ts,packages/ui-shared/src/screens/kept/KeptScreen.tsx,packages/ui-shared/src/screens/kept/keep.ts,packages/ui-shared/src/screens/kept/primer.ts,packages/ui-shared/src/screens/narrow/NarrowScreen.tsx,packages/ui-shared/src/screens/narrow/decide.ts,packages/ui-shared/src/screens/narrow/machine.ts,packages/ui-shared/src/screens/narrow/types.ts,packages/ui-shared/src/screens/terms/TermDetail.tsx,packages/ui-shared/src/screens/terms/TermsScreen.tsx,packages/ui-shared/src/screens/terms/detail-machine.ts,packages/ui-shared/src/screens/terms/types.ts,packages/ui-shared/src/screens/terms/useDetail.ts,packages/web/src/App.tsx,packages/web/src/vite-env.d.ts
 "subhint" defs=2 packages/ui-shared/src/screens/kept/KeptScreen.tsx,packages/ui-shared/src/screens/narrow/NarrowScreen.tsx
 "sublink" defs=2 packages/ui-shared/src/screens/narrow/NarrowScreen.tsx,packages/ui-shared/src/screens/terms/TermsScreen.tsx
 "sublink on" defs=2 packages/ui-shared/src/screens/narrow/NarrowScreen.tsx,packages/ui-shared/src/screens/terms/TermsScreen.tsx
@@ -433,7 +426,7 @@ packages/web/src/vite-env.d.ts:5 ImportMetaEnv.VITE_API_BASE readers=0
 "subrow" defs=2 packages/ui-shared/src/screens/narrow/NarrowScreen.tsx,packages/ui-shared/src/screens/terms/TermsScreen.tsx
 "system" defs=9 packages/core/src/prompts/classify.ts,packages/core/src/prompts/detail.ts,packages/core/src/prompts/narrow.ts,packages/core/src/prompts/preview.ts,packages/core/src/prompts/recommend.ts,packages/core/src/prompts/relate.ts,packages/core/src/prompts/summarize.ts,packages/scripts/e2e-real.mjs,packages/shared/src/ports/pipeline-ports.ts
 "toggle" defs=7 packages/scripts/e2e-detail.mjs,packages/scripts/e2e-narrow.mjs,packages/ui-shared/src/screens/narrow/NarrowScreen.tsx,packages/ui-shared/src/screens/narrow/machine.ts,packages/ui-shared/src/screens/narrow/types.ts,packages/ui-shared/src/screens/terms/detail-machine.ts,packages/ui-shared/src/screens/terms/useDetail.ts
-"tooHard" defs=5 packages/scripts/e2e-narrow.mjs,packages/ui-shared/src/screens/narrow/HandoffScreen.tsx,packages/ui-shared/src/screens/narrow/NarrowScreen.tsx,packages/ui-shared/src/screens/narrow/machine.ts,packages/ui-shared/src/screens/narrow/types.ts
+"tooHard" defs=4 packages/scripts/e2e-narrow.mjs,packages/ui-shared/src/screens/narrow/NarrowScreen.tsx,packages/ui-shared/src/screens/narrow/machine.ts,packages/ui-shared/src/screens/narrow/types.ts
 "trademark_kr" defs=2 packages/core/src/locale/index.ts,packages/core/src/rag/index.ts
 "user_jump" defs=3 packages/scripts/e2e-narrow.mjs,packages/ui-shared/src/screens/narrow/machine.ts,packages/ui-shared/src/screens/narrow/types.ts
 "vat_filing" defs=2 packages/core/src/locale/index.ts,packages/core/src/rag/index.ts
@@ -462,6 +455,8 @@ packages/ui-shared/src/styles/tokens.css:68 .warn
 packages/ui-shared/src/styles/tokens.css:70 .ispro
 packages/ui-shared/src/styles/tokens.css:75 .langsel
 packages/ui-shared/src/styles/tokens.css:79 .foot
+packages/ui-shared/src/styles/tokens.css:92 .chips
+packages/ui-shared/src/styles/tokens.css:93 .chip
 packages/ui-shared/src/styles/tokens.css:107 .fielderr
 packages/ui-shared/src/styles/tokens.css:146 .attach
 packages/ui-shared/src/styles/tokens.css:148 .dragging
@@ -602,5 +597,4 @@ packages/ui-shared/src/styles/tokens.css:563 .drawerHead
 packages/ui-shared/src/styles/tokens.css:564 .drawerDiv
 
 ## derived-but-stored (주석이 파생임을 자백한 필드)
-packages/shared/src/types/persistence.ts:24 turns_left  // // 재개 시 (현재 plan, answers)로 재계산이 정본(v1 교훈)
 

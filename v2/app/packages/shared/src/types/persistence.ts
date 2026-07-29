@@ -21,7 +21,8 @@ export interface NarrowSnap {
   question: string;
   choices: Choice[];
   answers: { label: string; action: "선택" | "더깊이제외" | "어려워요"; at?: number }[]; // at = 클릭 시각(NFR-503 계측 자리)
-  turns_left: number; // 재개 시 (현재 plan, answers)로 재계산이 정본(v1 교훈)
+  // 남은 턴은 저장하지 않는다. answers에서 "어려워요"를 뺀 수와 현재 티어 상한으로 계산한다.
+  // 저장하면 답변 수와 예산이 각각 움직여 어긋난다. v1이 정확히 그 형태로 버그를 냈다.
 }
 
 // 탐색 세션(진행 중 또는 완료).

@@ -23,6 +23,7 @@ import type {
   RecommendInput,
   Tier,
   OutputLocale,
+  LlmRequest,
 } from "@vock/shared";
 import { DEFAULT_LIMITS } from "@vock/shared";
 
@@ -31,8 +32,6 @@ import { classifyRouting } from "./locale/index.js";
 import { runRag } from "./rag/index.js";
 
 // 모델 식별자 상수. 이 파일 외부에서 문자열을 직접 쓰지 않는다.
-const MODEL_FLASH = "deepseek-v4-flash";
-const MODEL_PRO   = "deepseek-v4-pro";
 // 운영 한도(어휘 개수·토큰 상한 등)는 deps.limits로 주입한다(어댑터 env에서 옴). 미주입 시 기본값.
 // 토큰 상한은 폭주를 막는 안전 상한이다. 유효 JSON을 자를 만큼 낮추면 응답이 깨지므로 넉넉히 잡고
 // 실제 출력량 차등은 어휘 개수(termCount)와 호출 게이팅이 담당한다.
@@ -53,7 +52,7 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
     async classify(input: Prompt1In, outputLocale: OutputLocale): Promise<Prompt1Out> {
       const messages = prompts.buildPrompt1(input.raw_input, outputLocale, input.context_object, input.user_condition, input.project_context);
       return deps.llm.complete<Prompt1Out>({
-        model: MODEL_FLASH,
+        model: "flash",
         messages,
         maxTokens: limits.maxTokens.classify,
       });
@@ -63,7 +62,7 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
     async nextBranch(input: Prompt2In, outputLocale: OutputLocale): Promise<Prompt2Out> {
       const messages = prompts.buildPrompt2({ ...input, outputLocale });
       return deps.llm.complete<Prompt2Out>({
-        model: MODEL_FLASH,
+        model: "flash",
         messages,
         maxTokens: limits.maxTokens.next,
       });
@@ -72,7 +71,7 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
     // 프리뷰: 난이도 선택 직전 깊이별 대표 어휘 1개씩(RAG 없이 LLM 1회). next와 같은 작은 토큰 상한을 재사용한다.
     async preview(input: PreviewIn, outputLocale: OutputLocale): Promise<PreviewOut> {
       const messages = prompts.buildPreview({ ...input, outputLocale });
-      const req = { model: MODEL_FLASH, messages, maxTokens: limits.maxTokens.next };
+      const req: LlmRequest = { model: "flash", messages, maxTokens: limits.maxTokens.next };
       const complete = (p: PreviewOut | undefined): boolean => {
         if (!p) return false;
         return (["basic", "inter", "adv"] as const).every((k) => {
@@ -92,7 +91,7 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
     async relate(input: RelateIn, outputLocale: OutputLocale): Promise<RelateOut> {
       const messages = prompts.buildRelate({ ...input, outputLocale });
       return deps.llm.complete<RelateOut>({
-        model: MODEL_FLASH,
+        model: "flash",
         messages,
         maxTokens: limits.maxTokens.next,
       });
@@ -140,7 +139,7 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
               : grounding;
 
             // 4. 모델 선택: hard_domain이면 pro, 그 외 flash.
-            const model = routing.hardDomain ? MODEL_PRO : MODEL_FLASH;
+            const model = routing.hardDomain ? "pro" : "flash";
 
             // 5. 프롬프트3 빌드 후 스트리밍 호출.
             // exactOptionalPropertyTypes 때문에 undefined인 선택 필드는 객체에 넣지 않는다.
@@ -204,7 +203,7 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
     async summarize(input: Prompt4In, outputLocale: OutputLocale): Promise<Prompt4Out> {
       const messages = prompts.buildPrompt4({ ...input, outputLocale });
       return deps.llm.complete<Prompt4Out>({
-        model: MODEL_FLASH,
+        model: "flash",
         messages,
         maxTokens: limits.maxTokens.summarize,
       });
@@ -244,7 +243,7 @@ export const createPipeline: CreatePipeline = (deps: PipelineDeps): Pipeline => 
       });
 
       const out = await deps.llm.complete<Prompt5Out>({
-        model: MODEL_FLASH,
+        model: "flash",
         messages,
         maxTokens: limits.maxTokens.detail[tier],
       });

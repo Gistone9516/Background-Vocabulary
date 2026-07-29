@@ -44,7 +44,7 @@ console.log(`local PG 부트 기동: ${base}  (DB=${DB})`);
 const sid = crypto.randomUUID();
 try {
   // 1. 세션 upsert
-  const put = await req(base, "PUT", `/sessions/${sid}`, U, { topic: "PID 제어 배경", domain_risk: "low", job_type: ["이해학습"], narrow: { question: "q", choices: [], answers: [], turns_left: 3 } });
+  const put = await req(base, "PUT", `/sessions/${sid}`, U, { topic: "PID 제어 배경", domain_risk: "low", job_type: ["이해학습"], narrow: { question: "q", choices: [], answers: [] } });
   check("PUT /sessions 200", put.status === 200, `status=${put.status}`);
   check("세션 소유자·id", put.json?.session_id === sid && put.json?.user_id === U);
   check("세션 생성중(narrow 존재)", put.json?.narrow !== null);

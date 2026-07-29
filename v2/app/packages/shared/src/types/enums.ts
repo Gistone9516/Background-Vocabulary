@@ -39,4 +39,7 @@ export type DomainRisk = "low" | "high";
 
 // 모델 식별자. 리터럴 union 금지. 허용 목록 검증은 어댑터에서만 한다.
 // 이렇게 두면 fallback 모델 교체 시 계약을 수정하지 않아도 된다.
-export type ModelId = string;
+// 논리 모델 등급. 벤더의 실제 모델 이름은 어댑터가 설정에서 정한다.
+// 문자열이면 core가 보낸 이름과 어댑터 설정이 어긋나도 조용히 낮은 등급으로 떨어진다.
+// 유니온으로 두면 그 상태가 아예 표현되지 않는다.
+export type ModelId = "flash" | "pro";
