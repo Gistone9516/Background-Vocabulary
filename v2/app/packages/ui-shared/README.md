@@ -30,6 +30,10 @@ src/
    ├ detail-machine.ts  상세 열기·닫기·캐시 전이. 무료 열람 수는 클라가 세지 않는다
    ├ useDetail.ts       React 배선
    └ TermDetail.tsx     개념·내 상황·활용 3단과 출처
+└ screens/kept/         담은 어휘
+   ├ keep.ts            담긴 키 집합. 카드 원본은 건드리지 않는다
+   ├ primer.ts          기본 정리(무비용, 서버 없이)
+   └ KeptScreen.tsx     담은 목록과 붙여넣기용 정리
 ├ i18n/strings.ts       UI 문구(v1 한국어 원문 그대로). 4개 언어 전량은 S5
 ├ i18n/examples.ts      예시 칩 풀(v1에서 verbatim 복사)
 └ styles/

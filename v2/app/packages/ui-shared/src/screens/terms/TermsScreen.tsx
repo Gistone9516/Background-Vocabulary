@@ -14,15 +14,37 @@ export interface TermsScreenProps {
   onToggleDetail(id: string, input: Prompt5In): void;
   onRetryDetail(input: Prompt5In): void;
   onRetry?(): void;
+  // 담기. 카드 원본은 건드리지 않고 담긴 여부만 밖에서 판정해 넘긴다.
+  isKept(term: string): boolean;
+  keptCount: number;
+  onToggleKeep(card: TermCard): void;
+  onViewKept(): void;
 }
 
-export function TermsScreen({ state, detail, detailInputOf, onToggleDetail, onRetryDetail, onRetry }: TermsScreenProps) {
+export function TermsScreen({
+  state,
+  detail,
+  detailInputOf,
+  onToggleDetail,
+  onRetryDetail,
+  onRetry,
+  isKept,
+  keptCount,
+  onToggleKeep,
+  onViewKept,
+}: TermsScreenProps) {
   const items = "items" in state ? state.items : [];
   const streaming = state.phase === "streaming";
   const openId = "id" in detail ? detail.id : null;
 
   return (
     <main className="scroll pad screenIn">
+      {keptCount > 0 ? (
+        <button className="link" style={{ marginBottom: "0.625rem" }} onClick={onViewKept}>
+          {tr("kept_count", { n: keptCount })} · {tr("kept_view")}
+        </button>
+      ) : null}
+
       {items.length === 0 && streaming ? <p className="lead">{tr("terms_loading")}</p> : null}
 
       {items.map((t, i) => {
@@ -49,12 +71,17 @@ export function TermsScreen({ state, detail, detailInputOf, onToggleDetail, onRe
 
             <TermDetail state={detail} id={t.id} onRetry={() => onRetryDetail(input)} />
 
-            <button
-              className={open ? "readbtn close" : "readbtn"}
-              onClick={() => onToggleDetail(t.id, input)}
-            >
-              {open ? tr("detail_close") : tr("detail_open")}
-            </button>
+            <div className="subrow">
+              <button className="sublink" onClick={() => onToggleDetail(t.id, input)}>
+                {open ? tr("detail_close") : tr("detail_open")}
+              </button>
+              <button
+                className={isKept(t.term) ? "sublink on" : "sublink"}
+                onClick={() => onToggleKeep(t)}
+              >
+                {isKept(t.term) ? tr("keep_on") : tr("keep_off")}
+              </button>
+            </div>
           </article>
         );
       })}

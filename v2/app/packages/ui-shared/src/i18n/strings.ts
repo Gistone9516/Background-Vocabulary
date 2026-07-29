@@ -84,6 +84,23 @@ export const ko = {
   // [신규] 카드 펼치기 버튼
   detail_open: "자세히 보기",
   detail_close: "접기",
+
+  // 담기와 담은 어휘 [v1 원문]
+  keep_on: "담음 ✓",
+  keep_off: "＋ 담기",
+  kept_count: "담은 어휘 {n}",
+  kept_title: "담은 어휘",
+  kept_view: "담은 어휘 보기",
+  kept_some: "{n}개를 담아뒀어요. 펼쳐 보거나 빼낼 수 있어요.",
+  kept_none: "아직 담은 어휘가 없어요. 어휘 화면에서 쓸 만한 카드를 담아보세요.",
+  kept_back_terms: "← 어휘로 돌아가기",
+  kept_back_home: "← 처음으로",
+  paste_head: "메인 AI에 붙여넣기 (선택)",
+  paste_sub: "복사해서 ChatGPT·Claude 같은 메인 AI에 붙여넣으면, 이 어휘들을 이미 아는 맥락으로 두고 내 작업을 바로 도와줘요.",
+  copy: "복사",
+  copy_done: "복사됐어요",
+  copy_fail: "복사 실패 · 아래 글을 직접 선택해 복사하세요",
+  ai_extra: "AI로 더 정리",
 } as const;
 
 export type StringKey = keyof typeof ko;

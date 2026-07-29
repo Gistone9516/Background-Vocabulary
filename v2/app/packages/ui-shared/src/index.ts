@@ -39,6 +39,10 @@ export type {
   RetryOf,
 } from "./screens/narrow/index.js";
 
+// 담기와 담은 어휘(S4).
+export { KeptScreen, normTerm, isKept, toggleKeep, keptList, emptyKept, buildBasicPrimer } from "./screens/kept/index.js";
+export type { KeptScreenProps, KeptMap, BasicPrimerArgs } from "./screens/kept/index.js";
+
 // 난이도 선택과 어휘 생성(S3).
 export { DifficultyScreen, usePreview, pickedLabels, previewKeyOf, sameKey } from "./screens/difficulty/index.js";
 export type { DifficultyScreenProps, Difficulty, PreviewKey, PreviewState } from "./screens/difficulty/index.js";

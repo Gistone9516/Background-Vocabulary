@@ -7,8 +7,13 @@ import {
   DifficultyScreen,
   EntryScreen,
   HttpApiClient,
+  KeptScreen,
   NarrowScreen,
   TermsScreen,
+  emptyKept,
+  isKept as isKeptIn,
+  keptList,
+  toggleKeep,
   tr,
   useDetail,
   useNarrow,
@@ -16,6 +21,7 @@ import {
   useTerms,
   type Difficulty,
   type DoneReason,
+  type KeptMap,
   type NarrowConfig,
   type NarrowCtx,
   type TermCard,
@@ -34,6 +40,7 @@ type Journey =
   | { at: "narrow" }
   | { at: "difficulty"; ctx: NarrowCtx; reason: DoneReason }
   | { at: "terms" }
+  | { at: "kept" }
   | { at: "refusal" };
 
 // 종료 사유 고지(S2 D-9). 사용자가 직접 끊은 경우와 내부 오류는 알리지 않는다.
@@ -68,6 +75,11 @@ export function App() {
   const narrow = useNarrow({ api, cfg, onHandoff, onRefusal, onEntryNotice });
   const terms = useTerms({ api, cfg: termsCfg, onRefusal });
   const detail = useDetail(api);
+
+  // 담기는 화면 상태로만 유지한다. 서버 저장은 로그인 UI와 함께 S5에서 붙는다.
+  const [kept, setKept] = useState<KeptMap>(emptyKept);
+  const toggleKept = useCallback((t: TermCard) => setKept((prev) => toggleKeep(prev, t)), []);
+  const keptTerms = useMemo(() => keptList(kept), [kept]);
 
   // 상세 요청은 카드와 세션 맥락에서 만든다. 화면은 세션을 모른다.
   const lastCtx = useRef<NarrowCtx | null>(null);
@@ -142,6 +154,21 @@ export function App() {
           detailInputOf={detailInputOf}
           onToggleDetail={detail.toggle}
           onRetryDetail={detail.retry}
+          isKept={(term) => isKeptIn(kept, term)}
+          keptCount={kept.size}
+          onToggleKeep={toggleKept}
+          onViewKept={() => setJourney({ at: "kept" })}
+        />
+      ) : null}
+
+      {journey.at === "kept" ? (
+        <KeptScreen
+          kept={keptTerms}
+          topic={lastCtx.current?.topic ?? ""}
+          condition={lastCtx.current?.cond ?? ""}
+          onBackToTerms={() => setJourney({ at: "terms" })}
+          onHome={home}
+          onRemove={(t) => setKept((prev) => toggleKeep(prev, t))}
         />
       ) : null}
 
