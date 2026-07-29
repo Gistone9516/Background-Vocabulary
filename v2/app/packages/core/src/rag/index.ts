@@ -64,12 +64,10 @@ export async function runRag(
   let searchFailed = false;
 
   try {
-    // 검색 쿼리는 항상 영어로 구성한다.
-    // ko 로케일 주제도 영어로 변환된 쿼리를 쓴다(Tavily 한국어 쿼리 금지).
-    // locale 필드는 구현체(Tavily)가 가드에 쓴다.
-    const query = args.locale === "ko"
-      ? `${args.topic} ${args.domainKey}`
-      : `${args.topic} ${args.domainKey}`;
+    // 검색 쿼리는 로케일과 무관하게 같은 형태다. 한국어 쿼리 금지는 구현체(Tavily)가
+    // locale 필드를 보고 가드한다. 여기서 분기하지 않는다.
+    // (이전에는 locale 삼항이 있었으나 양쪽이 완전히 같아 구별력이 없었다. 관계 게이트가 잡았다.)
+    const query = `${args.topic} ${args.domainKey}`;
 
     docs = await deps.search.search({
       query,

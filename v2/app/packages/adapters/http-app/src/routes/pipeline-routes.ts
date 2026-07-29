@@ -9,15 +9,17 @@ function readLocale(body: { outputLocale?: unknown }): OutputLocale {
   const v = body.outputLocale;
   return v === "en" || v === "ja" || v === "zh" ? v : "ko";
 }
-// 게이팅이 해석한 tier(c.get)를 우선한다. 게이팅 미적용(mock 부트)이면 바디 폴백.
-function tierOf(c: unknown, body: { tier?: unknown }): Tier {
+// tier는 게이팅이 검증한 JWT에서만 온다(SoT §4: "x-tier류 헤더 완전 무시").
+// 예전에는 게이팅 미적용 부트에서 body.tier로 폴백했는데, 그러면 클라이언트가 자기 등급을
+// 선언하게 되어 서버가 강제하는 한도를 클라가 정하는 셈이 된다. 게이팅이 없으면 free다.
+function tierOf(c: unknown): Tier {
   const t = (c as { get(k: string): unknown }).get("tier");
-  if (t === "paid" || t === "free") return t;
-  return body.tier === "paid" ? "paid" : "free";
+  return t === "paid" ? "paid" : "free";
 }
 
-// 라우트 핸들러가 받은 JSON 바디. 파이프라인 입력 + 메타(로케일·티어).
-type Body = Record<string, unknown> & { outputLocale?: unknown; tier?: unknown };
+// 라우트 핸들러가 받은 JSON 바디. 파이프라인 입력 + 로케일 메타.
+// tier는 여기 없다. 요청 입력이 권한을 정하지 않는다.
+type Body = Record<string, unknown> & { outputLocale?: unknown };
 
 export function registerPipelineRoutes(app: Hono, pipeline: Pipeline): void {
   app.post("/classify", async (c) => {
@@ -43,13 +45,13 @@ export function registerPipelineRoutes(app: Hono, pipeline: Pipeline): void {
   app.post("/recommend", async (c) => {
     const body = (await c.req.json()) as Body;
     // 클라 끊김을 업스트림 취소로 전파한다(node-server 한정 유효).
-    const stream = pipeline.recommendStream(body as never, tierOf(c, body), readLocale(body), c.req.raw.signal);
+    const stream = pipeline.recommendStream(body as never, tierOf(c), readLocale(body), c.req.raw.signal);
     return streamEventsToResponse(stream);
   });
 
   app.post("/detail", async (c) => {
     const body = (await c.req.json()) as Body;
-    return c.json(await pipeline.detail(body as never, tierOf(c, body), readLocale(body)));
+    return c.json(await pipeline.detail(body as never, tierOf(c), readLocale(body)));
   });
 
   app.post("/summarize", async (c) => {
