@@ -38,7 +38,11 @@ export interface HttpApiConfig {
   getAccessToken?: () => string | null;
   // 생성 요청에 실을 출력 언어. 서버는 요청 본문의 outputLocale만 보고 생성 언어를 정한다
   // (pipeline-routes readLocale). 사용자 설정을 아는 쪽은 셸이라 여기서 주입받는다.
-  getOutputLocale?: () => OutputLocale;
+  //
+  // 선택 사항이 아니다. 기본값 "ko"를 두었더니 웹 셸이 이걸 넘기지 않은 채로 배포됐고,
+  // 전 사용자가 조용히 한국어로 고정됐다. e2e는 자기가 값을 주입해 검사했으므로 초록이었다.
+  // 필수로 두면 안 넘기는 셸은 타입 검사에서 막힌다 — 잊을 수 있는 자리를 없앤다.
+  getOutputLocale: () => OutputLocale;
   fetch?: typeof globalThis.fetch;
   // 401을 받았을 때 한 번만 재발급을 시도한다. 성공하면 원 요청을 한 번만 다시 보낸다.
   // 재발급도 실패하면 null을 돌려주고, 그때는 재시도하지 않는다(스펙 A-7).
@@ -60,7 +64,7 @@ export class HttpApiClient implements ApiPort, AuthPort {
     // 끝 슬래시를 지워 경로를 붙일 때 이중 슬래시가 생기지 않게 한다.
     this.base = cfg.baseUrl.replace(/\/+$/, "");
     this.token = cfg.getAccessToken ?? (() => null);
-    this.outputLocale = cfg.getOutputLocale ?? (() => "ko");
+    this.outputLocale = cfg.getOutputLocale;
     this.doFetch = cfg.fetch ?? globalThis.fetch.bind(globalThis);
     this.onUnauthorized = cfg.onUnauthorized ?? null;
   }

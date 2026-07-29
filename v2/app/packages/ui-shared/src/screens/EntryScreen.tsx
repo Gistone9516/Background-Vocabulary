@@ -3,8 +3,10 @@
 // 제출은 주입된 콜백으로 넘긴다. 실제 classify 호출 연결은 S2에서 한다.
 
 import { useMemo, useRef, useState } from "react";
+import type { OutputLocale } from "@vock/shared";
 import { tr } from "../i18n/strings.js";
 import { EXAMPLES, pickRandom } from "../i18n/examples.js";
+import { useOutputLocale } from "../i18n/locale.js";
 
 const FLOAT_NAMES = ["chipFloatA", "chipFloatB", "chipFloatC"];
 const CHIP_COUNT = 8;
@@ -17,9 +19,11 @@ interface Chip {
 }
 
 // 칩마다 부유 키프레임과 속도, 시작 위상을 달리해 그룹이 아니라 개별로 움직이게 한다(v1 동작).
-function buildChips(seed: number): Chip[] {
+function buildChips(seed: number, locale: OutputLocale): Chip[] {
   void seed;
-  return pickRandom(EXAMPLES.ko, CHIP_COUNT).map((text) => ({
+  // EXAMPLES는 로케일 전부를 담은 레코드라 폴백이 필요 없다. ?? EXAMPLES.ko를 붙이면 나중에
+  // 로케일이 하나 늘었을 때 비어 있는 것을 조용히 한국어로 덮는다.
+  return pickRandom(EXAMPLES[locale], CHIP_COUNT).map((text) => ({
     text,
     name: FLOAT_NAMES[Math.floor(Math.random() * FLOAT_NAMES.length)]!,
     dur: 4.8 + Math.random() * 2.4,
@@ -50,7 +54,9 @@ export function EntryScreen({ onSubmit, notice }: EntryScreenProps) {
   const [chipSeed, setChipSeed] = useState(0);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
-  const chips = useMemo(() => buildChips(chipSeed), [chipSeed]);
+  // locale이 deps에 없으면 언어를 바꿔도 칩이 그대로 남는다(v1도 [loc, chipSeed]였다).
+  const { locale } = useOutputLocale();
+  const chips = useMemo(() => buildChips(chipSeed, locale), [chipSeed, locale]);
 
   // 입력 줄 수에 맞춰 높이를 늘리되 상한을 둔다.
   // 상한은 CSS의 max-height를 그대로 읽어 쓴다. 여기에 숫자를 따로 적어 두면 CSS 값이 바뀌었을 때

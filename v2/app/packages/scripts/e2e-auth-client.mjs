@@ -73,7 +73,8 @@ console.log("로그인 클라이언트 검증:");
   let token = "OLD";
   const okClient = new HttpApiClient({
     baseUrl: "http://t",
-    getAccessToken: () => token,
+    getOutputLocale: () => "ko",
+    getAccessToken: () =>token,
     fetch: mk([
       { status: 401, body: { error: "TOKEN_EXPIRED", message: "만료" } },
       { status: 200, body: { access_token: "NEW", refresh_token: "R2", expires_in: 900 } },
@@ -95,7 +96,8 @@ console.log("로그인 클라이언트 검증:");
   calls.length = 0;
   const deadClient = new HttpApiClient({
     baseUrl: "http://t",
-    getAccessToken: () => "OLD",
+    getOutputLocale: () => "ko",
+    getAccessToken: () =>"OLD",
     fetch: mk([
       { status: 401, body: { error: "TOKEN_EXPIRED", message: "만료" } },
       { status: 401, body: { error: "TOKEN_REVOKED", message: "폐기" } },
@@ -114,6 +116,7 @@ console.log("로그인 클라이언트 검증:");
   calls.length = 0;
   const revoked = new HttpApiClient({
     baseUrl: "http://t",
+    getOutputLocale: () => "ko",
     fetch: mk([{ status: 401, body: { error: "TOKEN_REVOKED", message: "폐기" } }]),
   });
   check("폐기된 refresh는 null을 돌려준다", (await revoked.refresh("R")) === null);
@@ -123,6 +126,7 @@ console.log("로그인 클라이언트 검증:");
 {
   const c = new HttpApiClient({
     baseUrl: "http://t",
+    getOutputLocale: () => "ko",
     fetch: async () => new Response("boom", { status: 500 }),
   });
   let threw = false;
@@ -145,6 +149,23 @@ console.log("로그인 클라이언트 검증:");
   await client.classify({ raw_input: "x" });
   await client.detail({ term: "t", kind: "개념", area: "", job_type: [], domain: "", topic: "", locale: "en" });
   check("생성 요청에 출력 로케일이 실린다", sent.every((b) => b && b.outputLocale === "ja"), JSON.stringify(sent[0]));
+
+  // 언어를 바꾸면 다음 요청부터 바뀐 값이 실린다. 클라이언트는 저장소를 매 요청 새로 읽고,
+  // 값을 생성 시점에 붙들지 않는다 — 붙들면 언어를 바꿔도 앱을 새로 띄우기 전까지 옛 언어로 생성된다.
+  sent.length = 0;
+  let held = "ko";
+  const live = new HttpApiClient({ baseUrl: "http://x", fetch: spy, getOutputLocale: () => held });
+  await live.classify({ raw_input: "x" });
+  held = "zh";
+  await live.classify({ raw_input: "x" });
+  check("언어를 바꾸면 다음 요청부터 반영된다", sent[0]?.outputLocale === "ko" && sent[1]?.outputLocale === "zh", JSON.stringify(sent.map((b) => b?.outputLocale)));
+
+  // 검색 로케일(Locale)은 출력 로케일과 다른 축이다. 생성 로케일이 요청 본문의 locale을 덮으면
+  // RAG 검색 언어가 오염된다 — 한국어 UI로 영어 자료를 찾는 조합이 불가능해진다.
+  sent.length = 0;
+  const mixed = new HttpApiClient({ baseUrl: "http://x", fetch: spy, getOutputLocale: () => "ja" });
+  await mixed.detail({ term: "t", kind: "개념", area: "", job_type: [], domain: "", topic: "", locale: "en" });
+  check("출력 로케일이 검색 로케일을 덮지 않는다", sent[0]?.locale === "en" && sent[0]?.outputLocale === "ja", JSON.stringify(sent[0]));
 }
 
 if (failures) {

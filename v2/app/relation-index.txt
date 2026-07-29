@@ -145,8 +145,8 @@ packages/shared/src/types/enums.ts::JOB_TYPES readers=1  <- packages/core/src/pr
 packages/shared/src/types/enums.ts::JobType readers=9  <- packages/adapters/persistence/src/repositories/session-repo.ts,packages/core/src/prompts/detail.ts,packages/core/src/prompts/narrow.ts
 packages/shared/src/types/enums.ts::Locale readers=6  <- packages/adapters/providers/src/tavily.ts,packages/core/src/locale/index.ts,packages/core/src/rag/index.ts
 packages/shared/src/types/enums.ts::ModelId readers=2  <- packages/adapters/providers/src/deepseek/client.ts,packages/shared/src/ports/pipeline-ports.ts
-packages/shared/src/types/enums.ts::OUTPUT_LOCALES readers=0
-packages/shared/src/types/enums.ts::OutputLocale readers=14  <- packages/adapters/http-app/src/routes/pipeline-routes.ts,packages/core/src/pipeline.ts,packages/core/src/prompts/blocks.ts
+packages/shared/src/types/enums.ts::OUTPUT_LOCALES readers=2  <- packages/ui-shared/src/app/LangSelect.tsx,packages/ui-shared/src/i18n/locale.tsx
+packages/shared/src/types/enums.ts::OutputLocale readers=18  <- packages/adapters/http-app/src/routes/pipeline-routes.ts,packages/core/src/pipeline.ts,packages/core/src/prompts/blocks.ts
 packages/shared/src/types/enums.ts::TAGS readers=0
 packages/shared/src/types/enums.ts::Tag readers=5  <- packages/adapters/persistence/src/repositories/knowledge-repo.ts,packages/core/src/prompts/summarize.ts,packages/shared/src/types/persistence.ts
 packages/shared/src/types/enums.ts::Tier readers=12  <- packages/adapters/http-app/src/app.ts,packages/adapters/http-app/src/middleware/gating.ts,packages/adapters/http-app/src/routes/pipeline-routes.ts
@@ -189,7 +189,7 @@ packages/ui-shared/src/api/errors.ts::ApiError readers=5  <- packages/ui-shared/
 packages/ui-shared/src/api/errors.ts::classifyResponse readers=3  <- packages/scripts/e2e-auth-client.mjs,packages/scripts/e2e-detail.mjs,packages/ui-shared/src/api/http-client.ts
 packages/ui-shared/src/api/errors.ts::isApiError readers=6  <- packages/ui-shared/src/api/http-client.ts,packages/ui-shared/src/screens/auth/useAuth.ts,packages/ui-shared/src/screens/kept/primer.ts
 packages/ui-shared/src/api/errors.ts::isRetryable readers=2  <- packages/scripts/e2e-detail.mjs,packages/ui-shared/src/screens/narrow/NarrowScreen.tsx
-packages/ui-shared/src/api/http-client.ts::HttpApiClient readers=2  <- packages/scripts/e2e-auth-client.mjs,packages/web/src/App.tsx
+packages/ui-shared/src/api/http-client.ts::HttpApiClient readers=2  <- packages/scripts/e2e-auth-client.mjs,packages/web/src/deps.ts
 packages/ui-shared/src/api/http-client.ts::HttpApiConfig readers=0
 packages/ui-shared/src/api/limits.ts::FALLBACK_LIMITS readers=1  <- packages/scripts/e2e-session.mjs
 packages/ui-shared/src/api/limits.ts::TierLimits readers=0
@@ -200,19 +200,26 @@ packages/ui-shared/src/api/port.ts::AuthSession readers=1  <- packages/ui-shared
 packages/ui-shared/src/api/port.ts::KeepBody readers=1  <- packages/ui-shared/src/api/http-client.ts
 packages/ui-shared/src/api/port.ts::ListSessionsArgs readers=1  <- packages/ui-shared/src/api/http-client.ts
 packages/ui-shared/src/api/token-store.ts::StoredTokens readers=1  <- packages/web/src/auth-storage.ts
-packages/ui-shared/src/api/token-store.ts::TokenStore readers=2  <- packages/ui-shared/src/screens/auth/useAuth.ts,packages/web/src/auth-storage.ts
+packages/ui-shared/src/api/token-store.ts::TokenStore readers=3  <- packages/ui-shared/src/screens/auth/useAuth.ts,packages/web/src/auth-storage.ts,packages/web/src/deps.ts
 packages/ui-shared/src/api/token-store.ts::memoryTokenStore readers=0
 packages/ui-shared/src/app/AppShell.tsx::AppShell readers=1  <- packages/web/src/App.tsx
 packages/ui-shared/src/app/AppShell.tsx::AppShellProps readers=0
+packages/ui-shared/src/app/LangSelect.tsx::LangSelect readers=1  <- packages/ui-shared/src/app/AppShell.tsx
 packages/ui-shared/src/app/ProjectList.tsx::ProjectList readers=1  <- packages/web/src/Sidebar.tsx
 packages/ui-shared/src/app/ProjectList.tsx::ProjectListProps readers=0
 packages/ui-shared/src/app/SessionList.tsx::SessionList readers=1  <- packages/web/src/Sidebar.tsx
 packages/ui-shared/src/app/SessionList.tsx::SessionListProps readers=0
 packages/ui-shared/src/i18n/examples.ts::EXAMPLES readers=1  <- packages/ui-shared/src/screens/EntryScreen.tsx
 packages/ui-shared/src/i18n/examples.ts::pickRandom readers=1  <- packages/ui-shared/src/screens/EntryScreen.tsx
+packages/ui-shared/src/i18n/locale.tsx::LOCALE_LABELS readers=1  <- packages/ui-shared/src/app/LangSelect.tsx
+packages/ui-shared/src/i18n/locale.tsx::LocaleProvider readers=1  <- packages/web/src/App.tsx
+packages/ui-shared/src/i18n/locale.tsx::LocaleProviderProps readers=0
+packages/ui-shared/src/i18n/locale.tsx::LocaleStore readers=2  <- packages/web/src/deps.ts,packages/web/src/locale-storage.ts
+packages/ui-shared/src/i18n/locale.tsx::asOutputLocale readers=1  <- packages/web/src/locale-storage.ts
+packages/ui-shared/src/i18n/locale.tsx::useOutputLocale readers=2  <- packages/ui-shared/src/app/LangSelect.tsx,packages/ui-shared/src/screens/EntryScreen.tsx
 packages/ui-shared/src/i18n/strings.ts::StringKey readers=1  <- packages/ui-shared/src/screens/difficulty/DifficultyScreen.tsx
 packages/ui-shared/src/i18n/strings.ts::ko readers=0
-packages/ui-shared/src/i18n/strings.ts::tr readers=12  <- packages/ui-shared/src/app/AppShell.tsx,packages/ui-shared/src/app/ProjectList.tsx,packages/ui-shared/src/app/SessionList.tsx
+packages/ui-shared/src/i18n/strings.ts::tr readers=13  <- packages/ui-shared/src/app/AppShell.tsx,packages/ui-shared/src/app/LangSelect.tsx,packages/ui-shared/src/app/ProjectList.tsx
 packages/ui-shared/src/screens/EntryScreen.tsx::EntryScreen readers=1  <- packages/web/src/App.tsx
 packages/ui-shared/src/screens/EntryScreen.tsx::EntryScreenProps readers=0
 packages/ui-shared/src/screens/auth/AuthButton.tsx::AuthButton readers=1  <- packages/web/src/App.tsx
@@ -316,7 +323,10 @@ packages/ui-shared/src/session/useSessionSync.ts::useSessionSync readers=2  <- p
 packages/web/src/App.tsx::App readers=1  <- packages/web/src/main.tsx
 packages/web/src/Sidebar.tsx::SidebarProps readers=0
 packages/web/src/Sidebar.tsx::sidebarSlots readers=1  <- packages/web/src/App.tsx
-packages/web/src/auth-storage.ts::localTokenStore readers=1  <- packages/web/src/App.tsx
+packages/web/src/auth-storage.ts::localTokenStore readers=1  <- packages/web/src/deps.ts
+packages/web/src/deps.ts::ShellDeps readers=0
+packages/web/src/deps.ts::useShellDeps readers=1  <- packages/web/src/App.tsx
+packages/web/src/locale-storage.ts::localLocaleStore readers=1  <- packages/web/src/deps.ts
 
 ## interface-members (사용 0건만, 이름 기반이라 0만 확실하다)
 packages/adapters/aws/src/deps.ts:14 AwsConfig.secrets readers=0
@@ -357,10 +367,12 @@ packages/shared/src/types/pipeline-io.ts:112 Prompt4In.background_hint readers=0
 packages/shared/src/types/pipeline-io.ts:148 PreviewOut.basic readers=0
 packages/shared/src/types/pipeline-io.ts:149 PreviewOut.inter readers=0
 packages/shared/src/types/pipeline-io.ts:150 PreviewOut.adv readers=0
-packages/ui-shared/src/app/AppShell.tsx:29 AppShellProps.children readers=0
-packages/ui-shared/src/app/AppShell.tsx:36 AppShellProps.footer readers=0
+packages/ui-shared/src/app/AppShell.tsx:30 AppShellProps.children readers=0
+packages/ui-shared/src/app/AppShell.tsx:37 AppShellProps.footer readers=0
 packages/ui-shared/src/app/SessionList.tsx:13 SessionListProps.hasMore readers=0
-packages/ui-shared/src/screens/EntryScreen.tsx:42 EntryScreenProps.onSubmit readers=0
+packages/ui-shared/src/i18n/locale.tsx:35 LocaleCtx.setLocale readers=0
+packages/ui-shared/src/i18n/locale.tsx:42 LocaleProviderProps.children readers=0
+packages/ui-shared/src/screens/EntryScreen.tsx:46 EntryScreenProps.onSubmit readers=0
 packages/ui-shared/src/screens/auth/pkce.ts:27 PkcePrep.verifier readers=0
 packages/ui-shared/src/screens/auth/useAuth.ts:30 UseAuthOptions.scratch readers=0
 packages/ui-shared/src/screens/kept/KeptScreen.tsx:14 KeptScreenProps.primerState readers=0
@@ -377,6 +389,7 @@ packages/web/src/vite-env.d.ts:5 ImportMetaEnv.VITE_API_BASE readers=0
 "DELETE" defs=2 packages/scripts/e2e-pg.mjs,packages/ui-shared/src/api/http-client.ts
 "DELETE FROM users WHERE user_id = $1" defs=2 packages/scripts/e2e-auth.mjs,packages/scripts/e2e-gate.mjs
 "DETAIL_LIMIT" defs=3 packages/adapters/http-app/src/middleware/gating.ts,packages/scripts/e2e-detail.mjs,packages/ui-shared/src/api/errors.ts
+"English" defs=2 packages/core/src/prompts/blocks.ts,packages/ui-shared/src/i18n/locale.tsx
 "HIGH_RISK_REFUSED" defs=5 packages/adapters/http-app/src/middleware/gating.ts,packages/core/src/pipeline.ts,packages/scripts/e2e-gate.mjs,packages/ui-shared/src/api/errors.ts,packages/ui-shared/src/screens/terms/types.ts
 "NOT_FOUND" defs=2 packages/adapters/http-app/src/routes/crud-routes.ts,packages/ui-shared/src/api/errors.ts
 "NOT_RESTORABLE" defs=2 packages/adapters/http-app/src/routes/crud-routes.ts,packages/ui-shared/src/api/errors.ts
@@ -498,7 +511,7 @@ packages/web/src/vite-env.d.ts:5 ImportMetaEnv.VITE_API_BASE readers=0
 "signed_in" defs=3 packages/ui-shared/src/screens/auth/AuthButton.tsx,packages/ui-shared/src/screens/auth/useAuth.ts,packages/web/src/App.tsx
 "state_mismatch" defs=3 packages/scripts/e2e-auth-client.mjs,packages/ui-shared/src/screens/auth/pkce.ts,packages/ui-shared/src/screens/auth/useAuth.ts
 "streaming" defs=4 packages/scripts/e2e-terms.mjs,packages/ui-shared/src/screens/terms/TermsScreen.tsx,packages/ui-shared/src/screens/terms/machine.ts,packages/ui-shared/src/screens/terms/types.ts
-"string" defs=99 packages/adapters/aws/src/data-api-runner.ts,packages/adapters/aws/src/deps.ts,packages/adapters/aws/src/handler.ts,packages/adapters/aws/src/secrets.ts,packages/adapters/http-app/src/app.ts,packages/adapters/http-app/src/middleware/auth.ts,packages/adapters/http-app/src/middleware/gating.ts,packages/adapters/http-app/src/routes/auth-routes.ts,packages/adapters/http-app/src/routes/crud-routes.ts,packages/adapters/http-app/src/routes/pipeline-routes.ts,packages/adapters/local/src/mocks/mem-cache.ts,packages/adapters/local/src/mocks/mem-counter.ts,packages/adapters/local/src/mocks/mock-google.ts,packages/adapters/local/src/mocks/mock-llm.ts,packages/adapters/local/src/mocks/mock-search.ts,packages/adapters/local/src/pg-runner.ts,packages/adapters/local/src/real-deps.ts,packages/adapters/persistence/src/cursor.ts,packages/adapters/persistence/src/json.ts,packages/adapters/persistence/src/migrate.ts,packages/adapters/persistence/src/repositories/asset-repo.ts,packages/adapters/persistence/src/repositories/jti-blacklist.ts,packages/adapters/persistence/src/repositories/knowledge-repo.ts,packages/adapters/persistence/src/repositories/project-repo.ts,packages/adapters/persistence/src/repositories/session-repo.ts,packages/adapters/persistence/src/repositories/user-repo.ts,packages/adapters/providers/src/deepseek/client.ts,packages/adapters/providers/src/deepseek/sse-parser.ts,packages/adapters/providers/src/google-oauth.ts,packages/adapters/providers/src/tavily.ts,packages/adapters/providers/src/upstash-cache.ts,packages/adapters/providers/src/upstash-counter.ts,packages/core/src/auth/auth-service.ts,packages/core/src/auth/jwt.ts,packages/core/src/gating/risk.ts,packages/core/src/locale/index.ts,packages/core/src/pipeline.ts,packages/core/src/prompts/blocks.ts,packages/core/src/prompts/classify.ts,packages/core/src/prompts/detail.ts,packages/core/src/prompts/narrow.ts,packages/core/src/prompts/preview.ts,packages/core/src/prompts/recommend.ts,packages/core/src/prompts/relate.ts,packages/core/src/prompts/summarize.ts,packages/core/src/rag/index.ts,packages/scripts/e2e-auth.mjs,packages/scripts/e2e-gate.mjs,packages/scripts/e2e-local.mjs,packages/scripts/e2e-pg.mjs,packages/scripts/e2e-session.mjs,packages/shared/src/fixtures.ts,packages/shared/src/guards.ts,packages/shared/src/pipeline-contract.ts,packages/shared/src/ports/auth-ports.ts,packages/shared/src/ports/gating-ports.ts,packages/shared/src/ports/persistence-ports.ts,packages/shared/src/ports/pipeline-ports.ts,packages/shared/src/sse.ts,packages/shared/src/types/auth.ts,packages/shared/src/types/limits.ts,packages/shared/src/types/persistence.ts,packages/shared/src/types/pipeline-io.ts,packages/shared/src/utils.ts,packages/ui-shared/src/api/errors.ts,packages/ui-shared/src/api/http-client.ts,packages/ui-shared/src/api/port.ts,packages/ui-shared/src/api/token-store.ts,packages/ui-shared/src/app/ProjectList.tsx,packages/ui-shared/src/app/SessionList.tsx,packages/ui-shared/src/i18n/examples.ts,packages/ui-shared/src/i18n/strings.ts,packages/ui-shared/src/screens/EntryScreen.tsx,packages/ui-shared/src/screens/auth/pkce.ts,packages/ui-shared/src/screens/auth/useAuth.ts,packages/ui-shared/src/screens/difficulty/DifficultyScreen.tsx,packages/ui-shared/src/screens/difficulty/types.ts,packages/ui-shared/src/screens/difficulty/usePreview.ts,packages/ui-shared/src/screens/kept/KeptScreen.tsx,packages/ui-shared/src/screens/kept/keep.ts,packages/ui-shared/src/screens/kept/primer.ts,packages/ui-shared/src/screens/kept/usePrimer.ts,packages/ui-shared/src/screens/narrow/NarrowScreen.tsx,packages/ui-shared/src/screens/narrow/decide.ts,packages/ui-shared/src/screens/narrow/machine.ts,packages/ui-shared/src/screens/narrow/types.ts,packages/ui-shared/src/screens/terms/TermDetail.tsx,packages/ui-shared/src/screens/terms/TermsScreen.tsx,packages/ui-shared/src/screens/terms/detail-machine.ts,packages/ui-shared/src/screens/terms/machine.ts,packages/ui-shared/src/screens/terms/types.ts,packages/ui-shared/src/screens/terms/useDetail.ts,packages/ui-shared/src/session/snapshot.ts,packages/ui-shared/src/session/useProjects.ts,packages/ui-shared/src/session/useSessionSync.ts,packages/web/src/App.tsx,packages/web/src/Sidebar.tsx,packages/web/src/auth-storage.ts,packages/web/src/vite-env.d.ts
+"string" defs=101 packages/adapters/aws/src/data-api-runner.ts,packages/adapters/aws/src/deps.ts,packages/adapters/aws/src/handler.ts,packages/adapters/aws/src/secrets.ts,packages/adapters/http-app/src/app.ts,packages/adapters/http-app/src/middleware/auth.ts,packages/adapters/http-app/src/middleware/gating.ts,packages/adapters/http-app/src/routes/auth-routes.ts,packages/adapters/http-app/src/routes/crud-routes.ts,packages/adapters/http-app/src/routes/pipeline-routes.ts,packages/adapters/local/src/mocks/mem-cache.ts,packages/adapters/local/src/mocks/mem-counter.ts,packages/adapters/local/src/mocks/mock-google.ts,packages/adapters/local/src/mocks/mock-llm.ts,packages/adapters/local/src/mocks/mock-search.ts,packages/adapters/local/src/pg-runner.ts,packages/adapters/local/src/real-deps.ts,packages/adapters/persistence/src/cursor.ts,packages/adapters/persistence/src/json.ts,packages/adapters/persistence/src/migrate.ts,packages/adapters/persistence/src/repositories/asset-repo.ts,packages/adapters/persistence/src/repositories/jti-blacklist.ts,packages/adapters/persistence/src/repositories/knowledge-repo.ts,packages/adapters/persistence/src/repositories/project-repo.ts,packages/adapters/persistence/src/repositories/session-repo.ts,packages/adapters/persistence/src/repositories/user-repo.ts,packages/adapters/providers/src/deepseek/client.ts,packages/adapters/providers/src/deepseek/sse-parser.ts,packages/adapters/providers/src/google-oauth.ts,packages/adapters/providers/src/tavily.ts,packages/adapters/providers/src/upstash-cache.ts,packages/adapters/providers/src/upstash-counter.ts,packages/core/src/auth/auth-service.ts,packages/core/src/auth/jwt.ts,packages/core/src/gating/risk.ts,packages/core/src/locale/index.ts,packages/core/src/pipeline.ts,packages/core/src/prompts/blocks.ts,packages/core/src/prompts/classify.ts,packages/core/src/prompts/detail.ts,packages/core/src/prompts/narrow.ts,packages/core/src/prompts/preview.ts,packages/core/src/prompts/recommend.ts,packages/core/src/prompts/relate.ts,packages/core/src/prompts/summarize.ts,packages/core/src/rag/index.ts,packages/scripts/e2e-auth.mjs,packages/scripts/e2e-gate.mjs,packages/scripts/e2e-local.mjs,packages/scripts/e2e-pg.mjs,packages/scripts/e2e-session.mjs,packages/shared/src/fixtures.ts,packages/shared/src/guards.ts,packages/shared/src/pipeline-contract.ts,packages/shared/src/ports/auth-ports.ts,packages/shared/src/ports/gating-ports.ts,packages/shared/src/ports/persistence-ports.ts,packages/shared/src/ports/pipeline-ports.ts,packages/shared/src/sse.ts,packages/shared/src/types/auth.ts,packages/shared/src/types/limits.ts,packages/shared/src/types/persistence.ts,packages/shared/src/types/pipeline-io.ts,packages/shared/src/utils.ts,packages/ui-shared/src/api/errors.ts,packages/ui-shared/src/api/http-client.ts,packages/ui-shared/src/api/port.ts,packages/ui-shared/src/api/token-store.ts,packages/ui-shared/src/app/ProjectList.tsx,packages/ui-shared/src/app/SessionList.tsx,packages/ui-shared/src/i18n/examples.ts,packages/ui-shared/src/i18n/locale.tsx,packages/ui-shared/src/i18n/strings.ts,packages/ui-shared/src/screens/EntryScreen.tsx,packages/ui-shared/src/screens/auth/pkce.ts,packages/ui-shared/src/screens/auth/useAuth.ts,packages/ui-shared/src/screens/difficulty/DifficultyScreen.tsx,packages/ui-shared/src/screens/difficulty/types.ts,packages/ui-shared/src/screens/difficulty/usePreview.ts,packages/ui-shared/src/screens/kept/KeptScreen.tsx,packages/ui-shared/src/screens/kept/keep.ts,packages/ui-shared/src/screens/kept/primer.ts,packages/ui-shared/src/screens/kept/usePrimer.ts,packages/ui-shared/src/screens/narrow/NarrowScreen.tsx,packages/ui-shared/src/screens/narrow/decide.ts,packages/ui-shared/src/screens/narrow/machine.ts,packages/ui-shared/src/screens/narrow/types.ts,packages/ui-shared/src/screens/terms/TermDetail.tsx,packages/ui-shared/src/screens/terms/TermsScreen.tsx,packages/ui-shared/src/screens/terms/detail-machine.ts,packages/ui-shared/src/screens/terms/machine.ts,packages/ui-shared/src/screens/terms/types.ts,packages/ui-shared/src/screens/terms/useDetail.ts,packages/ui-shared/src/session/snapshot.ts,packages/ui-shared/src/session/useProjects.ts,packages/ui-shared/src/session/useSessionSync.ts,packages/web/src/App.tsx,packages/web/src/Sidebar.tsx,packages/web/src/auth-storage.ts,packages/web/src/deps.ts,packages/web/src/vite-env.d.ts
 "subhint" defs=2 packages/ui-shared/src/screens/kept/KeptScreen.tsx,packages/ui-shared/src/screens/narrow/NarrowScreen.tsx
 "sublink" defs=3 packages/ui-shared/src/screens/auth/AuthButton.tsx,packages/ui-shared/src/screens/narrow/NarrowScreen.tsx,packages/ui-shared/src/screens/terms/TermsScreen.tsx
 "sublink on" defs=2 packages/ui-shared/src/screens/narrow/NarrowScreen.tsx,packages/ui-shared/src/screens/terms/TermsScreen.tsx
@@ -540,11 +553,9 @@ packages/web/src/vite-env.d.ts:5 ImportMetaEnv.VITE_API_BASE readers=0
 # 쓸모는 diff에 있다. 쓰이던 클래스가 이 목록에 새로 들어오면 그때가 신호다.
 packages/ui-shared/src/styles/shell.css:119 .sbItem
 packages/ui-shared/src/styles/tokens.css:50 .bar
-packages/ui-shared/src/styles/tokens.css:60 .htools
 packages/ui-shared/src/styles/tokens.css:64 .plan
 packages/ui-shared/src/styles/tokens.css:68 .warn
 packages/ui-shared/src/styles/tokens.css:70 .ispro
-packages/ui-shared/src/styles/tokens.css:75 .langsel
 packages/ui-shared/src/styles/tokens.css:79 .foot
 packages/ui-shared/src/styles/tokens.css:92 .chips
 packages/ui-shared/src/styles/tokens.css:93 .chip

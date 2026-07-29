@@ -4,6 +4,7 @@
 
 import { useState, type ReactNode } from "react";
 import { tr } from "../i18n/strings.js";
+import { LangSelect } from "./LangSelect.js";
 
 function MenuIcon() {
   return (
@@ -63,6 +64,11 @@ export function AppShell({ children, sessions, projects, footer }: AppShellProps
             </button>
             <div className="hdrBrand">
               <Brand />
+            </div>
+            {/* .htools는 margin-left:auto로 우측에 붙는다. 이 껍데기를 빼면 언어 선택이 브랜드에
+                따라붙고, 좁은 화면에서 폭을 줄이는 tokens.css 미디어쿼리도 걸리지 않는다. */}
+            <div className="htools">
+              <LangSelect />
             </div>
           </header>
           {children}

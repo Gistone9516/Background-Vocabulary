@@ -16,6 +16,11 @@ export { tr } from "./i18n/strings.js";
 export type { StringKey } from "./i18n/strings.js";
 export { EXAMPLES, pickRandom } from "./i18n/examples.js";
 
+// 출력 로케일(S5-3). 정본은 주입된 저장소이고 화면과 요청이 같은 값을 본다.
+export { LocaleProvider, useOutputLocale, asOutputLocale, LOCALE_LABELS } from "./i18n/locale.js";
+export type { LocaleStore, LocaleProviderProps } from "./i18n/locale.js";
+export { LangSelect } from "./app/LangSelect.js";
+
 // 서버 통로. 구현은 셸(web/desktop)이 만들어 주입한다.
 export type { ApiPort, AuthPort, AuthSession, TokenStore, StoredTokens } from "./api/index.js";
 export { HttpApiClient, classifyResponse, isRetryable, isApiError, memoryTokenStore, limitsFor, FALLBACK_LIMITS } from "./api/index.js";

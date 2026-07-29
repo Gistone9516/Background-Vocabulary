@@ -7,7 +7,6 @@ import {
   AuthButton,
   DifficultyScreen,
   EntryScreen,
-  HttpApiClient,
   KeptScreen,
   NarrowScreen,
   TermsScreen,
@@ -27,6 +26,7 @@ import {
   usePrimer,
   useTerms,
   detailInputOf,
+  LocaleProvider,
   type Difficulty,
   type DoneReason,
   type KeptMap,
@@ -35,11 +35,8 @@ import {
   type TermCard,
 } from "@vock/ui-shared";
 import type { ClientLimits, RecommendInput, Tier } from "@vock/shared";
-import { localTokenStore } from "./auth-storage.js";
+import { useShellDeps } from "./deps.js";
 import { sidebarSlots } from "./Sidebar.js";
-
-// 개발 중에는 vite 프록시를 지나 로컬 서버로 간다. 배포 주소는 빌드 시 주입한다.
-const BASE_URL = import.meta.env.VITE_API_BASE ?? "/api";
 
 // /config를 아직 못 받았을 때 쓰는 값. 서버가 정본이고 이건 첫 화면이 멈추지 않게 하는 임시값이다.
 const FALLBACK: NarrowConfig = { narrowMin: 3, narrowMax: 3 };
@@ -61,29 +58,8 @@ function doneNotice(reason: DoneReason): string | null {
 }
 
 export function App() {
-  // 토큰 저장은 셸이 정한다. ui-shared는 저장 방식을 모른다.
-  const tokens = useMemo(() => localTokenStore(), []);
-  const api = useMemo<HttpApiClient>(() => {
-    // onUnauthorized가 자기 자신을 부르므로 타입을 명시해 추론 순환을 끊는다.
-    // 클로저는 생성 이후에만 실행되니 런타임에는 문제가 없다.
-    const client: HttpApiClient = new HttpApiClient({
-      baseUrl: BASE_URL,
-      getAccessToken: () => tokens.read()?.access ?? null,
-      // 401 한 번에 한해 재발급하고 원 요청을 한 번만 다시 보낸다(S5a A-7).
-      onUnauthorized: async (): Promise<string | null> => {
-        const held = tokens.read();
-        if (!held) return null;
-        const next = await client.refresh(held.refresh).catch(() => null);
-        if (!next) {
-          tokens.clear();
-          return null;
-        }
-        tokens.write({ access: next.access_token, refresh: next.refresh_token });
-        return next.access_token;
-      },
-    });
-    return client;
-  }, [tokens]);
+  // 저장소와 서버 통로는 플랫폼이 정한다. 여기서는 받아 쓰기만 한다(deps.ts).
+  const { api, tokens, locale } = useShellDeps();
   const [limits, setLimits] = useState<ClientLimits | null>(null);
   const [journey, setJourney] = useState<Journey>({ at: "entry" });
 
@@ -231,66 +207,69 @@ export function App() {
 
   const slots = sidebarSlots({ sync, projects, onOpenSession: resume });
 
+  // 로케일 제공자가 셸 바깥이다. 헤더의 언어 선택과 진입 화면의 예시 칩이 같은 값을 읽는다.
   return (
-    <AppShell
-      sessions={slots.sessions}
-      projects={slots.projects}
-      footer={
-        <AuthButton state={auth.state} available={auth.available} onSignIn={auth.signIn} onSignOut={auth.signOut} />
-      }
-    >
-      {journey.at === "entry" ? (
-        <EntryScreen onSubmit={submit} notice={journey.notice === "weekly" ? tr("weekly_exhausted") : null} />
-      ) : null}
+    <LocaleProvider store={locale}>
+      <AppShell
+        sessions={slots.sessions}
+        projects={slots.projects}
+        footer={
+          <AuthButton state={auth.state} available={auth.available} onSignIn={auth.signIn} onSignOut={auth.signOut} />
+        }
+      >
+        {journey.at === "entry" ? (
+          <EntryScreen onSubmit={submit} notice={journey.notice === "weekly" ? tr("weekly_exhausted") : null} />
+        ) : null}
 
-      {journey.at === "narrow" ? <NarrowScreen state={narrow.state} cfg={cfg} send={narrow.send} /> : null}
+        {journey.at === "narrow" ? <NarrowScreen state={narrow.state} cfg={cfg} send={narrow.send} /> : null}
 
-      {journey.at === "difficulty" ? (
-        <DifficultyScreen preview={preview} notice={doneNotice(journey.reason)} onPick={pickDifficulty} />
-      ) : null}
+        {journey.at === "difficulty" ? (
+          <DifficultyScreen preview={preview} notice={doneNotice(journey.reason)} onPick={pickDifficulty} />
+        ) : null}
 
-      {journey.at === "terms" ? (
-        <TermsScreen
-          state={terms.state}
-          detail={detail.state}
-          detailInputOf={detailInput}
-          onToggleDetail={detail.toggle}
-          onRetryDetail={detail.retry}
-          isKept={(term) => isKeptIn(kept, term)}
-          keptCount={kept.size}
-          onToggleKeep={toggleKept}
-          onViewKept={() => setJourney({ at: "kept" })}
-        />
-      ) : null}
+        {journey.at === "terms" ? (
+          <TermsScreen
+            state={terms.state}
+            detail={detail.state}
+            detailInputOf={detailInput}
+            onToggleDetail={detail.toggle}
+            onRetryDetail={detail.retry}
+            isKept={(term) => isKeptIn(kept, term)}
+            keptCount={kept.size}
+            onToggleKeep={toggleKept}
+            onViewKept={() => setJourney({ at: "kept" })}
+          />
+        ) : null}
 
-      {journey.at === "kept" ? (
-        <KeptScreen
-          kept={keptTerms}
-          topic={lastCtx.current?.topic ?? ""}
-          condition={lastCtx.current?.cond ?? ""}
-          primerState={primer.state}
-          onRefine={() =>
-            primer.request({
-              area: lastCtx.current?.classifyOut.domain ?? "",
-              jobType: lastCtx.current?.classifyOut.job_type ?? [],
-              kept: keptTerms,
-              condition: lastCtx.current?.cond ?? "",
-            })
-          }
-          onBackToTerms={() => setJourney({ at: "terms" })}
-          onHome={home}
-          onRemove={(t) => setKept((prev) => toggleKeep(prev, t))}
-        />
-      ) : null}
+        {journey.at === "kept" ? (
+          <KeptScreen
+            kept={keptTerms}
+            topic={lastCtx.current?.topic ?? ""}
+            condition={lastCtx.current?.cond ?? ""}
+            primerState={primer.state}
+            onRefine={() =>
+              primer.request({
+                area: lastCtx.current?.classifyOut.domain ?? "",
+                jobType: lastCtx.current?.classifyOut.job_type ?? [],
+                kept: keptTerms,
+                condition: lastCtx.current?.cond ?? "",
+              })
+            }
+            onBackToTerms={() => setJourney({ at: "terms" })}
+            onHome={home}
+            onRemove={(t) => setKept((prev) => toggleKeep(prev, t))}
+          />
+        ) : null}
 
-      {journey.at === "refusal" ? (
-        <main className="scroll pad screenIn">
-          <h2>{tr("refusal_title")}</h2>
-          <button className="btn btn-ghost" style={{ marginTop: "1rem" }} onClick={home}>
-            {tr("refusal_home")}
-          </button>
-        </main>
-      ) : null}
-    </AppShell>
+        {journey.at === "refusal" ? (
+          <main className="scroll pad screenIn">
+            <h2>{tr("refusal_title")}</h2>
+            <button className="btn btn-ghost" style={{ marginTop: "1rem" }} onClick={home}>
+              {tr("refusal_home")}
+            </button>
+          </main>
+        ) : null}
+      </AppShell>
+    </LocaleProvider>
   );
 }

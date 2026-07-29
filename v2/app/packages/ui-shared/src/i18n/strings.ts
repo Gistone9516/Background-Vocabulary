@@ -17,6 +17,7 @@ export const ko = {
   next: "다음",
   shuffle: "다른 예시",
   menu: "메뉴",
+  lang_label: "언어", // [v1 원문: lang_label]
   nav_sessions: "이전 탐색",
   nav_projects: "프로젝트",
   sessions_empty: "아직 이어갈 탐색이 없어요.",
