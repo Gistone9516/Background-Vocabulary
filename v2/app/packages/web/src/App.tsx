@@ -285,9 +285,9 @@ export function App() {
 
       {journey.at === "refusal" ? (
         <main className="scroll pad screenIn">
-          <h2>{"안전상 직접 다루지 않는 주제예요"}</h2>
+          <h2>{tr("refusal_title")}</h2>
           <button className="btn btn-ghost" style={{ marginTop: "1rem" }} onClick={home}>
-            {"처음으로"}
+            {tr("refusal_home")}
           </button>
         </main>
       ) : null}

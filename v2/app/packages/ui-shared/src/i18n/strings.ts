@@ -125,6 +125,11 @@ export const ko = {
   // 연결 턴 [v1 후반 승계]
   relate_lead: "이 프로젝트에서 이미 담은 어휘와 이어지나요?",
 
+  // 거부 화면 [신규]. v1에 대응 문구가 없다. 정본은 서버의 HIGH_RISK_REFUSED 응답 문구이며
+  // (gating.ts:61, errors.ts:44) 여기 값은 그것과 한 글자도 달라선 안 된다 — 다르면 정본이 둘이 된다
+  refusal_title: "안전상 직접 다루지 않는 주제예요.",
+  refusal_home: "처음으로",
+
   // 로그인 [신규]. v1은 확장이라 로그인 화면이 따로 없었다
   auth_sign_in: "구글로 로그인",
   auth_sign_out: "로그아웃",

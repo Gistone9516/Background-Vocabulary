@@ -3,6 +3,7 @@
 
 import type {
   ClientLimits,
+  OutputLocale,
   AssetSummary,
   Page,
   Project,
@@ -35,6 +36,9 @@ const isProjectList = (v: unknown): v is Project[] => Array.isArray(v) && v.ever
 export interface HttpApiConfig {
   baseUrl: string;
   getAccessToken?: () => string | null;
+  // 생성 요청에 실을 출력 언어. 서버는 요청 본문의 outputLocale만 보고 생성 언어를 정한다
+  // (pipeline-routes readLocale). 사용자 설정을 아는 쪽은 셸이라 여기서 주입받는다.
+  getOutputLocale?: () => OutputLocale;
   fetch?: typeof globalThis.fetch;
   // 401을 받았을 때 한 번만 재발급을 시도한다. 성공하면 원 요청을 한 번만 다시 보낸다.
   // 재발급도 실패하면 null을 돌려주고, 그때는 재시도하지 않는다(스펙 A-7).
@@ -48,6 +52,7 @@ function fail(e: ApiError): never {
 export class HttpApiClient implements ApiPort, AuthPort {
   private readonly base: string;
   private readonly token: () => string | null;
+  private readonly outputLocale: () => OutputLocale;
   private readonly doFetch: typeof globalThis.fetch;
   private readonly onUnauthorized: (() => Promise<string | null>) | null;
 
@@ -55,6 +60,7 @@ export class HttpApiClient implements ApiPort, AuthPort {
     // 끝 슬래시를 지워 경로를 붙일 때 이중 슬래시가 생기지 않게 한다.
     this.base = cfg.baseUrl.replace(/\/+$/, "");
     this.token = cfg.getAccessToken ?? (() => null);
+    this.outputLocale = cfg.getOutputLocale ?? (() => "ko");
     this.doFetch = cfg.fetch ?? globalThis.fetch.bind(globalThis);
     this.onUnauthorized = cfg.onUnauthorized ?? null;
   }
@@ -89,30 +95,36 @@ export class HttpApiClient implements ApiPort, AuthPort {
     }
   }
 
+  // 생성 계열 요청 본문. 로케일을 붙이는 자리를 한 곳으로 모은다 —
+  // 엔드포인트마다 손으로 붙이면 새로 생긴 엔드포인트가 조용히 "ko"로 떨어진다.
+  private gen<T extends object>(input: T): T & { outputLocale: OutputLocale } {
+    return { ...input, outputLocale: this.outputLocale() };
+  }
+
   config(signal?: AbortSignal): Promise<ClientLimits> {
     return this.send<ClientLimits>("GET", "/config", undefined, signal);
   }
 
   classify(input: Prompt1In, signal?: AbortSignal): Promise<Prompt1Out> {
-    return this.send<Prompt1Out>("POST", "/classify", input, signal);
+    return this.send<Prompt1Out>("POST", "/classify", this.gen(input), signal);
   }
 
   next(input: Prompt2In, signal?: AbortSignal): Promise<Prompt2Out> {
-    return this.send<Prompt2Out>("POST", "/next", input, signal);
+    return this.send<Prompt2Out>("POST", "/next", this.gen(input), signal);
   }
 
   preview(input: PreviewIn, signal?: AbortSignal): Promise<PreviewOut> {
-    return this.send<PreviewOut>("POST", "/preview", input, signal);
+    return this.send<PreviewOut>("POST", "/preview", this.gen(input), signal);
   }
 
   detail(input: Prompt5In, signal?: AbortSignal): Promise<Prompt5Out> {
-    return this.send<Prompt5Out>("POST", "/detail", input, signal);
+    return this.send<Prompt5Out>("POST", "/detail", this.gen(input), signal);
   }
 
   summarize(input: Prompt4In, signal?: AbortSignal): Promise<PrimerDoc> {
     // 이 응답만 형태를 검사한다. 본문 조립이 배열을 직접 훑기 때문에
     // 어긋난 형태가 화면 렌더 중에 터진다(스펙 P-7 — 실패는 기본 정리로 떨어져야 한다).
-    return this.send<PrimerDoc>("POST", "/summarize", input, signal, isPrimerDoc);
+    return this.send<PrimerDoc>("POST", "/summarize", this.gen(input), signal, isPrimerDoc);
   }
 
   // ── 영속(S5). 전부 로그인 필수다 ──────────────────────
@@ -181,7 +193,7 @@ export class HttpApiClient implements ApiPort, AuthPort {
   }
 
   relate(input: RelateIn, signal?: AbortSignal): Promise<RelateOut> {
-    return this.send<RelateOut>("POST", "/relate", input, signal, isRelateOut);
+    return this.send<RelateOut>("POST", "/relate", this.gen(input), signal, isRelateOut);
   }
 
   // 스트림은 send를 쓰지 않는다. 본문을 끝까지 읽지 않고 조각마다 넘겨야 하기 때문이다.
@@ -196,7 +208,7 @@ export class HttpApiClient implements ApiPort, AuthPort {
         method: "POST",
         headers,
         signal,
-        body: JSON.stringify(input),
+        body: JSON.stringify(this.gen(input)),
       });
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") throw e;

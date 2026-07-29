@@ -108,6 +108,18 @@ try {
   // FR-952. 출력 로케일을 아는 쪽은 서버다. LLM에게 되돌려 달라고 시키지 않는다 —
   // 프롬프트가 지시하지 않은 필드를 응답 가드가 요구하면 실 LLM에서만 전부 malformed로 떨어진다.
   check("/summarize 응답에 로케일이 실린다", sum.json && sum.json.locale === "ko", `locale=${sum.json && sum.json.locale}`);
+
+  // 7. 출력 로케일 전달(FR-952). 서버는 요청이 실어 보낸 로케일로 생성한다 —
+  // 클라가 안 보내면 readLocale이 항상 "ko"로 떨어져 4개 언어가 도달할 수 없다.
+  const ja = await postJson(base, "/summarize", {
+    area: clf.json.domain,
+    job_type: clf.json.job_type,
+    vocab: [{ term: "안티와인드업", tag: "몰라" }],
+    outputLocale: "ja",
+    tier: "pro",
+  });
+  check("/summarize 요청 로케일이 응답에 반영된다", ja.json && ja.json.locale === "ja", `locale=${ja.json && ja.json.locale}`);
+
 } finally {
   await new Promise((r) => server.close(() => r()));
 }

@@ -130,6 +130,23 @@ console.log("로그인 클라이언트 검증:");
   check("서버 오류에도 로그아웃은 통과한다", !threw);
 }
 
+// S-17 출력 로케일 전달. 서버는 요청 본문의 outputLocale로만 생성 언어를 정한다
+// (pipeline-routes.ts readLocale). 클라가 싣지 않으면 4개 언어가 도달할 수 없다.
+{
+  const sent = [];
+  const spy = async (_url, init) => {
+    sent.push(init.body ? JSON.parse(init.body) : null);
+    return new Response(JSON.stringify({ domain: "d", job_type: [], condition_required: false, question: "q", choices: [], search_locale: "en", domain_risk: "low" }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  };
+  const client = new HttpApiClient({ baseUrl: "http://x", fetch: spy, getOutputLocale: () => "ja" });
+  await client.classify({ raw_input: "x" });
+  await client.detail({ term: "t", kind: "개념", area: "", job_type: [], domain: "", topic: "", locale: "en" });
+  check("생성 요청에 출력 로케일이 실린다", sent.every((b) => b && b.outputLocale === "ja"), JSON.stringify(sent[0]));
+}
+
 if (failures) {
   console.error(`\n로그인 클라이언트 검증 실패: ${failures}건`);
   process.exit(1);
