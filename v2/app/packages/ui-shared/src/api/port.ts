@@ -10,6 +10,8 @@ import type {
   Prompt1Out,
   Prompt2In,
   Prompt2Out,
+  Prompt5In,
+  Prompt5Out,
   RecommendInput,
   StreamEvent,
 } from "@vock/shared";
@@ -19,6 +21,7 @@ export interface ApiPort {
   classify(input: Prompt1In, signal?: AbortSignal): Promise<Prompt1Out>;
   next(input: Prompt2In, signal?: AbortSignal): Promise<Prompt2Out>;
   preview(input: PreviewIn, signal?: AbortSignal): Promise<PreviewOut>;
+  detail(input: Prompt5In, signal?: AbortSignal): Promise<Prompt5Out>;
   // 서버가 흘리는 이벤트를 순서 그대로 넘긴다. 취소는 signal로 전파한다.
   recommendStream(input: RecommendInput, signal: AbortSignal): AsyncIterable<StreamEvent>;
 }

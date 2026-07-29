@@ -37,10 +37,12 @@ function RefreshIcon() {
 }
 
 export interface EntryScreenProps {
+  // 진입으로 되돌려 보낸 이유(주간 소진 등). 화면 바깥에 두면 여백을 못 받아 잘린다.
+  notice?: string | null;
   onSubmit?: (input: string, condition: string) => void;
 }
 
-export function EntryScreen({ onSubmit }: EntryScreenProps) {
+export function EntryScreen({ onSubmit, notice }: EntryScreenProps) {
   const [input, setInput] = useState("");
   const [cond, setCond] = useState("");
   const [showCond, setShowCond] = useState(false);
@@ -80,6 +82,7 @@ export function EntryScreen({ onSubmit }: EntryScreenProps) {
 
   return (
     <main className="scroll entryMain screenIn" style={{ position: "relative" }}>
+      {notice ? <p className="listnote" style={{ textAlign: "center" }}>{notice}</p> : null}
       {/* 입력창은 불변 위치다. 위로는 제목 영역이 높이를 고정하고, 아래로는 칩이 몇 줄이든 흘러내린다.
           그래서 제목이나 부제가 길어져도, 아래 내용이 늘어나도 입력창은 같은 자리에 남는다.
           자리를 정하는 규칙은 shell.css의 .heroHead에 있다. */}

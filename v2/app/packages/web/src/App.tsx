@@ -1,7 +1,7 @@
 // 여정 배선. 어느 화면을 보여줄지만 정하고 화면 내부 규칙은 ui-shared가 가진다.
 // 좁히기와 어휘 생성의 전이 규칙은 여기 없다. 상태 기계가 통째로 ui-shared에 있다.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AppShell,
   DifficultyScreen,
@@ -10,6 +10,7 @@ import {
   NarrowScreen,
   TermsScreen,
   tr,
+  useDetail,
   useNarrow,
   usePreview,
   useTerms,
@@ -17,8 +18,9 @@ import {
   type DoneReason,
   type NarrowConfig,
   type NarrowCtx,
+  type TermCard,
 } from "@vock/ui-shared";
-import type { ClientLimits, RecommendInput } from "@vock/shared";
+import type { ClientLimits, Prompt5In, RecommendInput } from "@vock/shared";
 
 // 개발 중에는 vite 프록시를 지나 로컬 서버로 간다. 배포 주소는 빌드 시 주입한다.
 const BASE_URL = import.meta.env.VITE_API_BASE ?? "/api";
@@ -65,6 +67,23 @@ export function App() {
 
   const narrow = useNarrow({ api, cfg, onHandoff, onRefusal, onEntryNotice });
   const terms = useTerms({ api, cfg: termsCfg, onRefusal });
+  const detail = useDetail(api);
+
+  // 상세 요청은 카드와 세션 맥락에서 만든다. 화면은 세션을 모른다.
+  const lastCtx = useRef<NarrowCtx | null>(null);
+  if (journey.at === "difficulty") lastCtx.current = journey.ctx;
+  const detailInputOf = useCallback((card: TermCard): Prompt5In => {
+    const c = lastCtx.current;
+    return {
+      term: card.term,
+      kind: card.kind,
+      area: c?.classifyOut.domain ?? "",
+      job_type: c?.classifyOut.job_type ?? [],
+      domain: c?.classifyOut.domain ?? "",
+      topic: c?.topic ?? "",
+      locale: c?.classifyOut.search_locale ?? "en",
+    };
+  }, []);
 
   // 난이도 화면에 들어가면 깊이별 대표 어휘를 미리 부른다. 한도에 집계되지 않는다.
   // 요청 조립은 훅 안에서 한다. 여기서 만들면 매 렌더마다 새 객체가 되어 effect가 끝없이 돈다.
@@ -89,11 +108,11 @@ export function App() {
         topic: c.topic,
         locale: c.classifyOut.search_locale,
         domain_risk: c.classifyOut.domain_risk,
+        difficulty: d, // 추천 전체가 이 깊이로 생성된다(Prompt3In)
         ...(c.cond ? { user_condition: c.cond } : {}),
       };
       setJourney({ at: "terms" });
       terms.send({ t: "start", input, append: false });
-      void d; // 난이도는 프롬프트 계약에 아직 필드가 없다. S3b 상세와 함께 정리한다.
     },
     [journey, terms]
   );
@@ -107,26 +126,24 @@ export function App() {
   return (
     <AppShell>
       {journey.at === "entry" ? (
-        <>
-          {journey.notice === "weekly" ? (
-            <p className="listnote" style={{ textAlign: "center" }}>{tr("done_exhausted")}</p>
-          ) : null}
-          <EntryScreen onSubmit={submit} />
-        </>
+        <EntryScreen onSubmit={submit} notice={journey.notice === "weekly" ? tr("weekly_exhausted") : null} />
       ) : null}
 
       {journey.at === "narrow" ? <NarrowScreen state={narrow.state} cfg={cfg} send={narrow.send} /> : null}
 
       {journey.at === "difficulty" ? (
-        <>
-          {doneNotice(journey.reason) ? (
-            <p className="listnote" style={{ textAlign: "center" }}>{doneNotice(journey.reason)}</p>
-          ) : null}
-          <DifficultyScreen preview={preview} onPick={pickDifficulty} />
-        </>
+        <DifficultyScreen preview={preview} notice={doneNotice(journey.reason)} onPick={pickDifficulty} />
       ) : null}
 
-      {journey.at === "terms" ? <TermsScreen state={terms.state} /> : null}
+      {journey.at === "terms" ? (
+        <TermsScreen
+          state={terms.state}
+          detail={detail.state}
+          detailInputOf={detailInputOf}
+          onToggleDetail={detail.toggle}
+          onRetryDetail={detail.retry}
+        />
+      ) : null}
 
       {journey.at === "refusal" ? (
         <main className="scroll pad screenIn">

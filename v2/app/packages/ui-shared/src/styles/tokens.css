@@ -255,39 +255,39 @@ textarea.field{line-height:1.55}
 .why{font-size:.78125rem;color:var(--accent-ink);line-height:1.5;margin-top:.3125rem;display:flex;gap:.375rem}
 .why b{flex:0 0 auto;opacity:.65;font-weight:600}
 
-.readbtn{width:100%;display:flex;align-items:center;justify-content:center;gap:6px;font-size:15px;font-weight:700;border-radius:10px;padding:11px;margin-top:11px;color:var(--on-primary);background:var(--primary);box-shadow:var(--shadow)}
+.readbtn{width:100%;display:flex;align-items:center;justify-content:center;gap:.375rem;font-size:.9375rem;font-weight:700;border-radius:.625rem;padding:.6875rem;margin-top:.6875rem;color:var(--on-primary);background:var(--primary);box-shadow:var(--shadow)}
 .readbtn:hover{filter:brightness(1.04)}
-.readbtn.close{font-size:14px;font-weight:600;color:var(--muted);background:var(--surface-2);box-shadow:none}
+.readbtn.close{font-size:.875rem;font-weight:600;color:var(--muted);background:var(--surface-2);box-shadow:none}
 
-.detail{margin-top:11px;border-top:1px solid var(--border);padding-top:11px}
-.dsec{font-size:11px;font-weight:700;letter-spacing:.05em;color:var(--accent-ink);margin-bottom:8px}
+.detail{margin-top:.6875rem;border-top:1px solid var(--border);padding-top:.6875rem}
+.dsec{font-size:.6875rem;font-weight:700;letter-spacing:.05em;color:var(--accent-ink);margin-bottom:.5rem}
 /* 상세 섹션1: 개념·내 상황·활용을 라벨된 서브섹션으로 나눠 한눈에 구분되게 한다. */
-.dparts{display:flex;flex-direction:column;gap:14px}
+.dparts{display:flex;flex-direction:column;gap:.875rem}
 .dpart{display:flex;flex-direction:column}
-.dlabel{font-size:11px;font-weight:700;letter-spacing:.05em;color:var(--accent-ink);margin-bottom:6px}
-.dtext{font-size:13.5px;line-height:1.72;color:color-mix(in srgb,var(--text) 82%,var(--muted))}
+.dlabel{font-size:.6875rem;font-weight:700;letter-spacing:.05em;color:var(--accent-ink);margin-bottom:.375rem}
+.dtext{font-size:.84375rem;line-height:1.72;color:color-mix(in srgb,var(--text) 82%,var(--muted))}
 .dlead{font-weight:600;color:var(--text)}
 /* "내 상황"은 사용자를 향한 부분이라 옅게 강조한다. */
-.dpart.mine{background:color-mix(in srgb,var(--accent-soft) 36%,var(--surface));border-left:2px solid var(--accent);border-radius:9px;padding:10px 12px}
-.dpart.mine .dlabel{margin-bottom:5px}
+.dpart.mine{background:color-mix(in srgb,var(--accent-soft) 36%,var(--surface));border-left:2px solid var(--accent);border-radius:.5625rem;padding:.625rem .75rem}
+.dpart.mine .dlabel{margin-bottom:.3125rem}
 /* 활용은 짧은 행동 단계 리스트로 보여준다. 순차 단계라 번호 배지(CSS 카운터)로 일관되게 매긴다. */
-.dsteps{list-style:none;display:flex;flex-direction:column;gap:8px;counter-reset:dstep}
-.dsteps li{position:relative;padding-left:24px;font-size:13.5px;line-height:1.6;color:color-mix(in srgb,var(--text) 82%,var(--muted))}
-.dsteps li::before{counter-increment:dstep;content:counter(dstep);position:absolute;left:0;top:1px;width:17px;height:17px;border-radius:6px;background:var(--accent-soft);color:var(--accent-ink);font-size:10.5px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center}
+.dsteps{list-style:none;display:flex;flex-direction:column;gap:.5rem;counter-reset:dstep}
+.dsteps li{position:relative;padding-left:1.5rem;font-size:.84375rem;line-height:1.6;color:color-mix(in srgb,var(--text) 82%,var(--muted))}
+.dsteps li::before{counter-increment:dstep;content:counter(dstep);position:absolute;left:0;top:1px;width:1.0625rem;height:1.0625rem;border-radius:.375rem;background:var(--accent-soft);color:var(--accent-ink);font-size:.65625rem;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center}
 /* 섹션에 흡수된 조건부 필드(내 상황에선·판단 기준·예) 한 줄. */
-.dsub{font-size:12.5px;line-height:1.55;color:color-mix(in srgb,var(--text) 78%,var(--muted));margin-top:7px}
-.dsub b{color:var(--accent-ink);font-weight:700;margin-right:5px}
+.dsub{font-size:.78125rem;line-height:1.55;color:color-mix(in srgb,var(--text) 78%,var(--muted));margin-top:7px}
+.dsub b{color:var(--accent-ink);font-weight:700;margin-right:.3125rem}
 /* 보조 메모: 무거운 박스 대신 가벼운 한 줄. */
-.dmemo{display:flex;gap:7px;font-size:12.5px;line-height:1.55;color:var(--muted)}
-.dmemo svg{flex:0 0 auto;width:14px;height:14px;opacity:.7;margin-top:2px}
-.related{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
-.relbtn{font-size:12.5px;font-weight:500;color:var(--text);background:var(--surface-2);border:1px solid var(--border);border-radius:99px;padding:5px 10px}
+.dmemo{display:flex;gap:.4375rem;font-size:.78125rem;line-height:1.55;color:var(--muted)}
+.dmemo svg{flex:0 0 auto;width:.875rem;height:.875rem;opacity:.7;margin-top:2px}
+.related{display:flex;flex-wrap:wrap;gap:.375rem;margin-bottom:.625rem}
+.relbtn{font-size:.78125rem;font-weight:500;color:var(--text);background:var(--surface-2);border:1px solid var(--border);border-radius:99px;padding:.3125rem .625rem}
 .relbtn:hover{border-color:var(--accent);color:var(--accent-ink)}
-.src{display:flex;align-items:center;gap:8px;text-decoration:none;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:8px 10px;margin-bottom:6px}
+.src{display:flex;align-items:center;gap:.5rem;text-decoration:none;background:var(--surface-2);border:1px solid var(--border);border-radius:.5625rem;padding:.5rem .625rem;margin-bottom:.375rem}
 .src:hover{border-color:var(--accent)}
-.src b{display:block;font-size:13px;font-weight:600;line-height:1.3;overflow-wrap:anywhere;word-break:break-word}
-.src small{font-size:11.5px;color:var(--muted)}
-.nosrc{font-size:12.5px;color:var(--muted);background:var(--surface-2);border-radius:8px;padding:8px 10px;line-height:1.5}
+.src b{display:block;font-size:.8125rem;font-weight:600;line-height:1.3;overflow-wrap:anywhere;word-break:break-word}
+.src small{font-size:.71875rem;color:var(--muted)}
+.nosrc{font-size:.78125rem;color:var(--muted);background:var(--surface-2);border-radius:.5rem;padding:.5rem .625rem;line-height:1.5}
 /* Keep(담기) 토글 */
 .keeprow{margin-top:11px}
 .keepbtn{width:100%;font-size:13.5px;font-weight:700;border-radius:10px;padding:10px;text-align:center;border:1px solid var(--border);background:var(--surface-2);color:var(--accent-ink);transition:.12s}

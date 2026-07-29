@@ -12,5 +12,6 @@
 | [C3-웹랜딩.md](C3-웹랜딩.md) | C3 | ui-shared 화면 계층·web Vite SPA·landing Astro(6 슬라이스) | S1 완료(뼈대·진입 화면·치수 정책), S2 스펙 작성 |
 | [C3-S2-진입과좁히기.md](C3-S2-진입과좁히기.md) | C3 S2 | API 클라(classify·next)·에러 분류·좁히기 상태 기계·narrow 화면 | 구현 완료(전이 27/27) |
 | [C3-S3-난이도와어휘생성.md](C3-S3-난이도와어휘생성.md) | C3 S3 | SSE 클라·/preview·난이도 화면·/recommend 스트리밍·어휘 카드 | 구현 완료(전이 23/23). relate는 S5로, detail은 S3b로 이월 |
+| [C3-S3b-카드상세.md](C3-S3b-카드상세.md) | C3 S3b | /detail·카드 펼치기·3단 본문·출처·열람 캐시 | 구현 완료(전이 17/17). 그룹별 추가 생성은 S4로 이월 |
 
 C2 코드 전량 완료(C2.1~C2.4 로컬 검증, C2.5 타입체크). 실 AWS 배포 = 핸즈온(`../app/DEPLOY.md`). 진행 중 = C3 웹·랜딩.

@@ -9,6 +9,8 @@ import type {
   Prompt1Out,
   Prompt2In,
   Prompt2Out,
+  Prompt5In,
+  Prompt5Out,
   RecommendInput,
   StreamEvent,
 } from "@vock/shared";
@@ -52,6 +54,10 @@ export class HttpApiClient implements ApiPort {
 
   preview(input: PreviewIn, signal?: AbortSignal): Promise<PreviewOut> {
     return this.send<PreviewOut>("POST", "/preview", input, signal);
+  }
+
+  detail(input: Prompt5In, signal?: AbortSignal): Promise<Prompt5Out> {
+    return this.send<Prompt5Out>("POST", "/detail", input, signal);
   }
 
   // 스트림은 send를 쓰지 않는다. 본문을 끝까지 읽지 않고 조각마다 넘겨야 하기 때문이다.

@@ -44,6 +44,8 @@ export const ko = {
   // [신규] 종료 사유 고지(스펙 D-9). 사용자가 직접 끊은 경우와 내부 오류는 알리지 않는다
   done_enough: "충분히 좁혀졌어요. 이제 어휘를 정리할게요.",
   done_exhausted: "이번 탐색의 질문을 다 썼어요. 지금까지 고른 내용으로 정리할게요.",
+  // [신규] 주간 한도 소진으로 진입 화면에 되돌아온 경우(스펙 B-14). 전체 페이월 화면은 S4
+  weekly_exhausted: "이번 주 무료 탐색을 다 썼어요. 이어가던 탐색은 그대로 열 수 있어요.",
   // [신규] 일시적 실패(스펙 D-7)
   retry: "다시 시도",
   err_network: "연결이 잠시 끊겼어요.",
@@ -65,11 +67,23 @@ export const ko = {
   // [신규] 프리뷰는 보조 정보라 실패해도 선택은 계속된다
   diff_preview_failed: "예시를 불러오지 못했어요. 깊이는 그대로 고를 수 있어요.",
 
-  // 어휘 목록 [신규]
+  // 어휘 목록
+  terms_why: "추천 이유", // [v1 원문: why_label]
+  // [신규]
   terms_loading: "어휘를 고르는 중…",
   terms_streaming: "계속 채우는 중…",
-  terms_why: "왜",
   terms_capped: "이번 탐색에서 담을 수 있는 만큼 다 채웠어요.",
+
+  // 카드 상세 [v1 원문]
+  detail_what: "개념",
+  detail_whymine: "내 상황",
+  detail_how: "활용",
+  detail_sources: "함께 볼 어휘 · 출처",
+  detail_loading: "개념을 불러오는 중…",
+  detail_nosrc: "확인된 출처 없음 · 일반 지식 기반 설명이에요. 중요한 판단은 메인 AI나 1차 자료로 한 번 더 확인하세요.",
+  // [신규] 카드 펼치기 버튼
+  detail_open: "자세히 보기",
+  detail_close: "접기",
 } as const;
 
 export type StringKey = keyof typeof ko;

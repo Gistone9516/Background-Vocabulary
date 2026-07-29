@@ -42,9 +42,23 @@ export type {
 // 난이도 선택과 어휘 생성(S3).
 export { DifficultyScreen, usePreview, pickedLabels, previewKeyOf, sameKey } from "./screens/difficulty/index.js";
 export type { DifficultyScreenProps, Difficulty, PreviewKey, PreviewState } from "./screens/difficulty/index.js";
-export { TermsScreen, useTerms, TermsRunner, reduce as reduceTerms, initialTerms, termsOf, isStreaming, HIGH_RISK_CODE } from "./screens/terms/index.js";
+export {
+  TermsScreen,
+  TermDetail,
+  useTerms,
+  useDetail,
+  TermsRunner,
+  reduce as reduceTerms,
+  reduceDetail,
+  initialTerms,
+  initialDetail,
+  termsOf,
+  isStreaming,
+  HIGH_RISK_CODE,
+} from "./screens/terms/index.js";
 export type {
   TermsScreenProps,
+  TermDetailProps,
   UseTermsOptions,
   TermsEffects,
   SettleReason,
@@ -53,4 +67,8 @@ export type {
   TermsConfig,
   TermsEvent,
   TermsState,
+  DetailCache,
+  DetailCmd,
+  DetailEvent,
+  DetailState,
 } from "./screens/terms/index.js";

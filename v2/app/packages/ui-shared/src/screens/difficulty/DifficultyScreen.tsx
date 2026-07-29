@@ -6,6 +6,8 @@ import type { Difficulty, PreviewState } from "./types.js";
 
 export interface DifficultyScreenProps {
   preview: PreviewState;
+  // 좁히기 종료 사유 고지(S2 D-9). 화면 바깥에 형제로 두면 여백을 못 받아 잘린다.
+  notice?: string | null;
   onPick(d: Difficulty): void;
 }
 
@@ -15,9 +17,10 @@ const LEVELS: { key: Difficulty; name: StringKey; desc: StringKey; slot: "basic"
   { key: "심화", name: "diff_adv", desc: "diff_adv_desc", slot: "adv", bars: 3 },
 ];
 
-export function DifficultyScreen({ preview, onPick }: DifficultyScreenProps) {
+export function DifficultyScreen({ preview, notice, onPick }: DifficultyScreenProps) {
   return (
     <main className="scroll pad screenIn">
+      {notice ? <p className="listnote">{notice}</p> : null}
       <p className="eyebrow">{tr("diff_eyebrow")}</p>
       <h2>{tr("diff_title")}</h2>
       <p className="lead diffintro">{tr("diff_sub")}</p>

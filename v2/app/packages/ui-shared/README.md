@@ -26,7 +26,10 @@ src/
    ├ machine.ts         전이 규칙. 누적 상한 검사가 여기 있다
    ├ runner.ts          스트림 구독과 취소, 감시 시계를 한 객체가 소유
    ├ useTerms.ts        React 배선
-   └ TermsScreen.tsx    카드 목록(상세 펼치기는 S3b)
+   ├ TermsScreen.tsx    카드 목록
+   ├ detail-machine.ts  상세 열기·닫기·캐시 전이. 무료 열람 수는 클라가 세지 않는다
+   ├ useDetail.ts       React 배선
+   └ TermDetail.tsx     개념·내 상황·활용 3단과 출처
 ├ i18n/strings.ts       UI 문구(v1 한국어 원문 그대로). 4개 언어 전량은 S5
 ├ i18n/examples.ts      예시 칩 풀(v1에서 verbatim 복사)
 └ styles/
