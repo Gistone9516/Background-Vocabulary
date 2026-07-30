@@ -1,17 +1,35 @@
 ---
-// 랜딩 한 페이지. **카피는 아직 들어오지 않았다** — 정본은 `v2/docs/왜-배경지식-설득논거.md`이고
-// 그 문서가 스스로 "실제 카피 확정은 사용자 레드펜"이라고 적었다(L-5). 지금 이 파일은 뼈대이며,
-// 아래 자리표시자에 확정된 문구가 들어온다.
+// 랜딩 한 페이지. 카피 정본은 `v2/docs/왜-배경지식-설득논거.md`(수요 축)와
+// `v2/docs/v1-승계원장/13-제품근거-rationale.md`(제품 축)이고, 문장은 사용자 레드펜을 받았다
+// (2026-07-30: 히어로 B안 채택 + "말" -> "배경지식", 정직 고지 삭제, 야구 비유 삭제,
+//  메타 설명은 좁히기 기획을 담을 것).
 //
-// 이 파일에 프론트매터 스크립트를 두더라도 브라우저로 나가는 JS는 0이다 — Astro는 이 블록을
-// 빌드 시점에만 실행한다. 브라우저 JS가 생기는 것은 <script> 태그나 클라이언트 아일랜드를
-// 쓸 때뿐이고, 그 둘은 L-1이 금지한다(게이트가 산출물에서 검사한다).
+// 두 축을 순서로 두고 섞지 않는다(설득논거 §4-6). 위 세 절은 "왜 배경지식인가"까지만 말하고,
+// 제품 절에서 축이 바뀐다는 것을 문장으로 표시한다.
+//
+// 브라우저로 나가는 JS는 0이다(L-1). 이 프론트매터와 아래 <style>은 빌드 시점에만 쓰이고
+// 산출물에는 HTML과 CSS만 남는다 — 게이트가 산출물에서 확인한다(check-landing.mjs).
 
-// 디자인 토큰만 가져온다. 코드는 하나도 가져오지 않는다(L-2). 이 import가 통과하는 것은
-// boundary-check의 자산 진입점 예외 덕이고, 같은 패키지의 코드를 가져오면 게이트가 막는다.
-import "@vock/ui-shared/styles.css";
+// 디자인 토큰 **변수만** 가져온다. 코드는 하나도 가져오지 않는다(L-2).
+//
+// 처음에 `@vock/ui-shared/styles.css`(앱 스타일 진입점 전체)를 가져왔다가 겪었다: 그 파일은
+// 토큰뿐 아니라 앱의 요소 스타일까지 담고 있어서 `main`이 내부 스크롤 판이 되고(overflow:hidden auto)
+// `header`가 헤더 바가 되고 `h1`·`h2`에 밑줄이 붙었다. 문서가 늘지 않아 아래 두 절이 화면에서
+// 사라진 것처럼 보였다 — 렌더는 되어 있었다.
+// 계약이 말한 것은 "디자인 토큰만 공유"였고, 그 말이 맞았다. 그래서 변수 전용 진입점을 쓴다.
+//
+// 진입점 이름이 `vars.css`인 것에 주의: ui-shared 안에는 **다른** `tokens.css`(앱 컴포넌트 스타일
+// 540행)가 실재한다. 그쪽을 가져오면 위에 적은 일이 그대로 재발한다. 게이트가 이름으로 막는다.
+import "@vock/ui-shared/vars.css";
 
+// 앱 SPA 경로. 같은 도메인에서 /app 으로 배포한다(L-7).
 const APP_URL = "/app";
+
+// 크롤러가 가장 먼저 읽는 한 문장. 랜딩을 만든 목적이 AI 인용 채널이므로(ADR-002) 여기에
+// 제품이 실제로 무엇을 하는지가 들어간다 — 좁히기로 배경지식을 찾아 주는 도구라는 것.
+const DESCRIPTION =
+  "낯선 분야의 배경지식을 직접 찾아 헤매지 않아도 됩니다. 막연한 한 줄이나 예시를 고르는 것으로 " +
+  "시작하면, 몇 번의 클릭으로 좁혀 가며 그 분야의 핵심 어휘를 정리합니다.";
 ---
 
 <!doctype html>
@@ -19,18 +37,202 @@ const APP_URL = "/app";
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>배경노트</title>
-    <!-- 설명 문구도 카피 확정 대상이다. 지금은 비워 둔다 — 근거 없는 문장을 메타에 박으면
-         크롤러가 그것을 먼저 인용한다. -->
+    <title>배경노트 — AI에게 묻기 전에 필요한 배경지식</title>
+    <meta name="description" content={DESCRIPTION} />
+    <link rel="canonical" href="/" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+    />
   </head>
   <body>
-    <main class="scroll pad screenIn">
-      <!-- TODO(L-5): 확정된 카피가 들어올 자리. 설득논거 9개 주장과 금지선 7항 안에서 조립하고
-           사용자 레드펜을 받은 뒤 채운다. 그전까지 문장을 지어 넣지 않는다. -->
-      <h1>배경노트</h1>
+    <main>
+      <!-- 히어로. 사용자 레드펜 채택안(B) — 핵심 논지의 "전제되는 지식"을 앞으로 끌어왔다. -->
+      <header class="lp-hero">
+        <!-- `<br />` 뒤의 줄바꿈은 지워선 안 된다. 좁은 화면에서 이 br을 display:none으로 감추는데,
+             감춰진 br은 공백을 남기지 않는다 — 붙여 쓰면 "일도그 분야"로 이어 붙는다(실측으로 겪었다).
+             여기 있는 줄바꿈이 공백 한 칸으로 접혀서 그 자리를 메운다. -->
+        <h1>
+          AI에게 잘 묻는 일도, 그 답을 판단하는 일도<br />
+          그 분야의 배경지식에서 시작합니다
+        </h1>
+        <p class="lp-lead">배경노트는 그 분야의 핵심 어휘를 옆에 사전처럼 띄워 둡니다.</p>
+      </header>
 
-      <!-- 앱 진입 링크는 하나다(L-9). 랜딩에서 입력을 받기 시작하면 JS가 필요해져 L-1이 깨진다. -->
-      <p><a href={APP_URL}>앱으로 가기</a></p>
+      <!-- 1막 — 주장 1(강)·2(강). 집단 비교이고 과거형이다. "많을수록 좋아진다"로 쓰지 않는다(§4-4). -->
+      <section>
+        <h2>같은 설명을 들었는데 어떤 사람은 더 많이 가져갑니다</h2>
+        <p>
+          그 분야를 이미 아는 학생들은 읽기 실력이 낮아도 그 분야 글을 더 잘 이해하고 더 잘
+          기억했습니다. 읽는 기술이 아니라 아는 것이 갈랐습니다.
+        </p>
+        <p>
+          읽기가 어려운 학생들을 다룬 연구들을 모아 보니, 읽기 전략만 가르쳤을 때는 효과가 남지
+          않았습니다. 배경지식을 함께 가르쳤을 때만 남았습니다.
+        </p>
+      </section>
+
+      <!-- 2막 — 주장 3(강/중)·4(강). 주장 3은 "어떤 단어를 써야 할지 몰랐다"까지만 말한다.
+           "즉 도메인 어휘가 병목"으로 잇지 않는다(§4-2). -->
+      <section>
+        <h2>AI의 답은 내가 던진 질문만큼만 나옵니다</h2>
+        <p>
+          비전문가 열 명을 관찰한 연구에서 절반은 <strong>어떤 단어를 써야 할지 몰라</strong> 시작에서
+          막혔습니다.
+        </p>
+        <p>같은 모델도 어떻게 묻는지에 따라 결과가 크게 흔들립니다. 잘 묻는 일은 저절로 되지 않습니다.</p>
+      </section>
+
+      <!-- 3막 — 주장 6(강)·7(강)·8(중). 겁주기가 아니라 재인으로 시작한다(§0.5 규칙 ②).
+           주장 8의 이중 조건과 완충("될 수 있습니다")을 유지한다(§4-5).
+           마지막 문장이 충분조건화 금지(§4-3)를 문장으로 못박는다. -->
+      <section>
+        <h2>모르는 분야에서는 틀린 답도 그럴듯해 보입니다</h2>
+        <p>
+          오류를 알아볼 지식이 없으면 AI가 맞았든 틀렸든 그대로 따라간다는 관찰이 여러 연구에 걸쳐
+          반복됩니다. "사람이 확인하면 된다"는 안전장치도, 확인할 지식이 있다는 것을 전제로 합니다.
+        </p>
+        <p>
+          사전지식이 낮고 이상하다고 느낄 단서도 약할 때는, 잘못된 신뢰가 그대로 유지될 수 있습니다.
+        </p>
+        <p class="lp-turn">
+          지식이 있으면 안전하다는 뜻이 아닙니다. <strong>없으면 확인이 무너진다</strong>는 뜻입니다.
+        </p>
+      </section>
+
+      <!-- 종합 — 설득논거 §0.5 종합 프레임. -->
+      <section class="lp-summary">
+        <p>
+          AI를 잘 쓰는 사람은 AI보다 많이 아는 사람이 아닙니다.
+          <strong>물을 말과 판단할 눈</strong>을 가진 사람입니다.
+        </p>
+      </section>
+
+      <!-- 여기서 축이 바뀐다: "왜 배경지식인가" -> "왜 배경노트인가"(제품근거 13-3).
+           13-10이 "지식이 아니라 마찰이 진짜 원인"의 우열 단정을 과대주장 경계로 표시했으므로,
+           우열을 매기지 않고 "또 하나의 문턱"으로 더한다.
+           외부 검색을 차별점으로 말하지 않는다(13-6). 개인 요령·de-anchoring 없음(13-7·13-8). -->
+      <section class="lp-product">
+        <h2>그리고 또 하나의 문턱이 있습니다 — 설명하는 일</h2>
+        <p>
+          막연한 생각을 AI가 쓸 말로 바꾸는 일 자체가 부담입니다. 빈 입력창 앞에서 멈추는 지점이
+          거기입니다.
+        </p>
+        <p>
+          배경노트는 설명을 요구하지 않습니다. <strong>떠올려 적는 대신, 보고 고르면 됩니다.</strong>
+          막연한 한 줄이나 예시에서 시작해 몇 번의 클릭으로 좁혀 가면, 그 분야의 핵심 어휘가 정리되어
+          나옵니다.
+        </p>
+        <p>고르는 동안 막연했던 생각이 형태를 갖춥니다.</p>
+        <p class="lp-cta"><a class="lp-btn" href={APP_URL}>앱 열기</a></p>
+      </section>
     </main>
+
+    <style>
+      /* 랜딩 전용 레이아웃. 색·타이포·버튼은 디자인 토큰에서 온다(L-2).
+         길이는 rem으로 적는다 — 상위 스펙 §1-1의 치수 정책을 따른다.
+
+         클래스에 lp- 접두어를 붙인 이유: `@vock/ui-shared/styles.css`는 **디자인 토큰만 담은
+         파일이 아니라 앱 컴포넌트 클래스까지 담고 있다**(.hero·.lead·.summary·.card 등).
+         접두어 없이 쓰면 앱 스타일을 조용히 물려받는다 — 실측으로 겪었다: .summary가 카드
+         배경과 테두리를 받아 문단 하나가 박스로 그려졌고, .hero는 flex 컨테이너가 됐다. */
+      /* 독립 페이지이므로 기본 스타일을 스스로 갖는다. 앱 스타일시트를 가져오지 않으므로
+         물려받을 것도 없고, 반대로 앱이 요소 스타일을 바꿔도 이 페이지는 흔들리지 않는다. */
+      :global(html) {
+        -webkit-text-size-adjust: 100%;
+      }
+      :global(body) {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: Pretendard Variable, Pretendard, system-ui, sans-serif;
+        font-size: 1rem;
+        line-height: 1.6;
+        /* 한국어는 기본값(word-break: normal)에서 어절 안쪽에서도 끊긴다 — 좁은 화면 실측에서
+           "그 답/을", "반복됩니/다."로 갈라졌다. keep-all이 어절 경계에서만 끊게 한다.
+           대신 끊을 수 없는 긴 토큰(URL 등)이 들어오면 넘치므로 break-word를 함께 둔다. */
+        word-break: keep-all;
+        overflow-wrap: break-word;
+      }
+      :global(a) {
+        color: var(--accent-ink);
+      }
+      h1,
+      h2 {
+        font-weight: 700;
+        text-wrap: balance;
+      }
+      /* 앱의 .btn을 가져오지 않으므로 버튼 모양도 여기서 만든다. 색은 토큰에서 온다. */
+      .lp-btn {
+        display: inline-block;
+        padding: 0.6875rem 1.125rem;
+        border-radius: 0.625rem;
+        background: var(--primary);
+        color: var(--on-primary);
+        text-decoration: none;
+        font-weight: 600;
+      }
+      main {
+        max-width: 42rem;
+        margin: 0 auto;
+        padding: 4rem 1.25rem 6rem;
+      }
+      .lp-hero {
+        padding: 2rem 0 3.5rem;
+      }
+      .lp-hero h1 {
+        font-size: 1.875rem;
+        line-height: 1.4;
+        letter-spacing: -0.02em;
+        margin: 0 0 1rem;
+      }
+      .lp-lead {
+        color: var(--muted);
+        font-size: 1.0625rem;
+        margin: 0;
+      }
+      section {
+        padding: 2.25rem 0;
+        border-top: 1px solid var(--border);
+      }
+      section h2 {
+        font-size: 1.25rem;
+        line-height: 1.5;
+        margin: 0 0 0.875rem;
+      }
+      section p {
+        margin: 0 0 0.75rem;
+        line-height: 1.75;
+      }
+      section p:last-child {
+        margin-bottom: 0;
+      }
+      /* 3막의 마지막 문장. 앞 문단을 뒤집는 자리라 시각적으로 떼어 둔다. */
+      .lp-turn {
+        margin-top: 1.25rem;
+        padding-left: 0.875rem;
+        border-left: 2px solid var(--rule);
+        color: var(--text);
+      }
+      .lp-summary p {
+        font-size: 1.125rem;
+        line-height: 1.7;
+      }
+      .lp-product .lp-cta {
+        margin-top: 1.75rem;
+      }
+      @media (max-width: 30rem) {
+        main {
+          padding: 2.5rem 1rem 4rem;
+        }
+        .lp-hero h1 {
+          font-size: 1.5rem;
+        }
+        /* 좁은 화면에서는 히어로의 줄바꿈을 CSS가 정하게 둔다. */
+        .lp-hero h1 br {
+          display: none;
+        }
+      }
+    </style>
   </body>
 </html>

@@ -38,10 +38,24 @@ src/
 ├ i18n/examples.ts      예시 칩 풀(v1에서 verbatim 복사)
 └ styles/
    ├ scale.css          가변 치수 스케일. 모든 길이의 기준을 이 파일에서만 정한다
+   ├ vars.css           :root 디자인 토큰 변수만(라이트 + 다크). tokens.css가 @import한다
    ├ tokens.css         v1 theme.css에서 물려받은 디자인 정본(색, 타이포, 컴포넌트 클래스)
    ├ shell.css          반응형 셸만 덮어쓰는 추가 레이어
    └ bundle.css         스타일 진입점(scale, tokens, shell 순서)
 ```
+
+## 밖으로 내보내는 진입점 두 개
+`package.json`의 `exports`가 계약이다. **이름과 파일 이름을 같게 둔다** — 처음에 변수 진입점을
+`./tokens.css`로 내보냈다가, 같은 폴더에 실재하는 다른 `tokens.css`(컴포넌트 스타일 540행)와
+이름이 겹쳐 한 이름이 두 가지를 뜻하게 됐다.
+
+| 진입점 | 대상 | 쓰는 곳 |
+|---|---|---|
+| `@vock/ui-shared/styles.css` | `bundle.css` (scale + tokens + shell 전부) | 앱(`web/main.tsx`). `web/vite.config.ts`가 alias로 직접 매핑하므로 exports 맵을 거치지 않는다 |
+| `@vock/ui-shared/vars.css` | `vars.css` (`:root` 변수만) | 랜딩(`packages/landing`). 랜딩은 계약상 디자인 토큰만 공유한다(S6 L-2·L-2b) |
+
+`styles.css`를 랜딩이 가져오면 `boundary-check.mjs`가 막는다. 그 파일은 요소 스타일까지 담고 있어서
+독립 페이지의 레이아웃을 조용히 앱 것으로 바꾼다 — 화면이 그럴듯하게 망가지므로 실측으로만 잡힌다.
 
 ## 디자인 원칙
 - 색, 타이포 위계, 컴포넌트 클래스, 애니메이션은 v1에서 그대로 물려받는다. 수정하지 않는다.

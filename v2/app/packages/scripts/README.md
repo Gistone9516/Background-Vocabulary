@@ -5,7 +5,8 @@
 ## 게이트
 | 스크립트 | 명령 | 검사 |
 |---|---|---|
-| `portability-guard.mjs` | `pnpm guard` | core/shared 런타임·공급자 누수, 프론트 프롬프트 유출(SoT §0-1·§8) |
+| `boundary-check.mjs` | `pnpm boundary` | 패키지 의존 방향·순환·딥임포트(SoT §0-1·§7). 코드 방향은 `ALLOWED`, 정적 자산(CSS) 방향은 `ASSET_ALLOWED`로 **따로** 선언하며 자산은 패키지 이름이 아니라 **진입점 경로**까지 적는다(`landing → ui-shared/vars.css`). 검사는 import 문자열만 보므로 진입점 이름과 파일 이름을 같게 두는 것이 전제다 |
+| `portability-guard.mjs` | `pnpm guard` | core/shared 런타임·공급자 누수, 프론트 프롬프트 유출(SoT §0-1·§8). `PROMPT_ROOTS` = `ui-shared/src`·`web/src`·`landing/src` |
 | `check-file-size.mjs` | `pnpm size` | 소스 파일 300행 상한(코드규약 §1), 200행 초과 경고 |
 | `prompt-parity.mjs` | `pnpm prompt-parity` | v1 골든 베이스라인의 모든 프롬프트 문구가 v2 core/prompts에 보존(§2-1·§8) |
 | `check-i18n.mjs` | `pnpm check-i18n` | 로케일별 자리표시자 일치·빈 값·ko 복사 흔적(S-19). 키 집합 일치는 `Record<StringKey, string>` 타이핑이 tsc에서 막으므로 검사하지 않는다. AI 작성분 건수를 보고한다(S-37) |

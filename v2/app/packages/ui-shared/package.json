@@ -10,6 +10,7 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./vars.css": "./src/styles/vars.css",
     "./styles.css": "./src/styles/bundle.css"
   },
   "dependencies": {

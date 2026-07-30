@@ -16,12 +16,13 @@ packages/
 │  ├ aws/            [C2.5] Lambda 부트(streamHandle)·DataApiSqlRunner·Secrets — 코드 완료(배포=핸즈온, DEPLOY.md)
 │  └ tauri/          [C4] 파일첨부·알림·전역단축키·오프라인·업데이터 — 예정
 ├ ui-shared/         [C3] 웹·데스크톱 공유 화면(반응형 셸·진입 화면·디자인 토큰 v1 verbatim)
-├ web/               [C3] Vite SPA 셸(5180) — S5-3 진행 중. 플랫폼 조립은 `src/deps.ts` 한 곳
+│                    밖으로 내는 CSS 진입점 둘: `styles.css`(앱 전체) / `vars.css`(변수만, 랜딩용)
+├ web/               [C3] Vite SPA 셸(5180) — S1~S5 완료. 플랫폼 조립은 `src/deps.ts` 한 곳
 ├ desktop/           [C4] Tauri 셸(동일 SPA + tauri 어댑터) — 예정
-├ landing/           [C3 S6] Astro 정적 랜딩(JS 0). 앱 코드 의존 없음, 디자인 토큰 CSS만
+├ landing/           [C3 S6] Astro 정적 랜딩(JS 0). 앱 코드 의존 없음, 디자인 토큰 변수만
 └ scripts/           [C1] 경계 게이트·파일크기·프롬프트 패리티·e2e(무의존 .mjs 툴링)
 ```
-의존 방향(강제): `shared ← {core, persistence} ← http-app ← {aws, local}` / `shared ← ui-shared ← {web, desktop}` / `landing ← (없음)` — 랜딩은 독립이고 `ui-shared`의 디자인 토큰 CSS만 자산으로 가져온다(SoT §7). 역참조·형제 직접 참조·딥임포트 = 게이트 실패.
+의존 방향(강제): `shared ← {core, persistence} ← http-app ← {aws, local}` / `shared ← ui-shared ← {web, desktop}` / `landing ← (없음)` — 랜딩은 독립이고 `ui-shared`의 **변수 전용 진입점**(`@vock/ui-shared/vars.css`)만 자산으로 가져온다(SoT §7). 앱 스타일 진입점(`styles.css`)은 요소 스타일까지 담고 있어 랜딩이 가져오면 레이아웃이 조용히 앱 것으로 바뀐다 — `boundary-check.mjs`가 진입점 경로 단위로 막는다. 역참조·형제 직접 참조·딥임포트 = 게이트 실패.
 
 ## 설계 핵심
 - **3계층 실행(SoT §0-2)**: 같은 Hono 앱을 세 부트가 공유한다. `mock`(UI 개발) / `local`(node-server + Docker PG, C2) / `aws`(Lambda + Data API, C2). 라우트에 계층 분기 없음 — 분기는 주입된 포트 구현이 담당.

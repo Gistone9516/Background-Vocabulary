@@ -1,0 +1,43 @@
+/* 디자인 토큰 변수만. v1 theme.css에서 계승한 값이며 여기서 값을 바꾸지 않는다.
+ *
+ * tokens.css에서 갈라낸 이유: 랜딩(packages/landing)은 계약상 "디자인 토큰만 공유"인데
+ * bundle.css는 토큰뿐 아니라 앱의 요소 스타일까지 담고 있다(main을 내부 스크롤 판으로,
+ * header를 헤더 바로, h1/h2에 밑줄). 독립 페이지가 그것을 통째로 가져오면 레이아웃이
+ * 조용히 앱 것으로 바뀐다 — 실측으로 겪었다. 그래서 변수만 담은 진입점을 따로 둔다.
+ *
+ * 소비처: tokens.css(앱, @import) 그리고 @vock/ui-shared/vars.css(랜딩, package.json exports).
+ *
+ * 진입점 이름을 `vars.css`로 둔 이유: 처음에 `./tokens.css`로 내보냈는데, 같은 폴더에 **다른**
+ * tokens.css(540행, 앱 컴포넌트 스타일 전체)가 실재해서 이름 하나가 두 가지를 뜻하게 됐다.
+ * 브리핑이 그것을 잡았다. 내보내는 이름과 파일 이름을 같게 둔다.
+ *
+ * 여기 있는 것은 **색·그림자 등 디자인 토큰**뿐이다. 치수 토큰(--entry-pad·--measure·
+ * --measure-wide·--sidebar-w)은 scale.css의 :root에 따로 있다 — 즉 `:root` 변수의 출처는
+ * 이 파일과 scale.css 둘이다. 랜딩은 치수 변수를 쓰지 않으므로 이 파일만 가져와도 성립한다. */
+
+:root{
+  --bg:oklch(0.987 0.009 88); --surface:oklch(0.998 0.004 88); --surface-2:oklch(0.964 0.013 86); --border:oklch(0.90 0.016 84);
+  --text:oklch(0.26 0.012 78); --muted:oklch(0.50 0.012 80); --faint:oklch(0.67 0.012 82);
+  --primary:oklch(0.27 0.02 70); --on-primary:oklch(0.99 0.005 88);
+  --accent:oklch(0.66 0.115 78); --accent-soft:oklch(0.945 0.04 84); --accent-ink:oklch(0.58 0.13 62); --accent-contrast:#ffffff;
+  --accent-strong:oklch(0.76 0.13 82); --rule:oklch(0.82 0.08 84);
+  --grad:linear-gradient(135deg, oklch(0.60 0.11 72) 0%, oklch(0.78 0.10 80) 50%, oklch(0.60 0.11 72) 100%); --grad-ink:oklch(0.36 0.085 50);
+  --glow:0 1px 7px oklch(0.66 0.10 75 / 0.22), 0 0 4px oklch(0.70 0.10 78 / 0.13); --glow-ring:0 0 0 3px oklch(0.72 0.09 78 / 0.18);
+  --shadow:0 1px 2px rgba(25,22,12,.05); --shadow-lg:0 8px 24px rgba(25,22,12,.09);
+  --warn-ink:oklch(0.52 0.12 40); --warn-soft:oklch(0.96 0.05 60); --warn-border:oklch(0.83 0.09 55);
+  --aurora1:oklch(0.80 0.12 240); --aurora2:oklch(0.70 0.18 305); --aurora3:oklch(0.82 0.12 195);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:oklch(0.195 0.007 80); --surface:oklch(0.235 0.008 80); --surface-2:oklch(0.28 0.009 80); --border:oklch(0.335 0.011 80);
+    --text:oklch(0.92 0.008 85); --muted:oklch(0.66 0.01 82); --faint:oklch(0.52 0.01 82);
+    --primary:oklch(0.95 0.006 85); --on-primary:oklch(0.20 0.01 80);
+    --accent:oklch(0.80 0.08 78); --accent-soft:oklch(0.34 0.05 80); --accent-ink:oklch(0.87 0.085 78); --accent-contrast:oklch(0.18 0.02 80);
+    --accent-strong:oklch(0.68 0.10 76); --rule:oklch(0.46 0.06 82);
+    --grad:linear-gradient(135deg, oklch(0.66 0.10 76) 0%, oklch(0.80 0.09 82) 50%, oklch(0.66 0.10 76) 100%); --grad-ink:oklch(0.24 0.06 52);
+    --glow:0 1px 8px oklch(0.66 0.10 78 / 0.24), 0 0 5px oklch(0.72 0.09 80 / 0.14); --glow-ring:0 0 0 3px oklch(0.66 0.09 80 / 0.2);
+    --shadow:0 1px 2px rgba(0,0,0,.35); --shadow-lg:0 10px 28px rgba(0,0,0,.5);
+    --warn-ink:oklch(0.80 0.10 60); --warn-soft:oklch(0.30 0.06 50); --warn-border:oklch(0.46 0.09 50);
+    --aurora1:oklch(0.72 0.13 240); --aurora2:oklch(0.62 0.19 305); --aurora3:oklch(0.74 0.13 195);
+  }
+}

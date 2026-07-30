@@ -33,11 +33,20 @@ const ALLOWED = {
 // 처음에는 자산이면 방향 검사를 건너뛰게 두려 했으나, 그러면 "누가 누구의 자산을 쓰는지"가
 // 아무 데도 적히지 않는다. landing이 ui-shared의 디자인 토큰만 가져온다는 것은 계약이므로
 // (SoT §7 "landing은 독립(+디자인 토큰만 공유)") 데이터로 적어 둔다.
+//
+// 패키지 이름이 아니라 **진입점 경로**로 적는다. 처음에는 `landing: {"ui-shared"}`로 두어
+// ui-shared의 어떤 CSS든 통과했는데, 그것이 규칙보다 넓었다 — L-2가 말한 것은 "디자인 토큰 CSS만"
+// 이고 `styles.css`는 앱 요소 스타일까지 담은 진입점이다. 실측으로 겪었다: 랜딩이 그걸 가져오자
+// `main`이 내부 스크롤 판이 되어 아래 두 절이 화면에서 사라진 것처럼 보였다(렌더는 되어 있었다).
+// 화면이 그럴듯하게 망가지므로 사람이 통과로 착각한다. 그래서 파일 하나까지 계약으로 적는다.
+//
+// 이 검사는 **import 문자열**만 본다 — 그 이름이 실제로 어떤 파일로 해석되는지는 보지 않는다.
+// 그래서 진입점 이름과 파일 이름을 같게 두는 것이 이 게이트가 뜻을 갖는 조건이다.
 const ASSET_ALLOWED = {
-  landing: new Set(["ui-shared"]),
-  // web도 같은 진입점을 쓴다(main.tsx, vite.config.ts). 이 항을 빠뜨렸더니 이미 통과하던
-  // web이 실패했다 — 새 검사를 넣을 때 기존 통과 경로를 함께 시험해야 한다는 실측이다.
-  web: new Set(["ui-shared"]),
+  landing: new Set(["ui-shared/vars.css"]),
+  // web은 앱 스타일 진입점 전체를 쓴다(main.tsx, vite.config.ts). 이 항을 빠뜨렸더니 이미
+  // 통과하던 web이 실패했다 — 새 검사를 넣을 때 기존 통과 경로를 함께 시험해야 한다는 실측이다.
+  web: new Set(["ui-shared/styles.css"]),
 };
 
 function walk(dir) {
@@ -96,8 +105,9 @@ for (const file of walk(SCAN)) {
       // 넣지 않는다 — CSS import는 실행 순서를 만들지 않는다.
       if (isAssetEntry) {
         const assetAllow = ASSET_ALLOWED[pkg];
-        if (!assetAllow || !assetAllow.has(target)) {
-          violations.push(`${rel}\n    허용밖 자산 의존: ${pkg} → ${target} (${spec})`);
+        // `target`(패키지)이 아니라 `rest`(패키지/진입점 전체)로 판정한다 — 위 주석의 이유.
+        if (!assetAllow || !assetAllow.has(rest)) {
+          violations.push(`${rel}\n    허용밖 자산 의존: ${pkg} → ${rest} (${spec})`);
         }
         continue;
       }
