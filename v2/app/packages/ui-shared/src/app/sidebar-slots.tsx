@@ -1,7 +1,10 @@
-// 사이드바에 무엇을 담을지. 여정 배선(App)과 다른 책임이라 파일을 나눈다.
+// 사이드바에 무엇을 담을지. 여정 배선(journey.tsx)과 다른 책임이라 파일을 나눈다.
 // 셸은 자리만 주고 내용을 모른다.
+// C4 S1에서 web/src/Sidebar.tsx를 그대로 올렸다 — 이미 ui-shared만 import하고 있었다.
 
-import { ProjectList, SessionList, type useProjects, type useSessionSync } from "@vock/ui-shared";
+import { ProjectList } from "./ProjectList.js";
+import { SessionList } from "./SessionList.js";
+import type { useProjects, useSessionSync } from "../session/index.js";
 
 export interface SidebarProps {
   sync: ReturnType<typeof useSessionSync>;

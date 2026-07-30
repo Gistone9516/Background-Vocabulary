@@ -15,10 +15,10 @@ packages/
 │  ├ local/          [C1·C2.1·C2.2] node-server 부트 + mock LLM/Google + PgSqlRunner(실 PG) + DI 팩토리
 │  ├ aws/            [C2.5] Lambda 부트(streamHandle)·DataApiSqlRunner·Secrets — 코드 완료(배포=핸즈온, DEPLOY.md)
 │  └ tauri/          [C4] 파일첨부·알림·전역단축키·오프라인·업데이터 — 예정
-├ ui-shared/         [C3] 웹·데스크톱 공유 화면(반응형 셸·진입 화면·디자인 토큰 v1 verbatim)
+├ ui-shared/         [C3] 웹·데스크톱 공유 화면 + **여정 배선(VockApp, C4 S1 승격)**. 셸은 ShellDeps만 구현
 │                    밖으로 내는 CSS 진입점 둘: `styles.css`(앱 전체) / `vars.css`(변수만, 랜딩용)
-├ web/               [C3] Vite SPA 셸(5180) — S1~S5 완료. 플랫폼 조립은 `src/deps.ts` 한 곳
-├ desktop/           [C4] Tauri 셸(동일 SPA + tauri 어댑터) — 예정
+├ web/               [C3] Vite SPA 셸(5180). 남은 파일 = main·deps·auth-storage — 그것이 셸의 전부다
+├ desktop/           [C4 S1] Tauri 셸(5185) — 같은 VockApp + src-tauri(커스텀 커맨드 0, D-8). 로그인은 S2
 ├ landing/           [C3 S6] Astro 정적 랜딩(JS 0). 앱 코드 의존 없음, 디자인 토큰 변수만
 └ scripts/           [C1] 경계 게이트·파일크기·프롬프트 패리티·e2e(무의존 .mjs 툴링)
 ```

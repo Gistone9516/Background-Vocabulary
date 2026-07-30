@@ -3,3 +3,5 @@ dist/
 .astro/
 *.tsbuildinfo
 .DS_Store
+# Tauri 빌드 캐시(수 GB). Cargo.lock은 커밋한다 — 앱이므로 재현 빌드의 정본이다(DS-6).
+packages/desktop/src-tauri/target/

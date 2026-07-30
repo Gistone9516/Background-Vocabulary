@@ -1,5 +1,5 @@
-// 웹 SPA 진입점. 마운트만 한다. 여정 배선은 ui-shared의 VockApp이 가진다(C4 S1에서 승격).
-// 이 셸에 남은 것은 플랫폼 조립(deps.ts) 하나다 — 그것이 셸이 얇다는 것의 정의다(ADR-004 P3).
+// 데스크톱 셸 진입점. 마운트만 한다. 여정 배선은 ui-shared의 VockApp이 가진다.
+// web/src/main.tsx와 같은 모양인 것이 정상이다 — 셸의 차이는 deps.ts 한 파일에만 있다.
 
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";

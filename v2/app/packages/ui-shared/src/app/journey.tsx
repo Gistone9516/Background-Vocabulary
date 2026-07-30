@@ -1,44 +1,32 @@
-// 여정 배선. 어느 화면을 보여줄지만 정하고 화면 내부 규칙은 ui-shared가 가진다.
-// 좁히기와 어휘 생성의 전이 규칙은 여기 없다. 상태 기계가 통째로 ui-shared에 있다.
+// 여정 배선. 어느 화면을 보여줄지만 정하고 화면 내부 규칙은 각 화면 모듈이 가진다.
+// 좁히기와 어휘 생성의 전이 규칙은 여기 없다. 상태 기계가 통째로 screens/에 있다.
+//
+// C4 S1에서 web/src/App.tsx를 그대로 올렸다(이동이지 수정이 아니다 — DS-2). 올린 이유:
+// web/deps.ts의 약속("데스크톱 셸은 이 파일만 바꿔 끼운다")은 여정이 web 안에 있는 한 지킬 수
+// 없다. 형제 참조(desktop → web)는 게이트가 막고, 복사하면 여정이 두 벌이 되어 D-12(기획
+// 동일선상)가 코드 차원에서 깨진다. 이동하며 바뀐 것은 두 가지뿐이다:
+// ① import가 배럴(@vock/ui-shared)에서 상대경로로, ② redirectUri 인라인 계산이 deps.auth
+// (능력 모델)로. 나머지 줄은 App.tsx 그대로다.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  AppShell,
-  AuthButton,
-  DifficultyScreen,
-  EntryScreen,
-  KeptScreen,
-  NarrowScreen,
-  TermsScreen,
-  useAuth,
-  emptyKept,
-  isKept as isKeptIn,
-  keptList,
-  toggleKeep,
-  trIn,
-  useTr,
-  useDetail,
-  useNarrow,
-  usePreview,
-  useProjects,
-  useSessionSync,
-  useOutputLocale,
-  limitsFor,
-  resumeTarget,
-  usePrimer,
-  useTerms,
-  detailInputOf,
-  LocaleProvider,
-  type Difficulty,
-  type DoneReason,
-  type KeptMap,
-  type NarrowConfig,
-  type NarrowCtx,
-  type TermCard,
-} from "@vock/ui-shared";
+import { AppShell } from "./AppShell.js";
+import { sidebarSlots } from "./sidebar-slots.js";
+import type { ShellDeps } from "./shell-deps.js";
+import { AuthButton, useAuth } from "../screens/auth/index.js";
+import { EntryScreen } from "../screens/EntryScreen.js";
+import { NarrowScreen, useNarrow } from "../screens/narrow/index.js";
+import type { DoneReason, NarrowConfig, NarrowCtx } from "../screens/narrow/index.js";
+import { DifficultyScreen, usePreview } from "../screens/difficulty/index.js";
+import type { Difficulty } from "../screens/difficulty/index.js";
+import { TermsScreen, detailInputOf, useDetail, useTerms } from "../screens/terms/index.js";
+import type { TermCard } from "../screens/terms/index.js";
+import { KeptScreen, emptyKept, isKept as isKeptIn, keptList, toggleKeep, usePrimer } from "../screens/kept/index.js";
+import type { KeptMap } from "../screens/kept/index.js";
+import { trIn } from "./../i18n/strings.js";
+import { LocaleProvider, useOutputLocale, useTr } from "../i18n/locale.js";
+import { limitsFor } from "../api/index.js";
+import { useProjects, useSessionSync, resumeTarget } from "../session/index.js";
 import type { ClientLimits, OutputLocale, RecommendInput, Tier } from "@vock/shared";
-import { useShellDeps, type ShellDeps } from "./deps.js";
-import { sidebarSlots } from "./Sidebar.js";
 
 type Journey =
   | { at: "entry"; notice?: "weekly" }
@@ -59,9 +47,7 @@ function doneNotice(locale: OutputLocale, reason: DoneReason): string | null {
 // 로케일 훅은 제공자 안에서만 유효하다. 그래서 제공자를 두는 컴포넌트와 그 훅을 쓰는 컴포넌트를
 // 가른다 — 한 컴포넌트가 자기 return 안에서 제공자를 만들고 자기 본문에서 useTr을 부르면,
 // 제공자가 아직 없는 상태로 훅이 돌아 useOutputLocale이 예외를 던진다. 타입은 이것을 못 잡는다.
-export function App() {
-  // 저장소와 서버 통로는 플랫폼이 정한다. 여기서는 받아 쓰기만 한다(deps.ts).
-  const deps = useShellDeps();
+export function VockApp({ deps }: { deps: ShellDeps }) {
   return (
     <LocaleProvider store={deps.locale}>
       <AppBody deps={deps} />
@@ -89,19 +75,20 @@ function AppBody({ deps }: { deps: ShellDeps }) {
     []
   );
 
-  // 로그인. client_id가 없으면(콘솔 등록 전) 버튼 자체가 뜨지 않는다(S5a A-2).
+  // 로그인. 능력이 없는 플랫폼(deps.auth === null)은 clientId를 죽여 버튼 자체가 뜨지 않는다 —
+  // client_id 미등록 시 버튼이 없는 것(S5a A-2)과 같은 강등 경로를 태운다. 화면 분기가 아니다.
   const auth = useAuth({
     auth: api,
     tokens,
-    clientId: limits?.googleClientId ?? null,
-    redirectUri: typeof location === "undefined" ? "" : location.origin + location.pathname,
+    clientId: deps.auth ? (limits?.googleClientId ?? null) : null,
+    redirectUri: deps.auth?.redirectUri() ?? "",
   });
 
   // 한도는 로그인한 사용자의 티어로 고른다(B-4 narrowMax[tier], R-5 maxTotal[tier]).
   // .free를 여기서 직접 읽으면 유료 사용자가 무료 한도를 받는다.
   const tier: Tier = auth.state.phase === "signed_in" ? auth.state.user.tier : "free";
   const tierLimits = useMemo(() => limitsFor(limits, tier), [limits, tier]);
-  // 탈출구 라벨은 문구를 아는 쪽이 넘긴다(S-34). ②-b에서 trIn(locale, ...)으로 바뀐다.
+  // 탈출구 라벨은 문구를 아는 쪽이 넘긴다(S-34).
   const base: NarrowConfig = {
     narrowMin: tierLimits.narrowMin,
     narrowMax: tierLimits.narrowMax,
@@ -140,7 +127,7 @@ function AppBody({ deps }: { deps: ShellDeps }) {
   const detail = useDetail(api);
   const primer = usePrimer(api);
 
-  // 담기는 화면 상태로만 유지한다. 서버 저장은 로그인 UI와 함께 S5에서 붙는다.
+  // 담기는 화면 상태로만 유지한다.
   const [kept, setKept] = useState<KeptMap>(emptyKept);
   const toggleKept = useCallback(
     (t: TermCard) => {

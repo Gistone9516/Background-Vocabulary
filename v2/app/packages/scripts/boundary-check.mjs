@@ -17,6 +17,9 @@ const ALLOWED = {
   providers: new Set(["shared"]),
   "ui-shared": new Set(["shared"]),
   web: new Set(["shared", "ui-shared"]),
+  // 데스크톱 셸(C4 S1). web과 같은 방향이다 — 여정 배선이 ui-shared로 올라갔으므로(DS-2)
+  // 셸은 ShellDeps 구현만 갖고, core·http-app을 직접 부를 이유가 없다.
+  desktop: new Set(["shared", "ui-shared"]),
   // 랜딩은 독립이다(SoT §7 "landing은 독립(+디자인 토큰만 공유)"). 값이 빈 집합인 것이 규칙이며,
   // 키를 아예 빼면 안 된다 — 키가 없으면 `!allow`로 걸려 "등록 안 된 패키지"와 구분되지 않는다.
   // 디자인 토큰 CSS는 아래 isAssetEntry 예외로 통과한다. 코드는 하나도 못 가져온다(L-2).
@@ -47,6 +50,8 @@ const ASSET_ALLOWED = {
   // web은 앱 스타일 진입점 전체를 쓴다(main.tsx, vite.config.ts). 이 항을 빠뜨렸더니 이미
   // 통과하던 web이 실패했다 — 새 검사를 넣을 때 기존 통과 경로를 함께 시험해야 한다는 실측이다.
   web: new Set(["ui-shared/styles.css"]),
+  // 데스크톱도 같은 앱이므로 같은 진입점(C4 S1). landing과 달리 변수만이 아니라 전체를 받는다.
+  desktop: new Set(["ui-shared/styles.css"]),
 };
 
 function walk(dir) {

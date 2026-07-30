@@ -1,7 +1,9 @@
-// 웹 셸의 로케일 저장소 구현. ui-shared는 저장 방식을 모르고 이 포트만 받는다.
-// 데스크톱(C4)은 같은 포트를 자기 저장소로 구현해 넣는다. 토큰 저장소와 같은 형태다.
+// localStorage 기반 로케일 저장소. 웹과 데스크톱 웹뷰가 같은 구현을 쓴다 —
+// 둘 다 localStorage가 있는 웹 표준 환경이고, 두 벌이면 키가 갈라진다.
+// C4 S1에서 web/src/locale-storage.ts를 올렸다(memoryTokenStore가 ui-shared에 있는 선례).
+// 데스크톱은 S2에서 users.locale 서버 동기화가 붙으면 재판단한다.
 
-import { asOutputLocale, type LocaleStore } from "@vock/ui-shared";
+import { asOutputLocale, type LocaleStore } from "./locale.js";
 import type { OutputLocale } from "@vock/shared";
 
 const KEY = "vock:locale";
@@ -20,7 +22,7 @@ function fromBrowser(): OutputLocale {
   return "ko";
 }
 
-export function localLocaleStore(): LocaleStore {
+export function browserLocaleStore(): LocaleStore {
   return {
     read(): OutputLocale {
       try {

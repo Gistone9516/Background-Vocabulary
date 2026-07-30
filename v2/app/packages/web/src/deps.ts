@@ -1,24 +1,17 @@
-// 플랫폼 조립. 이 브라우저의 저장소와 서버 통로를 만들어 여정 배선에 넘긴다.
-// 데스크톱 셸(C4)은 App.tsx를 그대로 두고 이 파일만 자기 것으로 바꿔 끼운다 —
-// 여정 배선이 localStorage나 fetch를 알면 그 교체가 불가능해진다.
+// 플랫폼 조립. 이 브라우저의 저장소와 서버 통로를 만들어 여정 배선(VockApp)에 넘긴다.
+// ShellDeps 타입과 여정은 ui-shared에 있다(C4 S1에서 승격) — 데스크톱은 이 파일에 해당하는
+// 자기 deps.ts를 갖는다. 여정 배선이 localStorage나 fetch를 알면 그 교체가 불가능해진다.
 
 import { useMemo } from "react";
-import { HttpApiClient, type LocaleStore, type TokenStore } from "@vock/ui-shared";
+import { HttpApiClient, browserLocaleStore, type ShellDeps } from "@vock/ui-shared";
 import { localTokenStore } from "./auth-storage.js";
-import { localLocaleStore } from "./locale-storage.js";
 
 // 개발 중에는 vite 프록시를 지나 로컬 서버로 간다. 배포 주소는 빌드 시 주입한다.
 const BASE_URL = import.meta.env.VITE_API_BASE ?? "/api";
 
-export interface ShellDeps {
-  api: HttpApiClient;
-  tokens: TokenStore;
-  locale: LocaleStore;
-}
-
 export function useShellDeps(): ShellDeps {
   const tokens = useMemo(() => localTokenStore(), []);
-  const locale = useMemo(() => localLocaleStore(), []);
+  const locale = useMemo(() => browserLocaleStore(), []);
 
   const api = useMemo<HttpApiClient>(() => {
     // onUnauthorized가 자기 자신을 부르므로 타입을 명시해 추론 순환을 끊는다.
@@ -45,5 +38,13 @@ export function useShellDeps(): ShellDeps {
     return client;
   }, [tokens, locale]);
 
-  return { api, tokens, locale };
+  return {
+    api,
+    tokens,
+    locale,
+    // 웹의 OAuth 능력: 자기 오리진 콜백(S5a). location 가드는 App.tsx 시절 그대로 옮겼다.
+    auth: {
+      redirectUri: () => (typeof location === "undefined" ? "" : location.origin + location.pathname),
+    },
+  };
 }

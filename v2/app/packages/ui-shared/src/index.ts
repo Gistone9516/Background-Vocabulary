@@ -2,6 +2,12 @@
 // 스타일은 패키지 exports의 ./styles.css 로 별도 임포트한다(번들러가 처리).
 export { AppShell } from "./app/AppShell.js";
 export type { AppShellProps } from "./app/AppShell.js";
+
+// 여정 배선(C4 S1에서 web으로부터 승격). 셸은 ShellDeps를 구현해 VockApp에 넘기기만 한다.
+export { VockApp } from "./app/journey.js";
+export { sidebarSlots } from "./app/sidebar-slots.js";
+export type { SidebarProps } from "./app/sidebar-slots.js";
+export type { ShellDeps, ShellAuth } from "./app/shell-deps.js";
 export { SessionList } from "./app/SessionList.js";
 export type { SessionListProps } from "./app/SessionList.js";
 export { ProjectList } from "./app/ProjectList.js";
@@ -22,6 +28,8 @@ export { EXAMPLES, pickRandom } from "./i18n/examples.js";
 // 출력 로케일(S5-3). 정본은 주입된 저장소이고 화면과 요청이 같은 값을 본다.
 export { LocaleProvider, useOutputLocale, useTr, asOutputLocale, LOCALE_LABELS } from "./i18n/locale.js";
 export type { LocaleStore, LocaleProviderProps } from "./i18n/locale.js";
+// localStorage 로케일 저장소(C4 S1에서 web으로부터 승격 — 웹뷰 두 플랫폼이 같은 구현을 쓴다).
+export { browserLocaleStore } from "./i18n/browser-locale-store.js";
 export { LangSelect } from "./app/LangSelect.js";
 
 // 서버 통로. 구현은 셸(web/desktop)이 만들어 주입한다.

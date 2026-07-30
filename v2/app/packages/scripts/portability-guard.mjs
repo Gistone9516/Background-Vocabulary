@@ -15,9 +15,14 @@ const ROOTS = ["packages/shared/src", "packages/core/src", "packages/ui-shared/s
 // 프롬프트 문자열이 포함되면 안 되는 프론트 계층(SoT 8절).
 // landing은 C3-웹랜딩 §1-4가 처음부터 요구했으나 S6까지 등록돼 있지 않았다 — 적혀 있고 안 하는
 // 상태였다. 랜딩은 정적 HTML이라 유출되면 그대로 크롤러에 노출되므로 오히려 더 세게 걸린다.
-const PROMPT_ROOTS = ["packages/ui-shared/src", "packages/web/src", "packages/landing/src"].map((r) =>
-  join(APP_ROOT, r)
-);
+// desktop은 C4 S1에서 등록(D-7 "게이트를 코드보다 먼저"). 데스크톱 번들은 배포되는 바이너리에
+// 들어가므로 프롬프트가 새면 웹보다 오래 남는다. src-tauri(.rs)는 이 게이트가 못 본다 — D-8.
+const PROMPT_ROOTS = [
+  "packages/ui-shared/src",
+  "packages/web/src",
+  "packages/landing/src",
+  "packages/desktop/src",
+].map((r) => join(APP_ROOT, r));
 
 // core/·shared/ 에서 금지하는 패턴. 런타임/공급자 전용이거나 어댑터 의존이면 위반.
 const FORBIDDEN = [

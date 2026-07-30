@@ -36,6 +36,12 @@ src/
    └ KeptScreen.tsx     담은 목록과 붙여넣기용 정리
 ├ i18n/strings.ts       UI 문구(v1 한국어 원문 그대로). 4개 언어 전량은 S5
 ├ i18n/examples.ts      예시 칩 풀(v1에서 verbatim 복사)
+├ app/journey.tsx       ★여정 배선(VockApp) — C4 S1에서 web/App.tsx를 승격. 화면·여정 변경은
+│                        전부 이 파일에서 일어나 두 플랫폼에 같이 흐른다(C4 D-12)
+├ app/shell-deps.ts     ShellDeps·ShellAuth 포트. 셸(web/desktop)이 구현해 VockApp에 넘긴다.
+│                        auth=null이면 로그인 버튼이 뜨지 않는다(능력 강등, S5a A-2와 같은 경로)
+├ app/sidebar-slots.tsx 사이드바 조립(구 web/Sidebar.tsx)
+├ i18n/browser-locale-store.ts localStorage 로케일 저장소 — 웹뷰 두 플랫폼 공용
 └ styles/
    ├ scale.css          가변 치수 스케일. 모든 길이의 기준을 이 파일에서만 정한다
    ├ vars.css           :root 디자인 토큰 변수만(라이트 + 다크). tokens.css가 @import한다
