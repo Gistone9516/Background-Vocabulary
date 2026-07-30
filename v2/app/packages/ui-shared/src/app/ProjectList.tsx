@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import type { Project } from "@vock/shared";
-import { tr } from "../i18n/strings.js";
+import { useTr } from "../i18n/locale.js";
 
 export interface ProjectListProps {
   items: Project[];
@@ -16,6 +16,7 @@ export interface ProjectListProps {
 }
 
 export function ProjectList({ items, off, selected, onSelect, onCreate, onRemove }: ProjectListProps) {
+  const tr = useTr();
   const [adding, setAdding] = useState("");
 
   if (off) return <p className="sbEmpty">{tr("projects_off")}</p>;

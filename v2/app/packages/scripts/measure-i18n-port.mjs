@@ -52,32 +52,45 @@ function parseBlock(text, startMarker, endMarker) {
   return out;
 }
 
-const v2src = readFileSync(V2, "utf8");
-const v1src = readFileSync(V1, "utf8");
+// 갈래 판정을 한 곳에 둔다. 이식 생성기(port-i18n.mjs)가 이 함수를 가져다 쓰므로,
+// 판정 규칙이 두 벌이 되지 않는다 — 두 벌이면 측정과 생성이 다른 갈래를 보게 된다.
+export function analyze() {
+  const v2 = parseBlock(readFileSync(V2, "utf8"), "export const ko = {", "} as const;");
+  const v1src = readFileSync(V1, "utf8");
+  const v1 = parseBlock(v1src, "const ko", "};");
+  const v1loc = {};
+  for (const loc of ["en", "ja", "zh"]) v1loc[loc] = parseBlock(v1src, `const ${loc}`, "};");
 
-const v2 = parseBlock(v2src, "export const ko = {", "} as const;");
-const v1 = parseBlock(v1src, "const ko", "};");
-const v1loc = {};
-for (const loc of ["en", "ja", "zh"]) v1loc[loc] = parseBlock(v1src, `const ${loc}`, "};");
-
-// v1 값 -> 그 값을 가진 v1 키들. 개명 판정에 쓴다.
-const v1ByText = new Map();
-for (const [k, v] of v1) {
-  if (!v1ByText.has(v)) v1ByText.set(v, []);
-  v1ByText.get(v).push(k);
-}
-
-const bucket = { A: [], B: [], C: [], D: [] };
-for (const key of [...v2.keys()].sort()) {
-  const text = v2.get(key);
-  if (v1.has(key)) {
-    (v1.get(key) === text ? bucket.A : bucket.B).push(key);
-  } else if (v1ByText.has(text)) {
-    bucket.C.push([key, v1ByText.get(text)]);
-  } else {
-    bucket.D.push(key);
+  // v1 값 -> 그 값을 가진 v1 키들. 개명 판정에 쓴다.
+  const v1ByText = new Map();
+  for (const [k, v] of v1) {
+    if (!v1ByText.has(v)) v1ByText.set(v, []);
+    v1ByText.get(v).push(k);
   }
+
+  const bucket = { A: [], B: [], C: [], D: [] };
+  for (const key of [...v2.keys()].sort()) {
+    const text = v2.get(key);
+    if (v1.has(key)) {
+      (v1.get(key) === text ? bucket.A : bucket.B).push(key);
+    } else if (v1ByText.has(text)) {
+      bucket.C.push([key, v1ByText.get(text)]);
+    } else {
+      bucket.D.push(key);
+    }
+  }
+  return { v2, v1, v1loc, bucket };
 }
+
+// 리포트는 직접 실행할 때만 낸다. 가드가 없으면 analyze를 import하는 쪽이 이 출력을 같이 받는다.
+if (resolve(process.argv[1] ?? "") !== resolve(fileURLToPath(import.meta.url))) {
+  // 모듈로 불린 경우. analyze만 내보내고 끝낸다.
+} else {
+  report();
+}
+
+function report() {
+const { v2, v1, v1loc, bucket } = analyze();
 
 const L = [];
 const say = (s) => L.push(s);
@@ -143,4 +156,5 @@ console.log(L.join("\n"));
 if (bad > 0) {
   console.error(`\n교차 검증 ${bad}건 실패 — 숫자를 쓰기 전에 스크립트를 먼저 의심할 것.`);
   process.exit(1);
+}
 }

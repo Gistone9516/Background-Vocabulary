@@ -2,7 +2,7 @@
 // v1은 이 자리에 전이 규칙과 네트워크 호출이 함께 있었다. 여기에는 둘 다 없다.
 
 import { useRef } from "react";
-import { tr } from "../../i18n/strings.js";
+import { useTr } from "../../i18n/locale.js";
 import { isRetryable } from "../../api/index.js";
 import { answeredCount } from "./machine.js";
 import { turnsLeft } from "./decide.js";
@@ -15,6 +15,7 @@ export interface NarrowScreenProps {
 }
 
 export function NarrowScreen({ state, cfg, send }: NarrowScreenProps) {
+  const tr = useTr();
   const customRef = useRef<HTMLTextAreaElement>(null);
 
   // relating = 연결 턴 조회 중. 다른 대기 구간과 같은 화면을 쓴다(S-29 아님, S-28).

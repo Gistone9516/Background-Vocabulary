@@ -12,12 +12,15 @@ export { toSnapshot, fromSnapshot, toSessionRec, resumeTarget, useSessionSync, u
 export type { Resume, SnapshotArgs, SessionListState, UseSessionSyncOptions, UseProjectsOptions } from "./session/index.js";
 export { EntryScreen } from "./screens/EntryScreen.js";
 export type { EntryScreenProps } from "./screens/EntryScreen.js";
-export { tr } from "./i18n/strings.js";
+// 문구. 컴포넌트는 useTr()로, React 밖은 trIn(locale, key)로 쓴다. ko 전용 함수는 없다 —
+// 있으면 로케일을 안 넘긴 호출부가 조용히 한국어를 띄운다(S-32와 같은 이유).
+export { trIn, STRINGS } from "./i18n/strings.js";
 export type { StringKey } from "./i18n/strings.js";
+export { AI_AUTHORED } from "./i18n/strings.origin.js";
 export { EXAMPLES, pickRandom } from "./i18n/examples.js";
 
 // 출력 로케일(S5-3). 정본은 주입된 저장소이고 화면과 요청이 같은 값을 본다.
-export { LocaleProvider, useOutputLocale, asOutputLocale, LOCALE_LABELS } from "./i18n/locale.js";
+export { LocaleProvider, useOutputLocale, useTr, asOutputLocale, LOCALE_LABELS } from "./i18n/locale.js";
 export type { LocaleStore, LocaleProviderProps } from "./i18n/locale.js";
 export { LangSelect } from "./app/LangSelect.js";
 

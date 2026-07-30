@@ -63,13 +63,14 @@ console.log("담기와 정리 검증:");
 
 // K-5 기본 정리
 {
-  const empty = buildBasicPrimer({ topic: "PID", kept: [] });
+  const empty = buildBasicPrimer({ topic: "PID", kept: [], locale: "ko" });
   check("담은 것이 없으면 빈 문자열이 아니라 안내", empty.length > 0 && empty.includes("아직 담은 어휘가 없어요"));
 
   const two = buildBasicPrimer({
     topic: "PID 튜닝",
     condition: "실무 중심",
     kept: [term("적분 와인드업", "적분이 쌓이는 현상"), term("안티와인드업", "그걸 막는 기법")],
+    locale: "ko",
   });
   check("기본 정리에 담은 어휘가 전부 들어간다", two.includes("적분 와인드업") && two.includes("안티와인드업"));
   check("기본 정리에 한 줄 설명이 들어간다", two.includes("적분이 쌓이는 현상"));
@@ -122,7 +123,7 @@ console.log("담기와 정리 검증:");
 // P-2 기본 정리와 AI 정리가 같은 조립 규칙을 쓴다
 {
   const kept = [term("적분 와인드업", "적분이 쌓이는 현상")];
-  const basic = buildBasicPrimer({ topic: "PID 튜닝", kept });
+  const basic = buildBasicPrimer({ topic: "PID 튜닝", kept, locale: "ko" });
   const ai = buildPrimerText({ area: "", task_intent: "PID 튜닝", known_terms: [], unknown_terms: ["적분 와인드업"], locale: "ko" }, kept);
   const ask = "아래 어휘는 이미 알고 있다고 두고 답해 주세요.";
   check("둘 다 같은 요청 문구를 쓴다", basic.includes(ask) && ai.includes(ask));
@@ -134,14 +135,14 @@ console.log("담기와 정리 검증:");
 // P-6·P-7 402 PRO_ONLY는 잠김이고 기본 정리는 그대로
 {
   const kept = [term("적분 와인드업", "적분이 쌓이는 현상")];
-  const args = { topic: "PID 튜닝", kept };
+  const args = { topic: "PID 튜닝", kept, locale: "ko" };
   const basic = buildBasicPrimer(args);
 
-  const locked = primerFailure({ kind: "pro_only", message: "pro 전용 기능이에요." });
+  const locked = primerFailure({ kind: "pro_only", message: "pro 전용 기능이에요." }, "ko");
   check("402 PRO_ONLY는 잠김 상태다", locked.phase === "locked" && locked.message === "pro 전용 기능이에요.");
   check("잠겨도 본문은 기본 정리 그대로다", primerBody(locked, args) === basic);
 
-  const failed = primerFailure({ kind: "network" });
+  const failed = primerFailure({ kind: "network" }, "ko");
   check("다른 실패는 실패 상태다", failed.phase === "failed" && failed.message.length > 0);
   check("실패해도 본문은 기본 정리 그대로다", primerBody(failed, args) === basic);
 
@@ -150,7 +151,7 @@ console.log("담기와 정리 검증:");
   check("필드가 빠지면 PrimerDoc이 아니다", !isPrimerDoc({ locale: "ko", area: "", task_intent: "", known_terms: [] }));
   check("배열에 문자열 아닌 것이 섞이면 아니다", !isPrimerDoc({ locale: "ko", area: "", task_intent: "", known_terms: [1], unknown_terms: [] }));
   check("온전한 형태는 통과한다", isPrimerDoc({ locale: "ko", area: "", task_intent: "", known_terms: [], unknown_terms: [] }));
-  check("형태 위반은 malformed 실패로 떨어진다", primerFailure({ kind: "malformed" }).phase === "failed");
+  check("형태 위반은 malformed 실패로 떨어진다", primerFailure({ kind: "malformed" }, "ko").phase === "failed");
   check("호출 전에도 본문은 기본 정리다", primerBody({ phase: "idle" }, args) === basic);
   check("부르는 중에도 본문은 기본 정리다", primerBody({ phase: "loading" }, args) === basic);
 

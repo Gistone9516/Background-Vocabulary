@@ -1,7 +1,8 @@
 // 난이도 선택. 깊이별 대표 어휘를 미리 보여 주고 사용자가 감으로 고르게 한다.
 // 프리뷰는 한도에 집계하지 않는 보조 정보라 실패해도 선택은 계속할 수 있어야 한다.
 
-import { tr, type StringKey } from "../../i18n/strings.js";
+import { type StringKey } from "../../i18n/strings.js";
+import { useTr } from "../../i18n/locale.js";
 import type { Difficulty, PreviewState } from "./types.js";
 
 export interface DifficultyScreenProps {
@@ -18,6 +19,7 @@ const LEVELS: { key: Difficulty; name: StringKey; desc: StringKey; slot: "basic"
 ];
 
 export function DifficultyScreen({ preview, notice, onPick }: DifficultyScreenProps) {
+  const tr = useTr();
   return (
     <main className="scroll pad screenIn">
       {notice ? <p className="listnote">{notice}</p> : null}

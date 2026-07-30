@@ -1,0 +1,46 @@
+// AI가 쓴 문구의 키 목록(S-37). v1 이식분과 근거 등급이 다르다는 사실을 코드에 남긴다.
+// 사용자가 일본어·중국어를 검증할 수 없으므로 이 목록은 줄지 않을 수 있다. 그래도 세는 것이
+// 안 세는 것보다 낫다 — 나중에 어느 문장을 먼저 의심해야 하는지가 이 목록에만 있다.
+// port-i18n.mjs 가 생성한다.
+
+import type { StringKey } from "./strings.js";
+
+export const AI_AUTHORED: readonly StringKey[] = [
+  "auth_sign_in",
+  "auth_sign_out",
+  "auth_signing_in",
+  "brand",
+  "brand_sub",
+  "detail_close",
+  "detail_open",
+  "diff_preview_failed",
+  "done_enough",
+  "done_exhausted",
+  "err_network",
+  "menu",
+  "next",
+  "project_delete",
+  "project_delete_hint",
+  "project_new_ph",
+  "projects_empty",
+  "projects_off",
+  "refine_failed",
+  "refusal_title",
+  "relate_lead",
+  "relate_none",
+  "retry",
+  "session_deleted",
+  "session_generating",
+  "session_undo_expired",
+  "session_untitled",
+  "sessions_empty",
+  "sessions_loading",
+  "sessions_off",
+  "sessions_search_ph",
+  "terms_capped",
+  "terms_loading",
+  "terms_streaming",
+  "thinking",
+  "undo_left",
+  "weekly_exhausted",
+];

@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import type { SessionSummary } from "@vock/shared";
-import { tr } from "../i18n/strings.js";
+import { useTr } from "../i18n/locale.js";
 
 export interface SessionListProps {
   items: SessionSummary[];
@@ -32,6 +32,7 @@ export function SessionList({
   onRestore,
   onMore,
 }: SessionListProps) {
+  const tr = useTr();
   // 방금 지운 것. 유예 안이면 되돌릴 수 있다(S-8).
   const [undo, setUndo] = useState<{ id: string; expired: boolean } | null>(null);
 

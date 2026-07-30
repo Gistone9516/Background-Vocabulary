@@ -1,7 +1,7 @@
 // 어휘 카드 목록. 상태를 읽어 그리기만 한다. 상한도 취소도 전부 machine.ts에 있다.
 
 import type { Prompt5In } from "@vock/shared";
-import { tr } from "../../i18n/strings.js";
+import { useTr } from "../../i18n/locale.js";
 import { TermDetail } from "./TermDetail.js";
 import type { DetailState } from "./detail-machine.js";
 import type { TermCard, TermsState } from "./types.js";
@@ -33,6 +33,7 @@ export function TermsScreen({
   onToggleKeep,
   onViewKept,
 }: TermsScreenProps) {
+  const tr = useTr();
   const items = "items" in state ? state.items : [];
   const streaming = state.phase === "streaming";
   const openId = "id" in detail ? detail.id : null;

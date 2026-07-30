@@ -1,7 +1,7 @@
 // 카드 상세 본문. 개념·내 상황·활용 3단과 출처를 보여 준다.
 // 출처가 비어 있으면 없다고 말한다. 지어내지 않는다.
 
-import { tr } from "../../i18n/strings.js";
+import { useTr } from "../../i18n/locale.js";
 import type { DetailState } from "./detail-machine.js";
 
 export interface TermDetailProps {
@@ -20,6 +20,7 @@ function steps(how: string): string[] {
 }
 
 export function TermDetail({ state, id, onRetry }: TermDetailProps) {
+  const tr = useTr();
   if (!("id" in state) || state.id !== id) return null;
 
   if (state.phase === "loading") {

@@ -2,11 +2,13 @@
 // 서버는 구조만 주고 본문은 여기서 만든다(FR-604). 그래야 형식이나 로케일을 바꿀 때
 // 서버를 다시 부르지 않고, 나중에 refined가 붙어도 같은 자리에서 흡수된다.
 
-import type { PrimerDoc, Term } from "@vock/shared";
+import type { OutputLocale, PrimerDoc, Term } from "@vock/shared";
 import { isApiError } from "../../api/index.js";
-import { tr } from "../../i18n/strings.js";
+import { trIn } from "../../i18n/strings.js";
 import { normTerm } from "./keep.js";
 
+// TODO(S-31): 아래 ASK와 section 라벨 5개는 아직 문자열 표 밖에 있다. 로케일을 받아도 붙여넣기
+// 본문의 라벨은 한국어로 남는다. 키 6개를 신설해 4개 언어를 채우는 것이 S-31의 남은 절반이다.
 const ASK = "아래 어휘는 이미 알고 있다고 두고 답해 주세요.";
 
 export type PrimerState =
@@ -21,8 +23,9 @@ function section(label: string, value: string | undefined): string[] {
 }
 
 // 담은 어휘만으로 만드는 무비용 정리. 서버를 부르지 않는다.
-export function buildBasicPrimer(args: { topic: string; condition?: string; kept: Term[] }): string {
-  if (args.kept.length === 0) return tr("kept_none");
+// 로케일을 인자로 받는다 — 이 파일은 React 밖이라 useTr()이 닿지 않는다(그런 자리가 전 저장소에 4곳뿐이다).
+export function buildBasicPrimer(args: { topic: string; condition?: string; kept: Term[]; locale: OutputLocale }): string {
+  if (args.kept.length === 0) return trIn(args.locale, "kept_none");
   return [
     ...section("하려는 일", args.topic),
     ...section("조건", args.condition),
@@ -61,9 +64,9 @@ export function primerKey(kept: Term[], condition: string): string {
 }
 
 // 요청 실패를 화면 상태로 옮긴다. pro 전용은 재시도할 일이 아니라 알릴 일이라 따로 가른다(P-6).
-export function primerFailure(e: unknown): PrimerState {
+export function primerFailure(e: unknown, locale: OutputLocale): PrimerState {
   if (isApiError(e) && e.kind === "pro_only") return { phase: "locked", message: e.message };
-  const message = isApiError(e) && "message" in e ? e.message : tr("refine_failed");
+  const message = isApiError(e) && "message" in e ? e.message : trIn(locale, "refine_failed");
   return { phase: "failed", message };
 }
 
@@ -71,7 +74,7 @@ export function primerFailure(e: unknown): PrimerState {
 // 이 분기를 화면에 두면 나중에 상태가 하나 늘 때 조용히 어긋난다. 여기 한 곳에만 둔다.
 export function primerBody(
   state: PrimerState | undefined,
-  args: { topic: string; condition?: string; kept: Term[] }
+  args: { topic: string; condition?: string; kept: Term[]; locale: OutputLocale }
 ): string {
   if (state?.phase === "ready") return buildPrimerText(state.doc, args.kept);
   return buildBasicPrimer(args);

@@ -1,6 +1,17 @@
 // UI 문구. v1 i18n.ts의 한국어 원문을 그대로 옮긴다(카피는 임의로 바꾸지 않는다).
-// 키만 먼저 잡고 값은 ko만 채운다. 4개 언어 전량 이식은 S5에서 한다.
-// 표시는 [v1] 원문 그대로, [신규] v2에서 새로 쓴 문구. 신규 문구는 사용자 확인 대상이다.
+// 표시는 [v1] 원문 그대로, [신규] v2에서 새로 쓴 문구.
+//
+// ko는 손으로 관리한다 — 아래 주석에 판단이 들어 있고, 생성으로 덮으면 그것이 사라진다.
+// en/ja/zh는 strings.{en,ja,zh}.ts 에 있고 port-i18n.mjs 가 생성한다. 그 파일들은 어느 문장이
+// v1 이식분이고 어느 것이 AI 작성분인지 [v1]/[AI]로 표시하며, 목록은 strings.origin.ts 가 센다.
+//
+// 키를 추가하면 세 파일이 전부 비어 tsc가 실패한다. 그것이 의도다(S-19) — 새 키가 한국어만
+// 채워진 채로 배포되는 경로를 타입이 막는다.
+
+import type { OutputLocale } from "@vock/shared";
+import { en } from "./strings.en.js";
+import { ja } from "./strings.ja.js";
+import { zh } from "./strings.zh.js";
 
 export const ko = {
   brand: "배경노트",
@@ -50,9 +61,6 @@ export const ko = {
   // [신규] 일시적 실패(스펙 D-7)
   retry: "다시 시도",
   err_network: "연결이 잠시 끊겼어요.",
-  // [신규] S2 확인 화면. S3에서 어휘 목록으로 교체된다
-  handoff_title: "여기까지 좁혔어요",
-  handoff_next: "어휘 생성은 다음 단계에서 붙습니다.",
 
   // 난이도 선택 [v1 원문]
   diff_eyebrow: "거의 다 왔어요",
@@ -142,9 +150,19 @@ export const ko = {
 
 export type StringKey = keyof typeof ko;
 
-// {n} 같은 자리표시자를 채운다. 값이 없으면 원문을 그대로 둔다.
-export function tr(key: StringKey, vars?: Record<string, string | number>): string {
-  const raw: string = ko[key];
+// 4개 언어 표. `Record<StringKey, string>`로 타이핑했으므로 **키 누락은 tsc가 막는다**(S-19).
+// 폴백 분기가 생길 자리를 타입으로 없앤 것이다 — 런타임 검사로 막으면 검사를 빠뜨린 경로가 남고,
+// 그 경로에서 조용히 한국어가 나온다. v1 t()가 `?? STRINGS.ko[key] ?? key`로 정확히 그랬다.
+// en/ja/zh는 packages/scripts/port-i18n.mjs 가 v1 원문과 스펙 초안표에서 생성한다.
+export const STRINGS: Record<OutputLocale, Record<StringKey, string>> = { ko, en, ja, zh };
+
+// {n} 같은 자리표시자를 채운다. 컴포넌트는 이걸 직접 부르지 않고 useTr()로 로케일을 받는다 —
+// 로케일을 인자로 넘겨야 하는 곳은 React 밖의 4곳뿐이다(App.tsx doneNotice, primer.ts 2곳).
+export function trIn(locale: OutputLocale, key: StringKey, vars?: Record<string, string | number>): string {
+  const raw = STRINGS[locale][key];
+  // 없는 키는 예외다(S-36). 타입상 도달 불가이고 캐스트나 동적 키로만 온다.
+  // 여기서 빈 문자열이나 ko를 돌려주면 S-19의 타입 강제가 이 구멍 하나로 무의미해진다.
+  if (raw === undefined) throw new Error(`문구 키가 없다: ${locale}.${String(key)}`);
   if (!vars) return raw;
   return raw.replace(/\{(\w+)\}/g, (m, name) => (name in vars ? String(vars[name]) : m));
 }

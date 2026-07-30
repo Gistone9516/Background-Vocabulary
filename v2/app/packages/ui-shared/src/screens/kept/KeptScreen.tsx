@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import type { Term } from "@vock/shared";
-import { tr } from "../../i18n/strings.js";
+import { useOutputLocale, useTr } from "../../i18n/locale.js";
 import { primerBody, type PrimerState } from "./primer.js";
 
 export interface KeptScreenProps {
@@ -28,8 +28,12 @@ export function KeptScreen({
   onHome,
   onRemove,
 }: KeptScreenProps) {
+  const tr = useTr();
   const [copied, setCopied] = useState<"idle" | "ok" | "fail">("idle");
-  const primer = primerBody(primerState, { topic, kept, ...(condition ? { condition } : {}) });
+  // 붙여넣기 본문은 UI 언어가 아니라 프라이머의 로케일을 따라야 한다(S-31). 서버 정리가 붙기
+  // 전(기본 정리)에는 참조할 doc이 없으므로 현재 선택 언어를 쓴다.
+  const { locale } = useOutputLocale();
+  const primer = primerBody(primerState, { topic, kept, locale, ...(condition ? { condition } : {}) });
 
   const copy = async () => {
     try {

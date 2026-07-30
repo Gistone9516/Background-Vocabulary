@@ -2,10 +2,10 @@
 // 목록은 OUTPUT_LOCALES에서 만든다. 여기에 배열을 다시 적으면 서버의 readLocale과 조용히 어긋난다.
 
 import { OUTPUT_LOCALES, type OutputLocale } from "@vock/shared";
-import { LOCALE_LABELS, useOutputLocale } from "../i18n/locale.js";
-import { tr } from "../i18n/strings.js";
+import { LOCALE_LABELS, useOutputLocale, useTr } from "../i18n/locale.js";
 
 export function LangSelect() {
+  const tr = useTr();
   const { locale, setLocale } = useOutputLocale();
   return (
     <select

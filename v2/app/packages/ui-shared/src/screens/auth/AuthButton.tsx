@@ -1,7 +1,7 @@
 // 로그인 버튼. client_id가 없으면 아예 그리지 않는다.
 // 없는 채로 버튼을 띄우면 눌러서 깨진다. 기능이 없는 것과 고장난 것은 다르다(스펙 A-2).
 
-import { tr } from "../../i18n/strings.js";
+import { useTr } from "../../i18n/locale.js";
 import type { AuthState } from "./useAuth.js";
 
 export interface AuthButtonProps {
@@ -12,6 +12,7 @@ export interface AuthButtonProps {
 }
 
 export function AuthButton({ state, available, onSignIn, onSignOut }: AuthButtonProps) {
+  const tr = useTr();
   if (!available) return null;
 
   if (state.phase === "exchanging") {

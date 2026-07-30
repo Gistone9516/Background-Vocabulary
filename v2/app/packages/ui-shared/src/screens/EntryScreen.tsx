@@ -4,9 +4,8 @@
 
 import { useMemo, useRef, useState } from "react";
 import type { OutputLocale } from "@vock/shared";
-import { tr } from "../i18n/strings.js";
 import { EXAMPLES, pickRandom } from "../i18n/examples.js";
-import { useOutputLocale } from "../i18n/locale.js";
+import { useOutputLocale, useTr } from "../i18n/locale.js";
 
 const FLOAT_NAMES = ["chipFloatA", "chipFloatB", "chipFloatC"];
 const CHIP_COUNT = 8;
@@ -47,6 +46,7 @@ export interface EntryScreenProps {
 }
 
 export function EntryScreen({ onSubmit, notice }: EntryScreenProps) {
+  const tr = useTr();
   const [input, setInput] = useState("");
   const [cond, setCond] = useState("");
   const [showCond, setShowCond] = useState(false);

@@ -3,7 +3,7 @@
 // 이전 탐색 목록은 주입받는다. 프로젝트 목록은 S5-2에서 같은 방식으로 붙는다.
 
 import { useState, type ReactNode } from "react";
-import { tr } from "../i18n/strings.js";
+import { useTr } from "../i18n/locale.js";
 import { LangSelect } from "./LangSelect.js";
 
 function MenuIcon() {
@@ -15,6 +15,7 @@ function MenuIcon() {
 }
 
 function Brand() {
+  const tr = useTr();
   return (
     <div className="brand">
       <span className="logo" style={{ background: "var(--grad)" }} aria-hidden="true" />
@@ -38,6 +39,7 @@ export interface AppShellProps {
 }
 
 export function AppShell({ children, sessions, projects, footer }: AppShellProps) {
+  const tr = useTr();
   const [drawerOpen, setDrawerOpen] = useState(false);
   return (
     <div className="appRoot">

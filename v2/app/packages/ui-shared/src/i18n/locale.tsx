@@ -8,6 +8,7 @@
 
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { OUTPUT_LOCALES, type OutputLocale } from "@vock/shared";
+import { trIn, type StringKey } from "./strings.js";
 
 // read가 null을 돌려주지 않는 것이 이 포트의 핵심이다. "값이 없으면 무엇" 이라는 판단을 구현 한 곳에
 // 가두어, 그 판단을 빠뜨린 호출부가 생길 자리를 없앤다.
@@ -60,4 +61,11 @@ export function useOutputLocale(): LocaleCtx {
   // 조용히 "ko"로 떨어지지 않는다. 그 폴백이 이번 슬라이스가 고치는 버그의 모양이다.
   if (!ctx) throw new Error("useOutputLocale은 LocaleProvider 안에서만 쓸 수 있다");
   return ctx;
+}
+
+// 현재 로케일에 묶인 문구 함수. 컴포넌트는 `const tr = useTr();` 한 줄만 추가하고 호출부는
+// 그대로 둔다 — 호출부가 103곳이라 시그니처를 바꾸면 그 전부가 diff에 들어온다.
+export function useTr(): (key: StringKey, vars?: Record<string, string | number>) => string {
+  const { locale } = useOutputLocale();
+  return useCallback((key: StringKey, vars?: Record<string, string | number>) => trIn(locale, key, vars), [locale]);
 }

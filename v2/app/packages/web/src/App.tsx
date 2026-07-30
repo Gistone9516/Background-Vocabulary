@@ -15,12 +15,14 @@ import {
   isKept as isKeptIn,
   keptList,
   toggleKeep,
-  tr,
+  trIn,
+  useTr,
   useDetail,
   useNarrow,
   usePreview,
   useProjects,
   useSessionSync,
+  useOutputLocale,
   limitsFor,
   resumeTarget,
   usePrimer,
@@ -34,13 +36,9 @@ import {
   type NarrowCtx,
   type TermCard,
 } from "@vock/ui-shared";
-import type { ClientLimits, RecommendInput, Tier } from "@vock/shared";
-import { useShellDeps } from "./deps.js";
+import type { ClientLimits, OutputLocale, RecommendInput, Tier } from "@vock/shared";
+import { useShellDeps, type ShellDeps } from "./deps.js";
 import { sidebarSlots } from "./Sidebar.js";
-
-// /config를 아직 못 받았을 때 쓰는 값. 서버가 정본이고 이건 첫 화면이 멈추지 않게 하는 임시값이다.
-const FALLBACK: NarrowConfig = { narrowMin: 3, narrowMax: 3, noRelationLabel: tr("relate_none") };
-const FALLBACK_MAX_TOTAL = 8;
 
 type Journey =
   | { at: "entry"; notice?: "weekly" }
@@ -51,15 +49,30 @@ type Journey =
   | { at: "refusal" };
 
 // 종료 사유 고지(S2 D-9). 사용자가 직접 끊은 경우와 내부 오류는 알리지 않는다.
-function doneNotice(reason: DoneReason): string | null {
-  if (reason === "enough") return tr("done_enough");
-  if (reason === "exhausted") return tr("done_exhausted");
+// 컴포넌트 밖이라 useTr()이 닿지 않는다. 로케일을 인자로 받는 것이 trIn이 존재하는 이유다.
+function doneNotice(locale: OutputLocale, reason: DoneReason): string | null {
+  if (reason === "enough") return trIn(locale, "done_enough");
+  if (reason === "exhausted") return trIn(locale, "done_exhausted");
   return null;
 }
 
+// 로케일 훅은 제공자 안에서만 유효하다. 그래서 제공자를 두는 컴포넌트와 그 훅을 쓰는 컴포넌트를
+// 가른다 — 한 컴포넌트가 자기 return 안에서 제공자를 만들고 자기 본문에서 useTr을 부르면,
+// 제공자가 아직 없는 상태로 훅이 돌아 useOutputLocale이 예외를 던진다. 타입은 이것을 못 잡는다.
 export function App() {
   // 저장소와 서버 통로는 플랫폼이 정한다. 여기서는 받아 쓰기만 한다(deps.ts).
-  const { api, tokens, locale } = useShellDeps();
+  const deps = useShellDeps();
+  return (
+    <LocaleProvider store={deps.locale}>
+      <AppBody deps={deps} />
+    </LocaleProvider>
+  );
+}
+
+function AppBody({ deps }: { deps: ShellDeps }) {
+  const { api, tokens } = deps;
+  const tr = useTr();
+  const { locale: loc } = useOutputLocale();
   const [limits, setLimits] = useState<ClientLimits | null>(null);
   const [journey, setJourney] = useState<Journey>({ at: "entry" });
 
@@ -214,67 +227,65 @@ export function App() {
 
   // 로케일 제공자가 셸 바깥이다. 헤더의 언어 선택과 진입 화면의 예시 칩이 같은 값을 읽는다.
   return (
-    <LocaleProvider store={locale}>
-      <AppShell
-        sessions={slots.sessions}
-        projects={slots.projects}
-        footer={
-          <AuthButton state={auth.state} available={auth.available} onSignIn={auth.signIn} onSignOut={auth.signOut} />
-        }
-      >
-        {journey.at === "entry" ? (
-          <EntryScreen onSubmit={submit} notice={journey.notice === "weekly" ? tr("weekly_exhausted") : null} />
-        ) : null}
+    <AppShell
+      sessions={slots.sessions}
+      projects={slots.projects}
+      footer={
+        <AuthButton state={auth.state} available={auth.available} onSignIn={auth.signIn} onSignOut={auth.signOut} />
+      }
+    >
+      {journey.at === "entry" ? (
+        <EntryScreen onSubmit={submit} notice={journey.notice === "weekly" ? tr("weekly_exhausted") : null} />
+      ) : null}
 
-        {journey.at === "narrow" ? <NarrowScreen state={narrow.state} cfg={cfg} send={narrow.send} /> : null}
+      {journey.at === "narrow" ? <NarrowScreen state={narrow.state} cfg={cfg} send={narrow.send} /> : null}
 
-        {journey.at === "difficulty" ? (
-          <DifficultyScreen preview={preview} notice={doneNotice(journey.reason)} onPick={pickDifficulty} />
-        ) : null}
+      {journey.at === "difficulty" ? (
+        <DifficultyScreen preview={preview} notice={doneNotice(loc, journey.reason)} onPick={pickDifficulty} />
+      ) : null}
 
-        {journey.at === "terms" ? (
-          <TermsScreen
-            state={terms.state}
-            detail={detail.state}
-            detailInputOf={detailInput}
-            onToggleDetail={detail.toggle}
-            onRetryDetail={detail.retry}
-            isKept={(term) => isKeptIn(kept, term)}
-            keptCount={kept.size}
-            onToggleKeep={toggleKept}
-            onViewKept={() => setJourney({ at: "kept" })}
-          />
-        ) : null}
+      {journey.at === "terms" ? (
+        <TermsScreen
+          state={terms.state}
+          detail={detail.state}
+          detailInputOf={detailInput}
+          onToggleDetail={detail.toggle}
+          onRetryDetail={detail.retry}
+          isKept={(term) => isKeptIn(kept, term)}
+          keptCount={kept.size}
+          onToggleKeep={toggleKept}
+          onViewKept={() => setJourney({ at: "kept" })}
+        />
+      ) : null}
 
-        {journey.at === "kept" ? (
-          <KeptScreen
-            kept={keptTerms}
-            topic={lastCtx.current?.topic ?? ""}
-            condition={lastCtx.current?.cond ?? ""}
-            primerState={primer.state}
-            onRefine={() =>
-              primer.request({
-                area: lastCtx.current?.classifyOut.domain ?? "",
-                jobType: lastCtx.current?.classifyOut.job_type ?? [],
-                kept: keptTerms,
-                condition: lastCtx.current?.cond ?? "",
-              })
-            }
-            onBackToTerms={() => setJourney({ at: "terms" })}
-            onHome={home}
-            onRemove={(t) => setKept((prev) => toggleKeep(prev, t))}
-          />
-        ) : null}
+      {journey.at === "kept" ? (
+        <KeptScreen
+          kept={keptTerms}
+          topic={lastCtx.current?.topic ?? ""}
+          condition={lastCtx.current?.cond ?? ""}
+          primerState={primer.state}
+          onRefine={() =>
+            primer.request({
+              area: lastCtx.current?.classifyOut.domain ?? "",
+              jobType: lastCtx.current?.classifyOut.job_type ?? [],
+              kept: keptTerms,
+              condition: lastCtx.current?.cond ?? "",
+            })
+          }
+          onBackToTerms={() => setJourney({ at: "terms" })}
+          onHome={home}
+          onRemove={(t) => setKept((prev) => toggleKeep(prev, t))}
+        />
+      ) : null}
 
-        {journey.at === "refusal" ? (
-          <main className="scroll pad screenIn">
-            <h2>{tr("refusal_title")}</h2>
-            <button className="btn btn-ghost" style={{ marginTop: "1rem" }} onClick={home}>
-              {tr("refusal_home")}
-            </button>
-          </main>
-        ) : null}
-      </AppShell>
-    </LocaleProvider>
+      {journey.at === "refusal" ? (
+        <main className="scroll pad screenIn">
+          <h2>{tr("refusal_title")}</h2>
+          <button className="btn btn-ghost" style={{ marginTop: "1rem" }} onClick={home}>
+            {tr("refusal_home")}
+          </button>
+        </main>
+      ) : null}
+    </AppShell>
   );
 }
