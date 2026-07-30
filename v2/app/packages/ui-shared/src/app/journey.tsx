@@ -14,6 +14,8 @@ import { sidebarSlots } from "./sidebar-slots.js";
 import type { ShellDeps } from "./shell-deps.js";
 import { AuthButton, useAuth } from "../screens/auth/index.js";
 import { EntryScreen } from "../screens/EntryScreen.js";
+import { RefusalScreen } from "../screens/RefusalScreen.js";
+import { doneNotice, type Journey } from "./journey-state.js";
 import { NarrowScreen, useNarrow } from "../screens/narrow/index.js";
 import type { DoneReason, NarrowConfig, NarrowCtx } from "../screens/narrow/index.js";
 import { DifficultyScreen, usePreview } from "../screens/difficulty/index.js";
@@ -28,22 +30,6 @@ import { limitsFor } from "../api/index.js";
 import { useShellBridge } from "./shell-bridge.js";
 import { useProjects, useSessionSync, resumeTarget } from "../session/index.js";
 import type { ClientLimits, OutputLocale, RecommendInput, Tier } from "@vock/shared";
-
-type Journey =
-  | { at: "entry"; notice?: "weekly" }
-  | { at: "narrow" }
-  | { at: "difficulty"; ctx: NarrowCtx; reason: DoneReason }
-  | { at: "terms" }
-  | { at: "kept" }
-  | { at: "refusal" };
-
-// 종료 사유 고지(S2 D-9). 사용자가 직접 끊은 경우와 내부 오류는 알리지 않는다.
-// 컴포넌트 밖이라 useTr()이 닿지 않는다. 로케일을 인자로 받는 것이 trIn이 존재하는 이유다.
-function doneNotice(locale: OutputLocale, reason: DoneReason): string | null {
-  if (reason === "enough") return trIn(locale, "done_enough");
-  if (reason === "exhausted") return trIn(locale, "done_exhausted");
-  return null;
-}
 
 // 로케일 훅은 제공자 안에서만 유효하다. 그래서 제공자를 두는 컴포넌트와 그 훅을 쓰는 컴포넌트를
 // 가른다 — 한 컴포넌트가 자기 return 안에서 제공자를 만들고 자기 본문에서 useTr을 부르면,
@@ -168,9 +154,9 @@ function AppBody({ deps }: { deps: ShellDeps }) {
   const preview = usePreview(api, journey.at === "difficulty" ? journey.ctx : null);
 
   const submit = useCallback(
-    (input: string, condition: string) => {
+    (input: string, condition: string, context?: string) => {
       setJourney({ at: "narrow" });
-      narrow.send({ t: "submit", sessionId: crypto.randomUUID(), raw: input, cond: condition });
+      narrow.send({ t: "submit", sessionId: crypto.randomUUID(), raw: input, cond: condition, ...(context ? { context } : {}) });
     },
     [narrow]
   );
@@ -191,6 +177,8 @@ function AppBody({ deps }: { deps: ShellDeps }) {
         domain_risk: c.classifyOut.domain_risk,
         difficulty: d, // 추천 전체가 이 깊이로 생성된다(Prompt3In)
         ...(c.cond ? { user_condition: c.cond } : {}),
+        // 첨부 맥락(FR-901). v1 선례대로 classify·next와 같은 텍스트를 recommend에도 싣는다.
+        ...(c.context ? { context_object: c.context } : {}),
       };
       setJourney({ at: "terms" });
       terms.send({ t: "start", input, append: false });
@@ -243,7 +231,13 @@ function AppBody({ deps }: { deps: ShellDeps }) {
       }
     >
       {journey.at === "entry" ? (
-        <EntryScreen onSubmit={submit} notice={journey.notice === "weekly" ? tr("weekly_exhausted") : null} />
+        <EntryScreen
+          onSubmit={submit}
+          notice={journey.notice === "weekly" ? tr("weekly_exhausted") : null}
+          // 잠금 표시와 서버 판정이 같은 값(attachRequiresPro)에서 나온다(DS4-3).
+          attachLocked={(limits?.attachRequiresPro ?? true) && tier !== "paid"}
+          {...(limits ? { maxContextChars: limits.maxContextChars } : {})}
+        />
       ) : null}
 
       {journey.at === "narrow" ? <NarrowScreen state={narrow.state} cfg={cfg} send={narrow.send} /> : null}
@@ -286,14 +280,7 @@ function AppBody({ deps }: { deps: ShellDeps }) {
         />
       ) : null}
 
-      {journey.at === "refusal" ? (
-        <main className="scroll pad screenIn">
-          <h2>{tr("refusal_title")}</h2>
-          <button className="btn btn-ghost" style={{ marginTop: "1rem" }} onClick={home}>
-            {tr("refusal_home")}
-          </button>
-        </main>
-      ) : null}
+      {journey.at === "refusal" ? <RefusalScreen onHome={home} /> : null}
     </AppShell>
   );
 }

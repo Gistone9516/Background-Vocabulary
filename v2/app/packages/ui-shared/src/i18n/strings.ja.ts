@@ -8,6 +8,12 @@ import type { StringKey } from "./strings.js";
 
 export const ja: Record<StringKey, string> = {
   ai_extra: "AIでさらに整理", // [v1]
+  attach: "ファイルを添付 (pro)", // [v1]
+  attach_pro_note: "ファイル添付はpro機能です。", // [v1]
+  attach_remove: "添付を削除", // [v1]
+  attach_short: "+ ファイル", // [v1]
+  attach_texterr: "テキストファイルのみ添付できます。", // [v1]
+  attach_truncated: "文書が長いため先頭部分のみ取り込みました。", // [v1]
   auth_sign_in: "Google でログイン", // [AI]
   auth_sign_out: "ログアウト", // [AI]
   auth_signing_in: "ログイン中…", // [AI]
@@ -83,6 +89,7 @@ export const ja: Record<StringKey, string> = {
   nav_projects: "プロジェクト", // [v1]
   nav_sessions: "過去の探索", // [v1]
   next: "次へ", // [AI]
+  offline_notice: "オフラインです — 最後に保存された一覧を表示しています。", // [AI]
   paste_head: "メインAIに貼り付け（任意）", // [v1]
   paste_sub: "これをコピーしてChatGPTやClaudeなどのメインAIに貼り付けると、これらの語彙をすでに知っている文脈として扱い、用語の説明ではなく作業そのものを手伝ってくれます。", // [v1]
   primer_area: "分野", // [v1]
@@ -113,7 +120,6 @@ export const ja: Record<StringKey, string> = {
   sessions_loading: "読み込み中…", // [AI]
   sessions_more: "もっと見る", // [v1]
   sessions_off: "ログインすると探索が保存されます。", // [AI]
-  offline_notice: "オフラインです — 最後に保存された一覧を表示しています。", // [AI]
   sessions_search_ph: "探索を検索", // [AI]
   shuffle: "別の例", // [v1]
   terms_capped: "今回の探索で入れられる分はすべて埋まりました。", // [AI]

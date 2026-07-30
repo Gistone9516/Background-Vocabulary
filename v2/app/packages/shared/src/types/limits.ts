@@ -26,6 +26,10 @@ export interface Limits {
   ratePerDay: number; // IP당 일일 요청 상한
   // 붙여넣은 문서(context_object) 전용 큰 상한. 일반 입력(maxInputChars)보다 길게 허용한다(pro 파일 첨부).
   maxContextChars: number;
+  // 파일 첨부(context_object) 티어 게이트(C4 S4 DS4-3). true = pro 전용(v1 참고 기본값).
+  // **정본은 C5 결제 재설계다(TR-06 "참고 기본값")** — 그래서 코드에 박지 않고 env로 덮는 이 자리에 둔다.
+  // 서버 게이팅과 /config(클라 잠금 표시)가 같은 값을 읽어 판정과 화면이 갈라질 수 없다.
+  attachRequiresPro: boolean;
 }
 
 export const DEFAULT_LIMITS: Limits = {
@@ -48,6 +52,7 @@ export const DEFAULT_LIMITS: Limits = {
   ratePerMin: 20,
   ratePerDay: 200,
   maxContextChars: 12000,
+  attachRequiresPro: true,
 };
 
 // 서버가 클라이언트에게 알려 주는 설정. /config 응답 형태.
@@ -64,4 +69,5 @@ export interface ClientLimits {
   maxTotal: { free: number; paid: number }; // 어휘 카드 누적 상한(티어별)
   groupGen: { free: number; paid: number }; // 그룹별 추가 생성 개수(티어별)
   maxContextChars: number; // 첨부 문서 텍스트를 클라가 이 길이로 잘라 보낸다.
+  attachRequiresPro: boolean; // 첨부 잠금 표시용(C4 S4). 판정은 서버 게이팅이 같은 값으로 한다.
 }

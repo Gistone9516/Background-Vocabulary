@@ -41,6 +41,10 @@ pub fn run() {
     .plugin(tauri_plugin_opener::init())
     // store: 오프라인 캐시 JSON(C4 S3, FR-902).
     .plugin(tauri_plugin_store::Builder::new().build())
+    // global-shortcut: 퀵 캡처(C4 S4, FR-903). **핸들러가 Rust에 있는 이유(실측)**: 처음 JS에
+    // 뒀더니 최소화된 웹뷰를 WebView2가 스로틀링해 이벤트가 지연·유실됐다 — 창이 최소화됐을 때
+    // 깨우는 기능을 웹뷰에 두면 자기모순이다. 창 show·focus는 판정이 아니라 배관이다(D-8).
+    .plugin(tauri_plugin_global_shortcut::Builder::new().build())
     .invoke_handler(tauri::generate_handler![secret_get, secret_set, secret_delete])
     .setup(|app| {
       if cfg!(debug_assertions) {
@@ -49,6 +53,23 @@ pub fn run() {
             .level(log::LevelFilter::Info)
             .build(),
         )?;
+      }
+      {
+        use tauri::Manager;
+        use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+        // 등록 실패(다른 앱 선점, Wayland 미지원)는 경고로 강등하고 앱은 그대로 돈다(D-11).
+        if let Err(err) = app.handle().global_shortcut().on_shortcut("CommandOrControl+Shift+K", |app, _shortcut, event| {
+          if event.state() == ShortcutState::Pressed {
+            if let Some(w) = app.get_webview_window("main") {
+              // 순서가 동작이다: 최소화 해제 → 표시 → 포커스. 하나가 실패해도 나머지는 시도한다.
+              let _ = w.unminimize();
+              let _ = w.show();
+              let _ = w.set_focus();
+            }
+          }
+        }) {
+          log::warn!("퀵 캡처 단축키 등록 실패 — 이 환경에서는 제공되지 않는다(D-11 강등): {err}");
+        }
       }
       Ok(())
     })

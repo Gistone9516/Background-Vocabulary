@@ -8,6 +8,12 @@ import type { StringKey } from "./strings.js";
 
 export const zh: Record<StringKey, string> = {
   ai_extra: "用 AI 进一步整理", // [v1]
+  attach: "附加文件 (pro)", // [v1]
+  attach_pro_note: "文件附加是 pro 功能。", // [v1]
+  attach_remove: "移除附件", // [v1]
+  attach_short: "+ 文件", // [v1]
+  attach_texterr: "只能附加文本文件。", // [v1]
+  attach_truncated: "文档较长，仅保留了开头部分。", // [v1]
   auth_sign_in: "使用 Google 登录", // [AI]
   auth_sign_out: "退出登录", // [AI]
   auth_signing_in: "登录中…", // [AI]
@@ -83,6 +89,7 @@ export const zh: Record<StringKey, string> = {
   nav_projects: "项目", // [v1]
   nav_sessions: "历史探索", // [v1]
   next: "下一步", // [AI]
+  offline_notice: "当前处于离线状态 — 显示最后保存的列表。", // [AI]
   paste_head: "粘贴到主 AI（可选）", // [v1]
   paste_sub: "复制后粘贴到 ChatGPT、Claude 等主 AI，它会把这些词汇当作你已经了解的背景，直接帮你推进工作，而不是再解释一遍。", // [v1]
   primer_area: "领域", // [v1]
@@ -113,7 +120,6 @@ export const zh: Record<StringKey, string> = {
   sessions_loading: "加载中…", // [AI]
   sessions_more: "更多", // [v1]
   sessions_off: "登录后即可保存探索。", // [AI]
-  offline_notice: "当前处于离线状态 — 显示最后保存的列表。", // [AI]
   sessions_search_ph: "搜索探索", // [AI]
   shuffle: "换一批", // [v1]
   terms_capped: "本次探索能装的已经装满了。", // [AI]

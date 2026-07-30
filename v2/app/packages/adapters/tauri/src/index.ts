@@ -3,3 +3,5 @@
 export { tauriTokenStore } from "./token-store.js";
 export { tauriAuthFlow } from "./auth-flow.js";
 export { tauriOfflineStore } from "./offline-store.js";
+// 퀵 캡처(FR-903)는 JS가 아니라 src-tauri(lib.rs)에 있다 — 최소화된 웹뷰는 스로틀링돼
+// 이벤트가 유실된다(실측). 여기에는 그 흔적만 남긴다.

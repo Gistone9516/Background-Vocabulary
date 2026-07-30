@@ -17,6 +17,8 @@ export interface NarrowCtx {
   sessionId: string;
   topic: string; // 사용자가 처음 적은 문장. 뒤 단계가 앵커 회피와 캐시 키에 쓴다
   cond: string;
+  // 첨부 문서 텍스트(FR-901, C4 S4). classify·next·recommend에 실리고 세션으로 왕복한다(DS4-4).
+  context?: string;
   classifyOut: Prompt1Out;
   firstQuestion: Question; // 되돌리기가 돌아갈 지점
   answers: AnswerTurn[];
@@ -38,12 +40,12 @@ export type DoneReason = "enough" | "exhausted" | "user_jump" | "malformed";
 
 // 실패 후 무엇을 다시 부를지. 재시도가 가능하려면 원래 요청을 복원할 수 있어야 한다.
 export type RetryOf =
-  | { kind: "classify"; sessionId: string; raw: string; cond: string }
+  | { kind: "classify"; sessionId: string; raw: string; cond: string; context?: string }
   | { kind: "next"; ctx: NarrowCtx; question: Question };
 
 export type NarrowState =
   | { phase: "idle" }
-  | { phase: "classifying"; runId: number; sessionId: string; raw: string; cond: string }
+  | { phase: "classifying"; runId: number; sessionId: string; raw: string; cond: string; context?: string }
   // connect가 있으면 이 질문은 연결 턴이고, 답하면 그 사유로 좁히기가 끝난다(S5 S-11).
   // 별도 phase를 만들지 않는 이유: 선택·직접입력 처리가 똑같아서 복제하면 두 벌이 된다.
   | { phase: "asking"; runId: number; ctx: NarrowCtx; question: Question; picks: Picks; connect?: DoneReason }
@@ -54,7 +56,7 @@ export type NarrowState =
   | { phase: "done"; ctx: NarrowCtx; reason: DoneReason };
 
 export type NarrowEvent =
-  | { t: "submit"; sessionId: string; raw: string; cond: string }
+  | { t: "submit"; sessionId: string; raw: string; cond: string; context?: string }
   // 저장된 세션 이어하기(S5 S-6). /classify를 다시 부르지 않으므로 ctx를 통째로 받는다.
   | { t: "resume"; ctx: NarrowCtx; question: Question }
   | { t: "classified"; runId: number; out: Prompt1Out }

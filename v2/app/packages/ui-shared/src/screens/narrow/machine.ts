@@ -31,8 +31,8 @@ function toHistory(answers: AnswerTurn[]): { label: string; action: "선택" }[]
   return out;
 }
 
-function classifyIn(raw: string, cond: string): Prompt1In {
-  return { raw_input: raw, ...(cond ? { user_condition: cond } : {}) };
+function classifyIn(raw: string, cond: string, context?: string): Prompt1In {
+  return { raw_input: raw, ...(cond ? { user_condition: cond } : {}), ...(context ? { context_object: context } : {}) };
 }
 
 function nextIn(ctx: NarrowCtx): Prompt2In {
@@ -41,6 +41,7 @@ function nextIn(ctx: NarrowCtx): Prompt2In {
     job_type: ctx.classifyOut.job_type ?? [],
     history: toHistory(ctx.answers),
     ...(ctx.cond ? { user_condition: ctx.cond } : {}),
+    ...(ctx.context ? { context_object: ctx.context } : {}),
     ...(ctx.simplify ? { simplify: true } : {}),
   };
 }
@@ -107,8 +108,8 @@ export function reduce(s: NarrowState, e: NarrowEvent, cfg: NarrowConfig): [Narr
       if (s.phase === "classifying") return [s, NONE];
       const runId = liveRun(s) + 1;
       return [
-        { phase: "classifying", runId, sessionId: e.sessionId, raw: e.raw, cond: e.cond },
-        [{ c: "callClassify", runId, input: classifyIn(e.raw, e.cond) }],
+        { phase: "classifying", runId, sessionId: e.sessionId, raw: e.raw, cond: e.cond, ...(e.context ? { context: e.context } : {}) },
+        [{ c: "callClassify", runId, input: classifyIn(e.raw, e.cond, e.context) }],
       ];
     }
 
@@ -123,6 +124,7 @@ export function reduce(s: NarrowState, e: NarrowEvent, cfg: NarrowConfig): [Narr
         sessionId: s.sessionId,
         topic: s.raw,
         cond: s.cond,
+        ...(s.context ? { context: s.context } : {}),
         classifyOut: e.out,
         firstQuestion: first,
         answers: [],
@@ -225,7 +227,7 @@ export function reduce(s: NarrowState, e: NarrowEvent, cfg: NarrowConfig): [Narr
       if (s.phase === "classifying") {
         if (nav) return [{ phase: "idle" }, nav];
         return [
-          { phase: "failed", runId: s.runId, error: e.error, retryOf: { kind: "classify", sessionId: s.sessionId, raw: s.raw, cond: s.cond } },
+          { phase: "failed", runId: s.runId, error: e.error, retryOf: { kind: "classify", sessionId: s.sessionId, raw: s.raw, cond: s.cond, ...(s.context ? { context: s.context } : {}) } },
           NONE,
         ];
       }
@@ -244,10 +246,10 @@ export function reduce(s: NarrowState, e: NarrowEvent, cfg: NarrowConfig): [Narr
       if (s.phase !== "failed") return [s, NONE];
       const runId = s.runId + 1;
       if (s.retryOf.kind === "classify") {
-        const { sessionId, raw, cond } = s.retryOf;
+        const { sessionId, raw, cond, context } = s.retryOf;
         return [
-          { phase: "classifying", runId, sessionId, raw, cond },
-          [{ c: "callClassify", runId, input: classifyIn(raw, cond) }],
+          { phase: "classifying", runId, sessionId, raw, cond, ...(context ? { context } : {}) },
+          [{ c: "callClassify", runId, input: classifyIn(raw, cond, context) }],
         ];
       }
       const { ctx, question } = s.retryOf;

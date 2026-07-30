@@ -2,8 +2,18 @@
 // tier·outputLocale는 C1에서 요청 바디로 받는다(인증 기반 판정은 C2 게이팅에서 대체).
 
 import type { Hono } from "hono";
-import type { Pipeline, OutputLocale, Tier } from "@vock/shared";
+import type { Limits, Pipeline, OutputLocale, Tier } from "@vock/shared";
+import { DEFAULT_LIMITS } from "@vock/shared";
 import { streamEventsToResponse } from "../sse-response.js";
+
+// 서버 측 context 절단(C4 S4 DS4-2). maxContextChars는 "보안 하드닝" 주석을 달고도 강제 지점이
+// 0곳이었다(실측) — 클라 절단은 UX지 하드닝이 아니다. 거부가 아니라 절단인 이유: 정직하게 잘라
+// 보낸 클라와 같은 결과가 되어야 정직한 클라와 악의적 클라의 출력이 같아진다.
+export function clampContext(body: Body, max: number): Body {
+  const v = body.context_object;
+  if (typeof v !== "string" || v.length <= max) return body;
+  return { ...body, context_object: v.slice(0, max) };
+}
 
 function readLocale(body: { outputLocale?: unknown }): OutputLocale {
   const v = body.outputLocale;
@@ -42,14 +52,16 @@ async function mergeProjectExclude(body: Body, userId: string | null, dedup?: Pr
 
 export type ProjectDedup = (userId: string, sessionId: string) => Promise<string[]>;
 
-export function registerPipelineRoutes(app: Hono, pipeline: Pipeline, dedup?: ProjectDedup): void {
+export function registerPipelineRoutes(app: Hono, pipeline: Pipeline, dedup?: ProjectDedup, limits?: Limits): void {
+  const maxCtx = (limits ?? DEFAULT_LIMITS).maxContextChars;
+
   app.post("/classify", async (c) => {
-    const body = (await c.req.json()) as Body;
+    const body = clampContext((await c.req.json()) as Body, maxCtx);
     return c.json(await pipeline.classify(body as never, readLocale(body)));
   });
 
   app.post("/next", async (c) => {
-    const body = (await c.req.json()) as Body;
+    const body = clampContext((await c.req.json()) as Body, maxCtx);
     return c.json(await pipeline.nextBranch(body as never, readLocale(body)));
   });
 
@@ -64,7 +76,7 @@ export function registerPipelineRoutes(app: Hono, pipeline: Pipeline, dedup?: Pr
   });
 
   app.post("/recommend", async (c) => {
-    const body = (await c.req.json()) as Body;
+    const body = clampContext((await c.req.json()) as Body, maxCtx);
     // FR-706 dedup은 서버 책임이다(SoT §3-3). 클라가 보낸 exclude에 프로젝트 어휘를 기대하지 않는다 —
     // 클라에 맡기면 그것을 빠뜨린 호출자마다 중복이 나온다.
     const merged = await mergeProjectExclude(body, userIdOf(c), dedup);
@@ -79,7 +91,8 @@ export function registerPipelineRoutes(app: Hono, pipeline: Pipeline, dedup?: Pr
   });
 
   app.post("/summarize", async (c) => {
-    const body = (await c.req.json()) as Body;
+    // Prompt4In도 context_object를 받으므로 같은 절단을 태운다 — 필드가 있는 곳이 절단 대상이다.
+    const body = clampContext((await c.req.json()) as Body, maxCtx);
     return c.json(await pipeline.summarize(body as never, readLocale(body)));
   });
 }

@@ -8,6 +8,12 @@ import type { StringKey } from "./strings.js";
 
 export const en: Record<StringKey, string> = {
   ai_extra: "Refine further with AI", // [v1]
+  attach: "Attach file (pro)", // [v1]
+  attach_pro_note: "File attachment is a pro feature.", // [v1]
+  attach_remove: "Remove attachment", // [v1]
+  attach_short: "+ File", // [v1]
+  attach_texterr: "Only text files can be attached.", // [v1]
+  attach_truncated: "The document was long, so only the beginning was kept.", // [v1]
   auth_sign_in: "Sign in with Google", // [AI]
   auth_sign_out: "Sign out", // [AI]
   auth_signing_in: "Signing in…", // [AI]
@@ -83,6 +89,7 @@ export const en: Record<StringKey, string> = {
   nav_projects: "Projects", // [v1]
   nav_sessions: "Previous explorations", // [AI]
   next: "Next", // [AI]
+  offline_notice: "You're offline — showing the last saved list.", // [AI]
   paste_head: "Paste into your main AI (optional)", // [v1]
   paste_sub: "Copy this and paste it into a main AI like ChatGPT or Claude. It treats these terms as context you already know and helps with your work directly, instead of re-explaining them.", // [v1]
   primer_area: "Field", // [v1]
@@ -113,7 +120,6 @@ export const en: Record<StringKey, string> = {
   sessions_loading: "Loading…", // [AI]
   sessions_more: "More", // [v1]
   sessions_off: "Sign in to save your explorations.", // [AI]
-  offline_notice: "You're offline — showing the last saved list.", // [AI]
   sessions_search_ph: "Search explorations", // [AI]
   shuffle: "Other examples", // [v1]
   terms_capped: "That's all this exploration can hold.", // [AI]

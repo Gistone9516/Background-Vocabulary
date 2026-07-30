@@ -20,6 +20,7 @@ export type { Resume, SnapshotArgs, SessionListState, UseSessionSyncOptions, Use
 export type { OfflineStore, CachedList } from "./session/offline-store.js";
 export { withOfflineCache } from "./api/offline-cache.js";
 export { EntryScreen } from "./screens/EntryScreen.js";
+export { RefusalScreen } from "./screens/RefusalScreen.js";
 export type { EntryScreenProps } from "./screens/EntryScreen.js";
 // 문구. 컴포넌트는 useTr()로, React 밖은 trIn(locale, key)로 쓴다. ko 전용 함수는 없다 —
 // 있으면 로케일을 안 넘긴 호출부가 조용히 한국어를 띄운다(S-32와 같은 이유).

@@ -8,5 +8,8 @@
     "@vock/providers": "workspace:*",
     "@vock/shared": "workspace:*",
     "@vock/ui-shared": "workspace:*"
+  },
+  "dependencies": {
+    "@vock/http-app": "workspace:*"
   }
 }

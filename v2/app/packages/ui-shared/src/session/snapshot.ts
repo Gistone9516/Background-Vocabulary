@@ -26,6 +26,8 @@ export function fromSnapshot(rec: SessionRec, snap: NarrowSnap): NarrowCtx {
     sessionId: rec.session_id,
     topic: rec.topic,
     cond: rec.user_condition ?? "",
+    // 첨부 맥락 복원(C4 S4 DS4-4). 재개 후 첨부가 사라지면 이어하기가 다른 탐색이 된다.
+    ...(rec.context_object ? { context: rec.context_object } : {}),
     classifyOut: snap.classify,
     firstQuestion: { question: snap.classify.question, choices: snap.classify.choices },
     answers: snap.answers,
@@ -66,7 +68,7 @@ export function toSessionRec(args: SnapshotArgs): SessionDraft {
     job_type: c.job_type,
     user_condition: ctx.cond || null,
     gap_type: prev?.gap_type ?? null,
-    context_object: prev?.context_object ?? null,
+    context_object: ctx.context ?? prev?.context_object ?? null,
     narrow: args.narrow,
     generated: args.generated ?? prev?.generated ?? null,
     // 프라이머는 /summarize가 채우는 서버 정본이다. 여기서 만들지 않고 있던 것을 지키기만 한다.

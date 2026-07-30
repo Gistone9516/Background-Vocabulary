@@ -1,11 +1,16 @@
 // 진입 화면. v1 사이드패널의 마크업과 클래스를 그대로 옮겼다(디자인 변경 없음).
-// 파일 첨부와 주간 잔여 안내는 pro 상태와 게이팅이 붙는 뒤 슬라이스에서 살린다.
-// 제출은 주입된 콜백으로 넘긴다. 실제 classify 호출 연결은 S2에서 한다.
+// 파일 첨부는 C4 S4에서 살렸다(FR-901) — 웹 표준(File·drop)만 쓰므로 웹·데스크톱 화면 한 벌이다.
+// 잠금 여부(attachLocked)는 /config의 attachRequiresPro에서 온다. 판정은 서버가 같은 값으로 한다.
+// 제출은 주입된 콜백으로 넘긴다.
 
 import { useMemo, useRef, useState } from "react";
 import type { OutputLocale } from "@vock/shared";
 import { EXAMPLES, pickRandom } from "../i18n/examples.js";
 import { useOutputLocale, useTr } from "../i18n/locale.js";
+import { toAttached, type AttachedFile } from "./attach.js";
+
+// v1 App.tsx의 FILE_ACCEPT 계승 — isTextFile 정규식보다 좁은 것이 의도다(선택 대화상자 필터).
+const FILE_ACCEPT = "text/*,.txt,.md,.markdown,.csv,.json,.yml,.yaml,.xml,.html,.log,.tex";
 
 const FLOAT_NAMES = ["chipFloatA", "chipFloatB", "chipFloatC"];
 const CHIP_COUNT = 8;
@@ -42,17 +47,42 @@ function RefreshIcon() {
 export interface EntryScreenProps {
   // 진입으로 되돌려 보낸 이유(주간 소진 등). 화면 바깥에 두면 여백을 못 받아 잘린다.
   notice?: string | null;
-  onSubmit?: (input: string, condition: string) => void;
+  // 파일 첨부(FR-901). attachLocked = 잠금 표시(v1 감사 c-1-3 반영 — 잠긴 것이 보이는 게
+  // 안 보이다가 페이월로 튀는 것보다 낫다). maxContextChars = /config 값(클라 절단은 UX,
+  // 서버가 같은 값으로 다시 자른다 — DS4-2).
+  attachLocked?: boolean;
+  maxContextChars?: number;
+  onSubmit?: (input: string, condition: string, context?: string) => void;
 }
 
-export function EntryScreen({ onSubmit, notice }: EntryScreenProps) {
+export function EntryScreen({ onSubmit, notice, attachLocked, maxContextChars }: EntryScreenProps) {
   const tr = useTr();
   const [input, setInput] = useState("");
   const [cond, setCond] = useState("");
   const [showCond, setShowCond] = useState(false);
   const [inputErr, setInputErr] = useState(false);
   const [chipSeed, setChipSeed] = useState(0);
+  const [attached, setAttached] = useState<AttachedFile | null>(null);
+  // 고지 한 줄: 텍스트 아님(texterr) / 잘림(truncated) / 잠김 안내(pro_note). 마지막 것만 남긴다.
+  const [attachNote, setAttachNote] = useState<"attach_texterr" | "attach_truncated" | "attach_pro_note" | null>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const acceptFile = async (f: File) => {
+    if (attachLocked) {
+      setAttachNote("attach_pro_note");
+      return;
+    }
+    // /config가 아직 안 왔으면 클라 절단(UX 고지)을 생략한다 — 하드닝은 서버가 같은 값으로 한다
+    // (DS4-2). 여기 수치를 박으면 env를 바꾸는 순간 조용히 거짓이 된다(L-4와 같은 이유).
+    const a = await toAttached(f, maxContextChars ?? Infinity);
+    if (!a) {
+      setAttachNote("attach_texterr");
+      return;
+    }
+    setAttached(a);
+    setAttachNote(a.truncated ? "attach_truncated" : null);
+  };
 
   // locale이 deps에 없으면 언어를 바꿔도 칩이 그대로 남는다(v1도 [loc, chipSeed]였다).
   const { locale } = useOutputLocale();
@@ -76,7 +106,7 @@ export function EntryScreen({ onSubmit, notice }: EntryScreenProps) {
       return;
     }
     setInputErr(false);
-    onSubmit?.(text, cond.trim());
+    onSubmit?.(text, cond.trim(), attached?.text);
   };
 
   const useChip = (text: string) => {
@@ -87,7 +117,18 @@ export function EntryScreen({ onSubmit, notice }: EntryScreenProps) {
   };
 
   return (
-    <main className="scroll entryMain screenIn" style={{ position: "relative" }}>
+    <main
+      className="scroll entryMain screenIn"
+      style={{ position: "relative" }}
+      // HTML5 드롭(FR-901). 데스크톱 웹뷰도 같은 경로다 — tauri.conf가 dragDropEnabled:false로
+      // 자체 가로채기를 껐다(DS4-5). 경로가 하나라 한쪽만 고치는 수정이 생길 수 없다.
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => {
+        e.preventDefault();
+        const f = e.dataTransfer.files?.[0];
+        if (f) void acceptFile(f);
+      }}
+    >
       {notice ? <p className="listnote" style={{ textAlign: "center" }}>{notice}</p> : null}
       {/* 입력창은 불변 위치다. 위로는 제목 영역이 높이를 고정하고, 아래로는 칩이 몇 줄이든 흘러내린다.
           그래서 제목이나 부제가 길어져도, 아래 내용이 늘어나도 입력창은 같은 자리에 남는다.
@@ -123,12 +164,38 @@ export function EntryScreen({ onSubmit, notice }: EntryScreenProps) {
               <button className="condToggle" onClick={() => setShowCond(!showCond)}>
                 {showCond ? tr("cond_close") : tr("cond_add")}
               </button>
+              {/* 첨부(FR-901). 잠겨도 버튼은 보인다 — 안 보이다가 페이월로 튀는 것이 v1 감사 지적이다. */}
+              {attached ? (
+                <button className="attach" onClick={() => { setAttached(null); setAttachNote(null); }} title={tr("attach_remove")}>
+                  {attached.name} ✕
+                </button>
+              ) : (
+                <button
+                  className={attachLocked ? "attach locked" : "attach"}
+                  onClick={() => (attachLocked ? setAttachNote("attach_pro_note") : fileRef.current?.click())}
+                  title={attachLocked ? tr("attach") : tr("attach_short")}
+                >
+                  {attachLocked ? tr("attach") : tr("attach_short")}
+                </button>
+              )}
+              <input
+                ref={fileRef}
+                type="file"
+                accept={FILE_ACCEPT}
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void acceptFile(f);
+                  e.target.value = "";
+                }}
+              />
               <button className="send" onClick={submit} aria-label={tr("next")}>
                 →
               </button>
             </div>
           </div>
           {inputErr ? <div className="errmsg" style={{ textAlign: "center" }}>{tr("entry_err")}</div> : null}
+          {attachNote ? <div className="listnote" style={{ textAlign: "center" }}>{tr(attachNote)}</div> : null}
           {showCond ? (
             <input
               className="field condField"

@@ -141,6 +141,14 @@ export const ko = {
   sessions_off: "로그인하면 탐색이 저장돼요.",
   // [신규 C4 S3] 오프라인 폴백 고지(DS3-1). off(비로그인)와 다른 축이다.
   offline_notice: "오프라인이에요 — 마지막으로 저장된 목록을 보여드려요.",
+  // [v1 이식, C4 S4] 파일 첨부(FR-901). 키 이름은 v1 그대로다(DS4-8 — 이식분·창작분 구분 유지).
+  attach: "파일 첨부 (pro)",
+  attach_short: "+ 파일",
+  attach_remove: "첨부 제거",
+  attach_texterr: "텍스트 파일만 첨부할 수 있어요.",
+  attach_truncated: "문서가 길어 앞부분만 담았어요.",
+  attach_pro_note: "파일 첨부는 pro 기능이에요.",
+
   sessions_search_ph: "탐색 검색",
   sessions_more: "더 보기",
   session_untitled: "제목 없는 탐색",

@@ -41,6 +41,7 @@ function toClientLimits(l: Limits): ClientLimits {
     maxTotal: l.maxTotal,
     groupGen: l.groupGen,
     maxContextChars: l.maxContextChars,
+    attachRequiresPro: l.attachRequiresPro,
   };
 }
 
@@ -98,7 +99,7 @@ export function createApp(deps: AppDeps): Hono {
         return rec?.project_id ? repos.assets.termNormsByProject(userId, rec.project_id) : [];
       }
     : undefined;
-  registerPipelineRoutes(app, pipeline, dedup);
+  registerPipelineRoutes(app, pipeline, dedup, deps.limits ?? DEFAULT_LIMITS);
   if (deps.authService) registerAuthRoutes(app, deps.authService);
   const resolveUserId = deps.authService ? jwtResolveUserId(deps.authService) : devResolveUserId();
   if (deps.repos) registerCrudRoutes(app, deps.repos, resolveUserId);

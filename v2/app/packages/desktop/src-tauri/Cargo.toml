@@ -28,5 +28,7 @@ tauri-plugin-oauth = "2"
 tauri-plugin-opener = "2"
 # C4 S3 오프라인 캐시(FR-902). 앱 데이터 폴더의 JSON — 서버 응답 사본만 담는다(비밀은 키링).
 tauri-plugin-store = "2"
+# C4 S4 퀵 캡처(FR-903). Wayland 미지원은 런타임 강등(D-11).
+tauri-plugin-global-shortcut = "2"
 # OS 자격 증명 저장소(D-5). v3는 저장 백엔드를 feature로 고른다 — Windows/Linux 두 타깃만(D-9).
 keyring = { version = "3", features = ["windows-native", "sync-secret-service"] }

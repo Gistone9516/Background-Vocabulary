@@ -186,6 +186,10 @@ importers:
         version: 5.9.3
 
   packages/scripts:
+    dependencies:
+      '@vock/http-app':
+        specifier: workspace:*
+        version: link:../adapters/http-app
     devDependencies:
       '@vock/local':
         specifier: workspace:*

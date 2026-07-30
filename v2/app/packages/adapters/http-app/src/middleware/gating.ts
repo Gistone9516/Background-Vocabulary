@@ -85,6 +85,23 @@ export function installGating(app: Hono, deps: GateDeps): void {
     });
   }
 
+  // 파일 첨부 티어 게이트(C4 S4 DS4-3). free의 context_object를 거부한다 — 클라 잠금만으로는
+  // API 직접 호출로 뚫린다(NFR-308). attachRequiresPro는 env로 덮이는 값이다(TR-06 "참고 기본값" —
+  // 정본은 C5 결제 재설계). false로 덮으면 이 미들웨어는 전부 통과한다.
+  // context가 실리는 세 경로만 본다(v1 선례: classify·next·recommend 반복 전송).
+  if (limits.attachRequiresPro) {
+    for (const p of ["/classify", "/next", "/recommend"]) {
+      app.use(p, async (c, next) => {
+        if ((getVar(c, "tier") as Tier) === "paid") return next();
+        const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+        if (typeof body.context_object === "string" && body.context_object.length > 0) {
+          return c.json({ error: "PRO_ONLY", message: "파일 첨부는 pro 기능이에요." }, 402);
+        }
+        await next();
+      });
+    }
+  }
+
   // free 상세 열람 한도(세션당, NFR-304).
   app.use("/detail", async (c, next) => {
     if ((getVar(c, "tier") as Tier) === "paid") return next();
