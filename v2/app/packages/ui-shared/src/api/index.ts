@@ -4,4 +4,4 @@ export { limitsFor, FALLBACK_LIMITS, type TierLimits } from "./limits.js";
 export { memoryTokenStore } from "./token-store.js";
 export type { TokenStore, StoredTokens } from "./token-store.js";
 export { HttpApiClient, type HttpApiConfig } from "./http-client.js";
-export { classifyResponse, isRetryable, isApiError, type ApiError } from "./errors.js";
+export { classifyResponse, isRetryable, isApiError, errorKey, type ApiError } from "./errors.js";

@@ -5,6 +5,7 @@ import { useTr } from "../../i18n/locale.js";
 import { TermDetail } from "./TermDetail.js";
 import type { DetailState } from "./detail-machine.js";
 import type { TermCard, TermsState } from "./types.js";
+import { errorKey } from "../../api/index.js";
 
 export interface TermsScreenProps {
   state: TermsState;
@@ -95,7 +96,7 @@ export function TermsScreen({
         <>
           {/* 실패해도 이미 받은 카드는 남긴다. 부분 결과도 가치가 있다. */}
           <p className="errmsg">
-            {state.error.kind === "network" ? tr("err_network") : (state.error as { message?: string }).message ?? tr("err_network")}
+            {tr(errorKey(state.error))}
           </p>
           {onRetry ? (
             <button className="btn btn-ghost" style={{ marginTop: "0.75rem" }} onClick={onRetry}>

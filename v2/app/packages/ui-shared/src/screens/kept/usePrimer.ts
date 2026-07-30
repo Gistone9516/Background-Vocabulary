@@ -4,16 +4,12 @@ import { useCallback, useRef, useState } from "react";
 import type { Prompt4In, PrimerDoc, Tag, Term } from "@vock/shared";
 import type { ApiPort } from "../../api/index.js";
 import { primerFailure, primerKey, type PrimerState } from "./primer.js";
-import { useOutputLocale } from "../../i18n/locale.js";
 
 export function usePrimer(api: ApiPort) {
   const [state, setState] = useState<PrimerState>({ phase: "idle" });
   const cache = useRef(new Map<string, PrimerDoc>());
   const inflight = useRef<AbortController | null>(null);
 
-  // 실패 문구는 로케일을 따른다(S-31). useCallback 밖에서 읽어 deps에 넣는다 —
-  // 안에서 읽으면 훅 규칙 위반이고, deps에서 빼면 언어를 바꾼 뒤 첫 실패가 옛 언어로 뜬다.
-  const { locale } = useOutputLocale();
   const request = useCallback(
     (args: { area: string; jobType: Prompt4In["job_type"]; kept: Term[]; condition: string }) => {
       if (args.kept.length === 0) return;
@@ -46,10 +42,10 @@ export function usePrimer(api: ApiPort) {
         })
         .catch((e) => {
           if (ac.signal.aborted) return;
-          setState(primerFailure(e, locale));
+          setState(primerFailure(e));
         });
     },
-    [api, locale]
+    [api]
   );
 
   return { state, request };

@@ -3,7 +3,7 @@
 
 import { useRef } from "react";
 import { useTr } from "../../i18n/locale.js";
-import { isRetryable } from "../../api/index.js";
+import { errorKey, isRetryable } from "../../api/index.js";
 import { answeredCount } from "./machine.js";
 import { turnsLeft } from "./decide.js";
 import type { NarrowConfig, NarrowEvent, NarrowState } from "./types.js";
@@ -29,7 +29,8 @@ export function NarrowScreen({ state, cfg, send }: NarrowScreenProps) {
 
   if (state.phase === "failed") {
     const canRetry = isRetryable(state.error);
-    const message = state.error.kind === "network" ? tr("err_network") : (state.error as { message?: string }).message ?? tr("err_network");
+    // 문구는 오류 종류에서 나온다(S-35). 서버 message를 캐스트로 꺼내던 것을 걷어냈다.
+    const message = tr(errorKey(state.error));
     return (
       <main className="scroll pad screenIn">
         <p className="errmsg" style={{ textAlign: "center", marginTop: "3rem" }}>{message}</p>

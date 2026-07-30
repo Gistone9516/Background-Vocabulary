@@ -89,8 +89,8 @@ export function KeptScreen({
             </button>
           ) : null}
           {/* pro 전용 안내는 페이월로 끌고 가지 않고 그 자리서 알린다(S4 K-7) */}
-          {primerState?.phase === "locked" ? <p className="listnote">{primerState.message}</p> : null}
-          {primerState?.phase === "failed" ? <p className="errmsg">{primerState.message}</p> : null}
+          {primerState?.phase === "locked" ? <p className="listnote">{tr(primerState.key)}</p> : null}
+          {primerState?.phase === "failed" ? <p className="errmsg">{tr(primerState.key)}</p> : null}
         </>
       ) : null}
 

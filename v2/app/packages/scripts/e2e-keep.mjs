@@ -138,12 +138,12 @@ console.log("담기와 정리 검증:");
   const args = { topic: "PID 튜닝", kept, locale: "ko" };
   const basic = buildBasicPrimer(args);
 
-  const locked = primerFailure({ kind: "pro_only", message: "pro 전용 기능이에요." }, "ko");
-  check("402 PRO_ONLY는 잠김 상태다", locked.phase === "locked" && locked.message === "pro 전용 기능이에요.");
+  const locked = primerFailure({ kind: "pro_only", message: "pro 전용 기능이에요." });
+  check("402 PRO_ONLY는 잠김 상태다", locked.phase === "locked" && locked.key === "err_pro_only");
   check("잠겨도 본문은 기본 정리 그대로다", primerBody(locked, args) === basic);
 
-  const failed = primerFailure({ kind: "network" }, "ko");
-  check("다른 실패는 실패 상태다", failed.phase === "failed" && failed.message.length > 0);
+  const failed = primerFailure({ kind: "network" });
+  check("다른 실패는 실패 상태다", failed.phase === "failed" && failed.key === "err_network");
   check("실패해도 본문은 기본 정리 그대로다", primerBody(failed, args) === basic);
 
   // 형태가 어긋난 응답은 ready로 올라오면 안 된다. 렌더 도중에 터져 화면 전체가 죽는다(실측).
@@ -151,7 +151,7 @@ console.log("담기와 정리 검증:");
   check("필드가 빠지면 PrimerDoc이 아니다", !isPrimerDoc({ locale: "ko", area: "", task_intent: "", known_terms: [] }));
   check("배열에 문자열 아닌 것이 섞이면 아니다", !isPrimerDoc({ locale: "ko", area: "", task_intent: "", known_terms: [1], unknown_terms: [] }));
   check("온전한 형태는 통과한다", isPrimerDoc({ locale: "ko", area: "", task_intent: "", known_terms: [], unknown_terms: [] }));
-  check("형태 위반은 malformed 실패로 떨어진다", primerFailure({ kind: "malformed" }, "ko").phase === "failed");
+  check("형태 위반은 malformed 실패로 떨어진다", primerFailure({ kind: "malformed" }).phase === "failed");
   check("호출 전에도 본문은 기본 정리다", primerBody({ phase: "idle" }, args) === basic);
   check("부르는 중에도 본문은 기본 정리다", primerBody({ phase: "loading" }, args) === basic);
 

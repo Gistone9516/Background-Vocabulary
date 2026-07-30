@@ -61,6 +61,47 @@ const AUTHORED = {
   },
   // S-34로 신설. v1 relate_skip("이 작업과는 관련 없어요")과 다르다 — v2는 질문이 프로젝트 기준이다
   relate_none: { en: "Not related", ja: "関係ありません", zh: "没有关联" },
+
+  // 붙여넣을 본문의 라벨(S-31). v1은 산문 템플릿(sum_*)이라 대응 원문이 없다.
+  // 메인 AI가 읽을 글의 항목 이름이므로 화면 카피보다 간결하고 중립적으로 쓴다.
+  primer_ask: {
+    en: "Assume I already know the terms below when you answer.",
+    ja: "以下の用語はすでに知っているものとして答えてください。",
+    zh: "回答时请假设我已经了解下面的术语。",
+  },
+  primer_task: { en: "What I'm doing", ja: "やりたいこと", zh: "我想做的事" },
+  primer_area: { en: "Field", ja: "分野", zh: "领域" },
+  primer_condition: { en: "Constraints", ja: "条件", zh: "条件" },
+  primer_context: { en: "Context", ja: "参考の文脈", zh: "参考背景" },
+  primer_known: { en: "Terms I already know", ja: "すでに知っている用語", zh: "我已经知道的词汇" },
+
+  // 서버 오류 문구(S-35). 한국어는 서버가 쓰던 문구와 같게 맞췄으므로 여기 3개 언어만 새로 쓴다.
+  err_pro_only: { en: "This is a pro feature.", ja: "pro 限定の機能です。", zh: "这是 pro 专属功能。" },
+  err_detail_limit: {
+    en: "You've used up your free detail views.",
+    ja: "無料の詳細閲覧を使い切りました。",
+    zh: "免费详情查看次数已用完。",
+  },
+  err_rate_limited: { en: "Please try again in a moment.", ja: "しばらくしてからお試しください。", zh: "请稍后再试。" },
+  err_auth_failed: {
+    en: "Sign-in failed. Please try again.",
+    ja: "ログインに失敗しました。もう一度お試しください。",
+    zh: "登录失败，请重试。",
+  },
+  err_session_expired: {
+    en: "Your session expired. Please sign in again.",
+    ja: "セッションが期限切れです。もう一度ログインしてください。",
+    zh: "会话已过期，请重新登录。",
+  },
+  err_auth_required: { en: "Sign-in required.", ja: "ログインが必要です。", zh: "需要登录。" },
+  err_not_found: { en: "Not found.", ja: "見つかりません。", zh: "未找到。" },
+  err_ownership: {
+    en: "This record belongs to another account, so it can't be saved.",
+    ja: "他のアカウントの記録のため保存できません。",
+    zh: "这是其他账户的记录，无法保存。",
+  },
+  err_malformed: { en: "Couldn't read the response.", ja: "応答を解釈できませんでした。", zh: "无法解析响应。" },
+  err_server: { en: "Couldn't complete the request.", ja: "リクエストを処理できませんでした。", zh: "无法处理请求。" },
 };
 
 // 로케일 단위 덮어쓰기. v1 번역을 대체로 쓸 수 있는데 **특정 언어만** 자리에 안 맞는 경우다.

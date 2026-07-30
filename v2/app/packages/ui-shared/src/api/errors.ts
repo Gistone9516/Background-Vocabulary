@@ -2,6 +2,8 @@
 // 화면 코드에 상태 코드 숫자나 서버 에러 문자열이 나타나면 규약 위반이다. 분류는 여기서만 한다.
 // 서버 응답 본문은 { error: "CODE", message: "한국어 문구" } 형태다(http-app 게이팅 미들웨어).
 
+import type { StringKey } from "../i18n/strings.js";
+
 export type ApiError =
   | { kind: "weekly_exhausted"; message: string }
   | { kind: "pro_only"; message: string }
@@ -15,7 +17,10 @@ export type ApiError =
   | { kind: "session_expired"; message: string } // 토큰 만료·폐기. 재발급 또는 재로그인
   | { kind: "auth_required"; message: string } // 로그인이 필요한 자원에 비로그인 접근
   // 영속 CRUD 계열(S5). 이전에는 전부 server로 떨어져 화면이 "없음"과 "남의 것"을 구분하지 못했다.
-  | { kind: "not_found"; message: string } // 없거나 이미 지워졌거나 복구 유예가 지났다
+  | { kind: "not_found"; message: string } // 없거나 이미 지워졌다
+  // 복구 유예가 지난 삭제. not_found와 묶여 있었으나 화면에 뜨는 말이 다르므로 갈랐다(S-35) —
+  // 하나의 kind가 두 문구를 갖고 있으면 코드에서 키를 정할 수 없다
+  | { kind: "not_restorable"; message: string }
   | { kind: "ownership_conflict"; message: string } // 그 id가 다른 계정 소유다
   | { kind: "network" }
   | { kind: "malformed" }
@@ -56,14 +61,43 @@ export function classifyResponse(status: number, body: unknown): ApiError {
       return { kind: "auth_required", message: say(b, "로그인이 필요해요.") };
     case "NOT_FOUND":
       return { kind: "not_found", message: say(b, "찾을 수 없어요.") };
-    // 복구 유예가 지난 삭제. 되돌릴 수 없다는 점에서 없는 것과 같게 다룬다.
     case "NOT_RESTORABLE":
-      return { kind: "not_found", message: say(b, "되돌릴 수 있는 기간이 지났어요.") };
+      return { kind: "not_restorable", message: say(b, "되돌릴 수 있는 기간이 지났어요.") };
     case "OWNERSHIP_CONFLICT":
       return { kind: "ownership_conflict", message: say(b, "다른 계정의 기록이라 저장할 수 없어요.") };
     default:
       return { kind: "server", status, message: say(b, "요청을 처리하지 못했어요.") };
   }
+}
+
+// 오류 종류 -> 화면에 띄울 문구 키(S-35). 서버가 보낸 message는 진단용으로만 남고 화면에 가지 않는다.
+//
+// 왜 서버 문구를 안 쓰는가: 서버는 로케일을 모르고 한국어만 보낸다(`gating.ts`·`auth-routes.ts`).
+// 그대로 띄우면 영어 화면에 한국어 오류가 뜬다. 계약도 클라 문구를 정본으로 지목한다.
+// 이 파일의 위쪽 주석("서버 문구를 그대로 싣는다")이 걱정한 것은 문구 이중화인데, **코드는 열거
+// 가능하고 문구는 그렇지 않다** — 코드로 맞추면 서버가 문구를 바꿔도 어긋날 것이 없다.
+//
+// Record로 둔 것이 요점이다. kind를 추가하고 키를 정하지 않으면 타입 검사가 막는다.
+// 화면마다 캐스트로 message를 꺼내던 것이 세 곳에 복제돼 있었고, 그것을 여기 하나로 접었다.
+const ERROR_KEY: Record<ApiError["kind"], StringKey> = {
+  weekly_exhausted: "weekly_exhausted",
+  pro_only: "err_pro_only",
+  detail_limit: "err_detail_limit",
+  high_risk: "refusal_title",
+  rate_limited: "err_rate_limited",
+  auth_failed: "err_auth_failed",
+  session_expired: "err_session_expired",
+  auth_required: "err_auth_required",
+  not_found: "err_not_found",
+  not_restorable: "session_undo_expired",
+  ownership_conflict: "err_ownership",
+  network: "err_network",
+  malformed: "err_malformed",
+  server: "err_server",
+};
+
+export function errorKey(e: ApiError): StringKey {
+  return ERROR_KEY[e.kind];
 }
 
 // 다시 눌러 볼 만한 실패인지. 이 판정이 좁히기를 끝낼지 화면에 머물지를 가른다(스펙 D-7).

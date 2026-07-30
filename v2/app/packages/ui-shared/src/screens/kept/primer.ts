@@ -3,20 +3,18 @@
 // 서버를 다시 부르지 않고, 나중에 refined가 붙어도 같은 자리에서 흡수된다.
 
 import type { OutputLocale, PrimerDoc, Term } from "@vock/shared";
-import { isApiError } from "../../api/index.js";
-import { trIn } from "../../i18n/strings.js";
+import { errorKey, isApiError } from "../../api/index.js";
+import { trIn, type StringKey } from "../../i18n/strings.js";
 import { normTerm } from "./keep.js";
-
-// TODO(S-31): 아래 ASK와 section 라벨 5개는 아직 문자열 표 밖에 있다. 로케일을 받아도 붙여넣기
-// 본문의 라벨은 한국어로 남는다. 키 6개를 신설해 4개 언어를 채우는 것이 S-31의 남은 절반이다.
-const ASK = "아래 어휘는 이미 알고 있다고 두고 답해 주세요.";
 
 export type PrimerState =
   | { phase: "idle" }
   | { phase: "loading" }
   | { phase: "ready"; doc: PrimerDoc }
-  | { phase: "locked"; message: string } // pro 전용(402). 재시도할 일이 아니라 알릴 일이다
-  | { phase: "failed"; message: string };
+  // 실패는 문구가 아니라 키를 담는다(S-35). 문구를 담으면 실패 시점의 언어가 굳어서, 뒤에 언어를
+  // 바꿔도 그 줄만 옛 언어로 남는다. 키를 담으면 화면이 그릴 때의 언어를 따른다.
+  | { phase: "locked"; key: StringKey } // pro 전용(402). 재시도할 일이 아니라 알릴 일이다
+  | { phase: "failed"; key: StringKey };
 
 function section(label: string, value: string | undefined): string[] {
   return value ? [`${label}: ${value}`] : [];
@@ -26,11 +24,12 @@ function section(label: string, value: string | undefined): string[] {
 // 로케일을 인자로 받는다 — 이 파일은 React 밖이라 useTr()이 닿지 않는다(그런 자리가 전 저장소에 4곳뿐이다).
 export function buildBasicPrimer(args: { topic: string; condition?: string; kept: Term[]; locale: OutputLocale }): string {
   if (args.kept.length === 0) return trIn(args.locale, "kept_none");
+  const t = (k: StringKey) => trIn(args.locale, k);
   return [
-    ...section("하려는 일", args.topic),
-    ...section("조건", args.condition),
+    ...section(t("primer_task"), args.topic),
+    ...section(t("primer_condition"), args.condition),
     "",
-    ASK,
+    t("primer_ask"),
     "",
     ...args.kept.map((t) => `- ${t.term}: ${t.one_line}`),
   ].join("\n");
@@ -48,13 +47,16 @@ export function buildPrimerText(doc: PrimerDoc, kept: Term[]): string {
     if (!hit) return `- ${t}`;
     return hit.one_line ? `- ${hit.term}: ${hit.one_line}` : `- ${hit.term}`;
   };
+  // 라벨은 UI 언어가 아니라 이 문서의 로케일을 따른다(S-31). 메인 AI에게 보낼 글이므로,
+  // 화면 언어를 바꾸는 것과 붙여넣을 글의 언어를 바꾸는 것은 다른 일이다.
+  const t = (k: StringKey) => trIn(doc.locale, k);
   return [
-    ...section("하려는 일", doc.task_intent),
-    ...section("분야", doc.area),
-    ...section("조건", doc.user_condition),
-    ...section("참고 맥락", doc.context_note),
-    ...(doc.known_terms.length ? ["", "이미 아는 어휘", ...doc.known_terms.map(withLine)] : []),
-    ...(doc.unknown_terms.length ? ["", ASK, ...doc.unknown_terms.map(withLine)] : []),
+    ...section(t("primer_task"), doc.task_intent),
+    ...section(t("primer_area"), doc.area),
+    ...section(t("primer_condition"), doc.user_condition),
+    ...section(t("primer_context"), doc.context_note),
+    ...(doc.known_terms.length ? ["", t("primer_known"), ...doc.known_terms.map(withLine)] : []),
+    ...(doc.unknown_terms.length ? ["", t("primer_ask"), ...doc.unknown_terms.map(withLine)] : []),
   ].join("\n");
 }
 
@@ -64,10 +66,11 @@ export function primerKey(kept: Term[], condition: string): string {
 }
 
 // 요청 실패를 화면 상태로 옮긴다. pro 전용은 재시도할 일이 아니라 알릴 일이라 따로 가른다(P-6).
-export function primerFailure(e: unknown, locale: OutputLocale): PrimerState {
-  if (isApiError(e) && e.kind === "pro_only") return { phase: "locked", message: e.message };
-  const message = isApiError(e) && "message" in e ? e.message : trIn(locale, "refine_failed");
-  return { phase: "failed", message };
+// 로케일을 받지 않는다 — 키만 정하고 문구는 화면이 그릴 때 고른다.
+export function primerFailure(e: unknown): PrimerState {
+  if (isApiError(e) && e.kind === "pro_only") return { phase: "locked", key: "err_pro_only" };
+  // 서버가 준 종류를 문구 키로 옮긴다. 종류를 모르는 실패(네트워크 예외 등)는 정리 실패로 본다.
+  return { phase: "failed", key: isApiError(e) ? errorKey(e) : "refine_failed" };
 }
 
 // 화면에 붙일 본문. AI 정리가 성공했을 때만 기본 정리를 대체한다(P-7).

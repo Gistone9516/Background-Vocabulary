@@ -62,6 +62,20 @@ export const ko = {
   retry: "다시 시도",
   err_network: "연결이 잠시 끊겼어요.",
 
+  // [신규] 서버 오류 문구(S-35). 서버는 로케일을 모르고 한국어만 보내므로, 화면은 서버 message를
+  // 쓰지 않고 error 코드를 여기로 옮겨 꺼낸다. 아래 한국어는 서버가 쓰던 문구와 같게 맞췄다 —
+  // 사용자가 보던 말이 바뀔 이유가 없다. 매핑은 api/errors.ts의 ERROR_KEY 한 곳에만 있다
+  err_pro_only: "pro 전용 기능이에요.",
+  err_detail_limit: "무료 상세 열람을 다 썼어요.",
+  err_rate_limited: "잠시 후 다시 시도해 주세요.",
+  err_auth_failed: "로그인에 실패했어요. 다시 시도해 주세요.",
+  err_session_expired: "세션이 만료되었어요. 다시 로그인해 주세요.",
+  err_auth_required: "로그인이 필요해요.",
+  err_not_found: "찾을 수 없어요.",
+  err_ownership: "다른 계정의 기록이라 저장할 수 없어요.",
+  err_malformed: "응답을 이해하지 못했어요.",
+  err_server: "요청을 처리하지 못했어요.",
+
   // 난이도 선택 [v1 원문]
   diff_eyebrow: "거의 다 왔어요",
   diff_title: "어느 깊이로 볼까요?",
@@ -112,6 +126,16 @@ export const ko = {
   ai_extra: "AI로 더 정리",
   refine_loading: "AI가 정리하는 중…",
   refine_failed: "정리에 실패했어요.",
+
+  // [신규] 붙여넣을 본문의 라벨(S-31). 화면 장식이 아니라 메인 AI에게 보낼 글이므로 UI 언어가
+  // 아니라 PrimerDoc.locale을 따른다. v1에는 대응 원문이 없다 — FR-604가 산문 템플릿을 항목형으로
+  // 바꿔서 v1의 sum_* 는 이식 대상이 아니다
+  primer_ask: "아래 어휘는 이미 알고 있다고 두고 답해 주세요.",
+  primer_task: "하려는 일",
+  primer_area: "분야",
+  primer_condition: "조건",
+  primer_context: "참고 맥락",
+  primer_known: "이미 아는 어휘",
 
   // 세션 목록 [신규]. v1은 확장 로컬 저장이라 로그인 조건이 없었다
   sessions_off: "로그인하면 탐색이 저장돼요.",

@@ -3,6 +3,7 @@
 
 import { useTr } from "../../i18n/locale.js";
 import type { DetailState } from "./detail-machine.js";
+import { errorKey } from "../../api/index.js";
 
 export interface TermDetailProps {
   state: DetailState;
@@ -42,7 +43,7 @@ export function TermDetail({ state, id, onRetry }: TermDetailProps) {
   if (state.phase === "failed") {
     return (
       <div className="detail">
-        <p className="errmsg">{state.error.kind === "network" ? tr("err_network") : (state.error as { message?: string }).message ?? tr("err_network")}</p>
+        <p className="errmsg">{tr(errorKey(state.error))}</p>
         <button className="readbtn close" style={{ marginTop: "0.5rem" }} onClick={onRetry}>
           {tr("retry")}
         </button>
