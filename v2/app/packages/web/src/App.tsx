@@ -39,7 +39,7 @@ import { useShellDeps } from "./deps.js";
 import { sidebarSlots } from "./Sidebar.js";
 
 // /config를 아직 못 받았을 때 쓰는 값. 서버가 정본이고 이건 첫 화면이 멈추지 않게 하는 임시값이다.
-const FALLBACK: NarrowConfig = { narrowMin: 3, narrowMax: 3 };
+const FALLBACK: NarrowConfig = { narrowMin: 3, narrowMax: 3, noRelationLabel: tr("relate_none") };
 const FALLBACK_MAX_TOTAL = 8;
 
 type Journey =
@@ -88,7 +88,12 @@ export function App() {
   // .free를 여기서 직접 읽으면 유료 사용자가 무료 한도를 받는다.
   const tier: Tier = auth.state.phase === "signed_in" ? auth.state.user.tier : "free";
   const tierLimits = useMemo(() => limitsFor(limits, tier), [limits, tier]);
-  const base: NarrowConfig = { narrowMin: tierLimits.narrowMin, narrowMax: tierLimits.narrowMax };
+  // 탈출구 라벨은 문구를 아는 쪽이 넘긴다(S-34). ②-b에서 trIn(locale, ...)으로 바뀐다.
+  const base: NarrowConfig = {
+    narrowMin: tierLimits.narrowMin,
+    narrowMax: tierLimits.narrowMax,
+    noRelationLabel: tr("relate_none"),
+  };
   const termsCfg = useMemo(() => ({ maxTotal: tierLimits.maxTotal }), [tierLimits]);
 
   // 로그인 여부. 저장은 로그인한 사용자만 한다(스펙 S-1).

@@ -90,6 +90,9 @@ export interface NarrowConfig {
   // 연결 턴을 시도할지. 프로젝트에 담은 어휘가 있을 때만 true다(S-11).
   // 기계가 프로젝트를 알 필요는 없다 — 조건 판정은 프로젝트를 아는 쪽이 한다.
   connect?: boolean;
+  // 연결 턴 탈출구에 붙일 라벨(S-34). 상태 기계는 로케일을 모르므로 문구를 아는 쪽이 넘긴다.
+  // 선택 사항이 아니다 — 기본값을 두면 로케일을 안 넘긴 셸이 조용히 한국어를 띄운다(S-32와 같은 이유).
+  noRelationLabel: string;
 }
 
 export const EMPTY_PICKS: Picks = { selected: [], custom: "", tooHard: false };

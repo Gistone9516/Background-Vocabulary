@@ -43,7 +43,6 @@ export {
   realAnswers,
   turnsLeft,
   EMPTY_PICKS,
-  NO_RELATION,
 } from "./screens/narrow/index.js";
 export type {
   AnswerTurn,

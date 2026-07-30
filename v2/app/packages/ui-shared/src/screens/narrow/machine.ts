@@ -56,8 +56,9 @@ function navOnFailure(e: { kind: string }): NarrowCmd[] | null {
   return null;
 }
 
-// "관련 없어요" 탈출구 라벨. 서버 choices에 없으므로 프론트가 붙이고, 고르면 연결로 치지 않는다(S-13).
-export const NO_RELATION = "관련 없어요";
+// 탈출구 라벨은 상수가 아니라 cfg로 들어온다(S-34). 상태 기계는 로케일을 모르고, 알아야 할 이유도 없다.
+// 이 자리에 문자열 상수가 있던 동안 그 하나가 라벨·필터·서버 본문·게이트 단언 네 곳을 겸했고,
+// 번역하는 순간 필터가 조용히 어긋날 상태였다. 판정은 이제 choices의 escape 표식으로 한다.
 
 // 좁히기를 끝낸다. 연결 턴을 켠 경우에만 한 턴이 끼어들고, 그 외에는 곧장 넘긴다.
 // 종료 경로가 여러 곳에 흩어지면 연결 턴이 어떤 경로에서만 빠지는 일이 생긴다.
@@ -168,7 +169,10 @@ export function reduce(s: NarrowState, e: NarrowEvent, cfg: NarrowConfig): [Narr
       // 이 답은 상세 설명에 얹을 방향일 뿐이다(connection_hint).
       if (s.connect !== undefined) {
         const picked = [...s.picks.selected, s.picks.custom.trim()].filter(Boolean);
-        const chosen = picked.filter((l) => l !== NO_RELATION);
+        // 이 질문에 실제로 렌더된 탈출구 라벨과 비교한다. 모듈 상수와 비교하면 라벨이 번역된 순간
+        // 어긋나지만, 자기 질문의 choices에서 찾으면 어느 언어로 렌더됐든 맞는다(S-34).
+        const escapeLabel = s.question.choices.find((c) => c.escape)?.label;
+        const chosen = picked.filter((l) => l !== escapeLabel);
         const ctx: NarrowCtx = chosen.length ? { ...s.ctx, connection: chosen.join(", ") } : s.ctx;
         return skipRelate(ctx, s.connect);
       }
@@ -206,7 +210,10 @@ export function reduce(s: NarrowState, e: NarrowEvent, cfg: NarrowConfig): [Narr
       // 실패(null)와 관련 없음이 같은 처리다. 좁히기는 멈추지 않는다(S-12).
       if (!e.out || !e.out.relevant || e.out.choices.length === 0) return skipRelate(s.ctx, s.reason);
       // "관련 없어요" 탈출구는 프론트가 덧붙인다. 서버 choices에 기대지 않는다(S-13).
-      const question: Question = { question: e.out.question, choices: [...e.out.choices, { label: NO_RELATION }] };
+      const question: Question = {
+        question: e.out.question,
+        choices: [...e.out.choices, { label: cfg.noRelationLabel, escape: true }],
+      };
       return [
         { phase: "asking", runId: s.runId, ctx: s.ctx, question, picks: EMPTY_PICKS, connect: s.reason },
         NONE,

@@ -1,7 +1,7 @@
 // 좁히기 상태 기계 검증(C3 S2). 네트워크도 브라우저도 없이 전이 규칙만 돌린다.
 // v1은 이 판정들이 컴포넌트 안에 흩어져 있어 검증할 수 없었다. 각 케이스는 스펙의 규칙 ID를 가리킨다.
 // 빌드 산출물(dist)을 소비하므로 실행 전 `pnpm build`가 선행되어야 한다(gate 스크립트가 보장).
-import { reduceNarrow as reduce, initialNarrow, realAnswers, turnsLeft, NO_RELATION } from "@vock/ui-shared";
+import { reduceNarrow as reduce, initialNarrow, realAnswers, turnsLeft } from "@vock/ui-shared";
 
 let failures = 0;
 function check(name, cond, detail) {
@@ -13,7 +13,9 @@ function check(name, cond, detail) {
   }
 }
 
-const CFG = { narrowMin: 3, narrowMax: 8 };
+// 탈출구 라벨은 cfg로 들어온다(S-34). 여기 한국어를 적어 두면 "라벨이 한국어일 때만 통과하는"
+// 테스트가 되므로, 아래 연결 턴 검증은 일부러 한국어가 아닌 라벨로도 돌린다.
+const CFG = { narrowMin: 3, narrowMax: 8, noRelationLabel: "관련 없어요" };
 
 function p1(extra = {}) {
   return {
@@ -162,7 +164,7 @@ console.log("좁히기 상태 기계 검증:");
   check("종료 enough (실답변 = narrowMin)", s.phase === "done" && s.reason === "enough");
 }
 {
-  const cfg = { narrowMin: 99, narrowMax: 3 };
+  const cfg = { narrowMin: 99, narrowMax: 3, noRelationLabel: "관련 없어요" };
   const { s } = drive([SUBMIT, classified(p1()), ...answerTurn(), ...answerTurn(), ...answerTurn()], cfg);
   check("종료 exhausted (실답변 = narrowMax)", s.phase === "done" && s.reason === "exhausted");
 }
@@ -177,7 +179,7 @@ console.log("좁히기 상태 기계 검증:");
 }
 // free에서 narrowMin과 narrowMax가 같을 때 enough를 우선한다
 {
-  const cfg = { narrowMin: 3, narrowMax: 3 };
+  const cfg = { narrowMin: 3, narrowMax: 3, noRelationLabel: "관련 없어요" };
   const { s } = drive([SUBMIT, classified(p1()), ...answerTurn(), ...answerTurn(), ...answerTurn(p2({ enough: true }))], cfg);
   check("min과 max가 같으면 exhausted보다 enough", s.phase === "done" && s.reason === "enough");
 }
@@ -232,7 +234,7 @@ console.log("좁히기 상태 기계 검증:");
 
 // ── 연결 턴(S5 S-11~S-14) ─────────────────────────────
 {
-  const CFG_C = { narrowMin: 3, narrowMax: 3, connect: true };
+  const CFG_C = { narrowMin: 3, narrowMax: 3, connect: true, noRelationLabel: "관련 없어요" };
   // 3답을 채워 종료 조건을 만든 뒤 연결 턴이 끼는지 본다.
   const ctx = {
     sessionId: "s", topic: "t", cond: "", classifyOut: p1(),
@@ -257,7 +259,11 @@ console.log("좁히기 상태 기계 검증:");
   // 관련 있음 → 질문 한 번 더 + 탈출구
   const [ask] = reduce(st, { t: "related", runId: 3, out: { relevant: true, question: "어느 쪽과 이어지나요?", choices: [{ label: "예산 배분" }], related_terms: ["예산"] } }, CFG_C);
   check("S-11 관련 있으면 질문이 한 번 더 뜬다", ask.phase === "asking" && ask.connect !== undefined);
-  check("S-13 관련 없어요 탈출구가 붙는다", ask.question.choices.some((c) => c.label === NO_RELATION));
+  // 라벨 문자열로 단언하지 않는다(S-34). 라벨은 로케일마다 다르고, 문자열을 단언하면 이 테스트가
+  // "한국어일 때만 통과하는" 테스트가 된다.
+  check("S-13 탈출구가 표식과 함께 붙는다", ask.question.choices.filter((c) => c.escape === true).length === 1);
+  check("S-34 탈출구 라벨은 cfg가 준 것이다", ask.question.choices.find((c) => c.escape)?.label === CFG_C.noRelationLabel);
+  check("S-34 서버 선택지에는 표식이 없다", ask.question.choices.filter((c) => !c.escape).every((c) => c.escape === undefined));
   check("연결 턴은 답변 예산을 쓰지 않는다", realAnswers(ask.ctx.answers) === 3);
 
   // 연결 답 확정 → connection 기록 후 종료
@@ -267,10 +273,24 @@ console.log("좁히기 상태 기계 검증:");
   check("고른 방향이 맥락에 남는다", after.ctx.connection === "예산 배분");
   check("연결 답도 예산을 쓰지 않는다", realAnswers(after.ctx.answers) === 3);
 
-  // 탈출구를 고르면 연결로 치지 않는다
-  const escaped = { ...ask, picks: { selected: [NO_RELATION], custom: "", tooHard: false } };
+  // 탈출구를 고르면 연결로 치지 않는다. 고른 라벨은 화면에 실제로 렌더된 것에서 가져온다.
+  const escLabel = ask.question.choices.find((c) => c.escape).label;
+  const escaped = { ...ask, picks: { selected: [escLabel], custom: "", tooHard: false } };
   const [esc] = reduce(escaped, { t: "confirm" }, CFG_C);
   check("S-13 탈출구를 고르면 연결이 기록되지 않는다", esc.phase === "done" && esc.ctx.connection === undefined);
+
+  // ★ S-34 회귀 방지. 라벨을 한국어가 아닌 것으로 바꿔도 탈출 판정이 그대로 동작해야 한다.
+  // 예전 구현은 모듈 상수 "관련 없어요"와 비교했으므로 이 케이스에서 탈출이 연결로 기록됐다.
+  {
+    const EN = { ...CFG_C, noRelationLabel: "Not related" };
+    const [askEn] = reduce(st, { t: "related", runId: 3, out: { relevant: true, question: "Which one?", choices: [{ label: "Budget split" }], related_terms: ["budget"] } }, EN);
+    const enLabel = askEn.question.choices.find((c) => c.escape).label;
+    check("S-34 다른 로케일 라벨도 표식이 붙는다", enLabel === "Not related");
+    const [escEn] = reduce({ ...askEn, picks: { selected: [enLabel], custom: "", tooHard: false } }, { t: "confirm" }, EN);
+    check("S-34 다른 로케일에서도 탈출이 연결로 기록되지 않는다", escEn.phase === "done" && escEn.ctx.connection === undefined);
+    const [pickEn] = reduce({ ...askEn, picks: { selected: ["Budget split"], custom: "", tooHard: false } }, { t: "confirm" }, EN);
+    check("S-34 다른 로케일에서 실제 선택은 여전히 기록된다", pickEn.ctx.connection === "Budget split");
+  }
 
   // 연결 턴에서는 되돌리기·난이도 신호가 없다
   const [u] = reduce(ask, { t: "undo" }, CFG_C);
