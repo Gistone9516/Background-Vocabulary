@@ -17,12 +17,27 @@ const ALLOWED = {
   providers: new Set(["shared"]),
   "ui-shared": new Set(["shared"]),
   web: new Set(["shared", "ui-shared"]),
+  // 랜딩은 독립이다(SoT §7 "landing은 독립(+디자인 토큰만 공유)"). 값이 빈 집합인 것이 규칙이며,
+  // 키를 아예 빼면 안 된다 — 키가 없으면 `!allow`로 걸려 "등록 안 된 패키지"와 구분되지 않는다.
+  // 디자인 토큰 CSS는 아래 isAssetEntry 예외로 통과한다. 코드는 하나도 못 가져온다(L-2).
+  landing: new Set([]),
   "http-app": new Set(["shared", "core"]),
   local: new Set(["shared", "core", "http-app", "persistence", "providers"]),
   aws: new Set(["shared", "core", "http-app", "persistence", "providers"]),
   // 도구(빌드 산출물 소비). 런타임 의존 그래프의 일부가 아니라 검증기이므로 검증 대상을 부를 수 있다.
   // ui-shared는 좁히기 상태 기계를 서버 없이 검증하기 위해 들어왔다(e2e-narrow).
   scripts: new Set(["shared", "core", "http-app", "local", "persistence", "providers", "ui-shared"]),
+};
+
+// 정적 자산(CSS 등)만 가져올 수 있는 방향. 코드 의존과 **따로** 선언한다.
+// 처음에는 자산이면 방향 검사를 건너뛰게 두려 했으나, 그러면 "누가 누구의 자산을 쓰는지"가
+// 아무 데도 적히지 않는다. landing이 ui-shared의 디자인 토큰만 가져온다는 것은 계약이므로
+// (SoT §7 "landing은 독립(+디자인 토큰만 공유)") 데이터로 적어 둔다.
+const ASSET_ALLOWED = {
+  landing: new Set(["ui-shared"]),
+  // web도 같은 진입점을 쓴다(main.tsx, vite.config.ts). 이 항을 빠뜨렸더니 이미 통과하던
+  // web이 실패했다 — 새 검사를 넣을 때 기존 통과 경로를 함께 시험해야 한다는 실측이다.
+  web: new Set(["ui-shared"]),
 };
 
 function walk(dir) {
@@ -33,7 +48,8 @@ function walk(dir) {
     if (name === "node_modules" || name === "dist") continue;
     const p = join(dir, name);
     if (statSync(p).isDirectory()) out = out.concat(walk(p));
-    else if (name.endsWith(".ts") || name.endsWith(".tsx") || name.endsWith(".mjs")) out.push(p);
+    // .astro도 본다(L-8). 넣지 않으면 랜딩이 무검사 구역이 되고, "게이트로 강제한다"가 거짓이 된다.
+    else if (/\.(ts|tsx|mjs|astro)$/.test(name)) out.push(p);
   }
   return out;
 }
@@ -75,6 +91,15 @@ for (const file of walk(SCAN)) {
       const deep = rest.includes("/") && !isAssetEntry;
       if (deep) {
         violations.push(`${rel}\n    딥임포트 금지, 배럴 경유로만: ${spec}`);
+      }
+      // 자산 진입점은 코드 결합이 아니므로 ASSET_ALLOWED로 따로 판정한다. 순환 그래프에도
+      // 넣지 않는다 — CSS import는 실행 순서를 만들지 않는다.
+      if (isAssetEntry) {
+        const assetAllow = ASSET_ALLOWED[pkg];
+        if (!assetAllow || !assetAllow.has(target)) {
+          violations.push(`${rel}\n    허용밖 자산 의존: ${pkg} → ${target} (${spec})`);
+        }
+        continue;
       }
       graph[pkg].add(target);
       const allow = ALLOWED[pkg];

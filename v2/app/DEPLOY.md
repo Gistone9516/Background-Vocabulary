@@ -19,7 +19,9 @@ C2.1~C2.4 코드는 로컬(Docker PG)로 검증됐고, **aws 어댑터 코드(@v
 - [ ] Lambda(**nodejs22.x**, ESM) + **Function URL(RESPONSE_STREAM)** + 환경변수(SECRET_ID·DB_RESOURCE_ARN·DB_SECRET_ARN·DB_NAME·AWS_REGION) + IAM(rds-data·secretsmanager:GetSecretValue).
   - 런타임은 로컬 개발 환경과 맞춘다(로컬 Node 22.x, `package.json` engines `>=22`). 최초 문서는 Node 20으로 적혀 있었으나 Node 20은 2026년 4월경 업스트림 지원이 끝나 폐기 대상이다(2026-07-28 정정).
   - **배포 직전에 AWS 공식 런타임 표에서 nodejs22.x의 폐기 예정일을 직접 확인할 것.** 이 문서 작성 시점에 정확한 날짜를 확정하지 못했다. 표: `https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html`
-- [ ] CloudFront + S3(웹/랜딩, C3 배포 시).
+- [ ] CloudFront + S3(웹/랜딩, C3 배포 시). **경로 분할(S6 L-7): 랜딩 = `/`, 앱 SPA = `/app`.**
+      한 버킷·한 오리진을 공유하고 두 빌드가 모두 `dist/`를 뿜으므로 접두어를 갈라 올려야 서로
+      덮어쓰지 않는다. 랜딩 자산 폴더는 `_landing`으로 고정해 두었다(`astro.config.mjs`).
 
 ## 3. 마이그레이션
 - [ ] Aurora에 `packages/adapters/persistence/migrations/*.sql` 적용. `migrate()`는 문장 단위 분리라 Data API로도 실행 가능(DataApiSqlRunner 주입). 1회성 마이그레이션 Lambda 또는 로컬에서 Data API로 실행.

@@ -39,7 +39,7 @@ function walk(dir) {
     if (name === "node_modules" || name === "dist") continue;
     const p = join(dir, name);
     if (statSync(p).isDirectory()) files = files.concat(walk(p));
-    else if (name.endsWith(".ts") || name.endsWith(".tsx") || name.endsWith(".css")) files.push(p);
+    else if (/\.(ts|tsx|css|astro)$/.test(name)) files.push(p);  // .astro 포함(L-8)
   }
   return files;
 }

@@ -18,10 +18,10 @@ packages/
 ├ ui-shared/         [C3] 웹·데스크톱 공유 화면(반응형 셸·진입 화면·디자인 토큰 v1 verbatim)
 ├ web/               [C3] Vite SPA 셸(5180) — S5-3 진행 중. 플랫폼 조립은 `src/deps.ts` 한 곳
 ├ desktop/           [C4] Tauri 셸(동일 SPA + tauri 어댑터) — 예정
-├ landing/           [C3] Astro 설득 콘텐츠 — 예정
+├ landing/           [C3 S6] Astro 정적 랜딩(JS 0). 앱 코드 의존 없음, 디자인 토큰 CSS만
 └ scripts/           [C1] 경계 게이트·파일크기·프롬프트 패리티·e2e(무의존 .mjs 툴링)
 ```
-의존 방향(강제): `shared ← {core, persistence} ← http-app ← {aws, local}` / `shared ← ui-shared ← {web, desktop}`. 역참조·형제 직접 참조·딥임포트 = 게이트 실패.
+의존 방향(강제): `shared ← {core, persistence} ← http-app ← {aws, local}` / `shared ← ui-shared ← {web, desktop}` / `landing ← (없음)` — 랜딩은 독립이고 `ui-shared`의 디자인 토큰 CSS만 자산으로 가져온다(SoT §7). 역참조·형제 직접 참조·딥임포트 = 게이트 실패.
 
 ## 설계 핵심
 - **3계층 실행(SoT §0-2)**: 같은 Hono 앱을 세 부트가 공유한다. `mock`(UI 개발) / `local`(node-server + Docker PG, C2) / `aws`(Lambda + Data API, C2). 라우트에 계층 분기 없음 — 분기는 주입된 포트 구현이 담당.
@@ -37,7 +37,7 @@ corepack pnpm run gate                # 목 게이트: build → guard → bound
 docker compose up -d --wait           # 로컬 Postgres(5433)
 corepack pnpm run gate-db             # PG 게이트: build → e2e-pg(영속 CRUD 왕복)
 ```
-개별 게이트: `guard`(런타임 누수) · `boundary`(순환·역참조·딥임포트) · `size`(300행 상한) · `prompt-parity`(프롬프트 무손실) · `e2e`(local mock 관통) · `e2e-pg`(Docker PG CRUD).
+개별 게이트: `guard`(런타임 누수) · `boundary`(순환·역참조·딥임포트) · `size`(300행 상한) · `prompt-parity`(프롬프트 무손실) · `check-i18n`(로케일 표) · `check-landing`(랜딩 JS 0·금지 문구) · `e2e`(local mock 관통) · `e2e-pg`(Docker PG CRUD).
 
 ## 현재 상태 (C2 코드 전량 완료)
 - **C1 뼈대** / **C2.1 영속**(PG e2e 18/18) / **C2.2 인증**(11/11) / **C2.3 게이팅**(9/9) / **C2.4 실 공급자**(SSE 파서 결정 검증).
@@ -45,4 +45,4 @@ corepack pnpm run gate-db             # PG 게이트: build → e2e-pg(영속 CR
 - **C2 실키 스모크 완료**: DeepSeek(complete·실 SSE 스트리밍)·Tavily·Upstash 실호출 7/7(`pnpm e2e-real`, 수동).
 - **C3 진행 중(S5-3)**: `ui-shared`(v1 theme.css를 바이트 동일 복사한 디자인 정본 + 여정 전 화면 + 순수 상태 기계) · `web`(Vite SPA, 5180). 진입부터 담은 어휘까지 실서버와 관통하고, 로그인·세션 저장·재개·프로젝트·연결 턴이 붙어 있다. 화면 확인 = `corepack pnpm --dir packages/web run dev`.
 - **언어**: 헤더의 선택이 저장되고 UI 문구와 생성 출력에 같은 값이 쓰인다. 문구 표는 `strings.ts`(ko, 손으로 관리)와 `strings.{en,ja,zh}.ts`(`port-i18n.mjs`가 v1 원문에서 생성)로 나뉘며, `Record<StringKey, string>` 타이핑이 키 누락을 빌드에서 막는다. 컴포넌트는 `useTr()`, React 밖은 `trIn(locale, key)`를 쓴다 — ko 전용 함수는 없다. `HttpApiConfig.getOutputLocale`도 **필수**다: 선택 사항이던 동안 셸이 빠뜨려 전 사용자가 한국어로 고정된 적이 있다.
-- 남은 것 = S6(랜딩), 실 AWS 배포(핸즈온 `DEPLOY.md`), C4 데스크톱, C5 신규·수익.
+- 남은 것 = S6 카피 확정, 실 AWS 배포(핸즈온 `DEPLOY.md`), C4 데스크톱, C5 신규·수익.

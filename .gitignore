@@ -7,6 +7,7 @@
 # deps / build
 node_modules/
 dist/
+.astro/
 .wrangler/
 *.tsbuildinfo
 

@@ -13,7 +13,11 @@ const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const ROOTS = ["packages/shared/src", "packages/core/src", "packages/ui-shared/src"].map((r) => join(APP_ROOT, r));
 
 // 프롬프트 문자열이 포함되면 안 되는 프론트 계층(SoT 8절).
-const PROMPT_ROOTS = ["packages/ui-shared/src", "packages/web/src"].map((r) => join(APP_ROOT, r));
+// landing은 C3-웹랜딩 §1-4가 처음부터 요구했으나 S6까지 등록돼 있지 않았다 — 적혀 있고 안 하는
+// 상태였다. 랜딩은 정적 HTML이라 유출되면 그대로 크롤러에 노출되므로 오히려 더 세게 걸린다.
+const PROMPT_ROOTS = ["packages/ui-shared/src", "packages/web/src", "packages/landing/src"].map((r) =>
+  join(APP_ROOT, r)
+);
 
 // core/·shared/ 에서 금지하는 패턴. 런타임/공급자 전용이거나 어댑터 의존이면 위반.
 const FORBIDDEN = [
@@ -40,7 +44,9 @@ function walk(dir) {
   for (const name of entries) {
     const p = join(dir, name);
     if (statSync(p).isDirectory()) files = files.concat(walk(p));
-    else if (name.endsWith(".ts") || name.endsWith(".tsx")) files.push(p);
+    // .astro도 본다(L-8). 랜딩은 정적 HTML이라 프롬프트가 새면 그대로 크롤러에 노출된다.
+    // 이 필터를 빠뜨렸더니 PROMPT_ROOTS에 landing을 등록해 놓고도 아무것도 안 봤다 — 실측으로 잡았다.
+    else if (/\.(ts|tsx|astro)$/.test(name)) files.push(p);
   }
   return files;
 }
