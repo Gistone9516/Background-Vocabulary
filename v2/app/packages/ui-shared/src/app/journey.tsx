@@ -58,7 +58,7 @@ export function VockApp({ deps }: { deps: ShellDeps }) {
 function AppBody({ deps }: { deps: ShellDeps }) {
   const { api, tokens } = deps;
   const tr = useTr();
-  const { locale: loc } = useOutputLocale();
+  const { locale: loc, setLocale } = useOutputLocale();
   const [limits, setLimits] = useState<ClientLimits | null>(null);
   const [journey, setJourney] = useState<Journey>({ at: "entry" });
 
@@ -75,14 +75,34 @@ function AppBody({ deps }: { deps: ShellDeps }) {
     []
   );
 
-  // 로그인. 능력이 없는 플랫폼(deps.auth === null)은 clientId를 죽여 버튼 자체가 뜨지 않는다 —
+  // 로그인. 능력(deps.auth)이 null이면 훅이 available=false를 돌려 버튼 자체가 뜨지 않는다 —
   // client_id 미등록 시 버튼이 없는 것(S5a A-2)과 같은 강등 경로를 태운다. 화면 분기가 아니다.
   const auth = useAuth({
     auth: api,
     tokens,
-    clientId: deps.auth ? (limits?.googleClientId ?? null) : null,
-    redirectUri: deps.auth?.redirectUri() ?? "",
+    clientId: limits?.googleClientId ?? null,
+    flow: deps.auth,
   });
+
+  // 언어 설정 동기화(FR-952, C4 S2 §1-4). 정본=서버.
+  // 로그인 직후 1회: 서버 locale이 로컬을 덮는다. 이후 로그인 중 변경: 서버에 반영한다.
+  // 실패는 삼키되 경고 1줄 — 화면은 로컬 값을 유지하고, 다음 로그인 때 서버 값이 이긴다(§1-4 트레이드오프).
+  const serverLocale = useRef<OutputLocale | null>(null);
+  useEffect(() => {
+    if (auth.state.phase !== "signed_in") {
+      serverLocale.current = null;
+      return;
+    }
+    if (serverLocale.current === null) {
+      serverLocale.current = auth.state.user.locale;
+      if (auth.state.user.locale !== loc) setLocale(auth.state.user.locale);
+      return;
+    }
+    if (loc !== serverLocale.current) {
+      serverLocale.current = loc;
+      api.updateLocale(loc).catch(() => console.warn("언어 설정 서버 반영 실패 — 다음 로그인 때 서버 값이 이긴다"));
+    }
+  }, [auth.state, loc, setLocale, api]);
 
   // 한도는 로그인한 사용자의 티어로 고른다(B-4 narrowMax[tier], R-5 maxTotal[tier]).
   // .free를 여기서 직접 읽으면 유료 사용자가 무료 한도를 받는다.

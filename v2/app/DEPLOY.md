@@ -16,7 +16,7 @@ C2.1~C2.4 코드는 로컬(Docker PG)로 검증됐고, **aws 어댑터 코드(@v
 ## 2. 프로비저닝(IaC로 코드화)
 - [ ] Aurora Serverless v2(PostgreSQL) + **Data API 활성화** + DB 시크릿(Secrets Manager).
 - [ ] Secrets Manager 시크릿 1개(JSON = `VockSecrets` 형태: jwtSecretCurrent·jwtKid·deepseekKey·tavilyKey·upstash{url,token}·google{web,desktop}).
-- [ ] Lambda(**nodejs22.x**, ESM) + **Function URL(RESPONSE_STREAM)** + 환경변수(SECRET_ID·DB_RESOURCE_ARN·DB_SECRET_ARN·DB_NAME·AWS_REGION) + IAM(rds-data·secretsmanager:GetSecretValue).
+- [ ] Lambda(**nodejs22.x**, ESM) + **Function URL(RESPONSE_STREAM)** + 환경변수(SECRET_ID·DB_RESOURCE_ARN·DB_SECRET_ARN·DB_NAME·AWS_REGION, 선택: **VOCK_ALLOWED_ORIGINS**[콤마 구분 — CORS와 clientCheck 웹 표식이 같은 목록]·**VOCK_CLIENT_CHECK=1**[명시적으로 켬]) + IAM(rds-data·secretsmanager:GetSecretValue). Secrets JSON에 선택 키 둘(C4 S2): `google.desktop{clientId,clientSecret}`(콘솔 등록 후), `desktopClientToken`(x-vock-client 표식 — 비밀 아님, NFR-308). **데스크톱 웹뷰의 실제 Origin 값은 S5 패키징 스모크에서 실측해 VOCK_ALLOWED_ORIGINS를 좁힌다**(후보: https://tauri.localhost·http://tauri.localhost·tauri://localhost).
   - 런타임은 로컬 개발 환경과 맞춘다(로컬 Node 22.x, `package.json` engines `>=22`). 최초 문서는 Node 20으로 적혀 있었으나 Node 20은 2026년 4월경 업스트림 지원이 끝나 폐기 대상이다(2026-07-28 정정).
   - **배포 직전에 AWS 공식 런타임 표에서 nodejs22.x의 폐기 예정일을 직접 확인할 것.** 이 문서 작성 시점에 정확한 날짜를 확정하지 못했다. 표: `https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html`
 - [ ] CloudFront + S3(웹/랜딩, C3 배포 시). **경로 분할(S6 L-7): 랜딩 = `/`, 앱 SPA = `/app`.**

@@ -14,6 +14,9 @@ export interface VockSecrets {
     web: { clientId: string; clientSecret: string };
     desktop?: { clientId: string; clientSecret: string };
   };
+  // clientCheck(NFR-305)의 데스크톱 표식(C4 S2). 바이너리에 빌드 시 주입되는 값과 대조한다.
+  // **비밀이 아니다**(NFR-308 — 바이너리 속 값은 추출 가능) — 남용 억제 표식일 뿐이라 로테이션 부담도 그 수준으로 본다.
+  desktopClientToken?: string;
 }
 
 export async function loadSecrets(secretId: string, region?: string): Promise<VockSecrets> {

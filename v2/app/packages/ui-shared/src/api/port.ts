@@ -4,6 +4,7 @@
 
 import type {
   ClientLimits,
+  OutputLocale,
   AssetSummary,
   Page,
   Project,
@@ -34,7 +35,9 @@ export interface AuthSession {
   access_token: string;
   refresh_token: string;
   expires_in: number;
-  user: { email: string; tier: Tier };
+  // locale: FR-952 서버 정본(C4 S2). 로그인 응답에만 실린다 — refresh 응답에는 user 자체가 없다
+  // (auth-routes refresh는 토큰만 돌려준다). refresh 경로는 user를 읽지 않으므로 타입을 나누지 않는다.
+  user: { email: string; tier: Tier; locale: OutputLocale };
 }
 
 // 인증은 ApiPort와 분리한다. 파이프라인 호출과 수명이 다르고 로그인 없이도 앱이 돌아야 한다.
@@ -71,6 +74,8 @@ export interface ApiPort {
   deleteProject(id: string, signal?: AbortSignal): Promise<void>;
   // 연결 턴. 프로젝트에 담은 어휘가 있을 때만 부른다(S-11).
   relate(input: RelateIn, signal?: AbortSignal): Promise<RelateOut>;
+  // FR-952(C4 S2): 로그인 상태에서 언어를 바꾸면 서버 정본을 갱신한다. Bearer 필수(서버가 검증).
+  updateLocale(locale: OutputLocale, signal?: AbortSignal): Promise<void>;
 }
 
 // 커서는 서버가 만든 불투명 문자열이다. 클라가 열어 보거나 다시 정렬하지 않는다(S-9).

@@ -19,7 +19,11 @@ const ALLOWED = {
   web: new Set(["shared", "ui-shared"]),
   // 데스크톱 셸(C4 S1). web과 같은 방향이다 — 여정 배선이 ui-shared로 올라갔으므로(DS-2)
   // 셸은 ShellDeps 구현만 갖고, core·http-app을 직접 부를 이유가 없다.
-  desktop: new Set(["shared", "ui-shared"]),
+  // S2에서 tauri(플랫폼 어댑터)가 추가됐다 — 키링·루프백 등 Tauri API는 어댑터 뒤에만 있다.
+  desktop: new Set(["shared", "ui-shared", "tauri"]),
+  // 데스크톱 플랫폼 어댑터(C4 S2). ui-shared의 포트(TokenStore·AuthFlow)를 Tauri API로 구현한다.
+  // _shadow 노트가 예고한 그대로 패키지 신설과 같은 커밋에 등록한다.
+  tauri: new Set(["shared", "ui-shared"]),
   // 랜딩은 독립이다(SoT §7 "landing은 독립(+디자인 토큰만 공유)"). 값이 빈 집합인 것이 규칙이며,
   // 키를 아예 빼면 안 된다 — 키가 없으면 `!allow`로 걸려 "등록 안 된 패키지"와 구분되지 않는다.
   // 디자인 토큰 CSS는 아래 isAssetEntry 예외로 통과한다. 코드는 하나도 못 가져온다(L-2).

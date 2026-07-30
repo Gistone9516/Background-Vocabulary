@@ -1,7 +1,7 @@
 // 인증 오케스트레이션(순수 로직). 주입된 포트(UserRepository·GoogleOAuthClient·JtiBlacklist)만 호출한다.
 // v1 /auth 라우트 오케스트레이션 이식 — 런타임(Hono/D1)을 걷어내고 포트로 대체.
 
-import type { UserRepository, GoogleOAuthClient, JtiBlacklist, AuthConfig, AccessTokenClaims, Tier } from "@vock/shared";
+import type { UserRepository, GoogleOAuthClient, JtiBlacklist, AuthConfig, AccessTokenClaims, OutputLocale, Tier } from "@vock/shared";
 import { issueTokens, verifyAccess, verifyRefresh, type IssuedTokens } from "./jwt.js";
 import { effectiveEntitlement } from "./entitlement.js";
 
@@ -14,7 +14,8 @@ export interface AuthServiceDeps {
 
 export interface LoginResult {
   tokens: IssuedTokens;
-  user: { email: string; tier: Tier };
+  // locale: FR-952 — 서버가 정본이다. 로그인 응답에 실어 클라 저장소를 덮게 한다(C4 S2).
+  user: { email: string; tier: Tier; locale: OutputLocale };
 }
 
 export interface StatusResult {
@@ -26,7 +27,10 @@ export interface StatusResult {
 
 export interface AuthService {
   // Google 코드 교환 → 계정 조회/생성 → 토큰 발급. 교환 실패 시 throw(라우트가 401 매핑).
-  loginWithGoogle(args: { code: string; codeVerifier: string; redirectUri: string; platform: "web" | "desktop" }): Promise<LoginResult>;
+  // locale은 첫 로그인(계정 생성) 시점에만 심는 씨앗값이다 — 기존 계정의 locale을 덮지 않는다.
+  loginWithGoogle(args: { code: string; codeVerifier: string; redirectUri: string; platform: "web" | "desktop"; locale?: OutputLocale }): Promise<LoginResult>;
+  // FR-952: 언어 설정 영속. Bearer 검증 후 호출된다(라우트 책임).
+  updateLocale(userId: string, locale: OutputLocale): Promise<void>;
   // 리프레시 → 블랙리스트 검사 → DB 최신 tier 재조회 → 재발급. 무효면 null(TOKEN_REVOKED).
   refresh(refreshToken: string): Promise<IssuedTokens | null>;
   // 리프레시 jti를 블랙리스트에 등록(멱등). 무효 토큰이면 무동작.
@@ -49,10 +53,16 @@ export function createAuthService(deps: AuthServiceDeps): AuthService {
     async loginWithGoogle(args) {
       const identity = await google.exchange(args);
       let user = await users.findByEmail(identity.email);
-      if (!user) user = await users.create({ email: identity.email, google_sub: identity.sub });
+      // 씨앗값은 생성 경로에만 쓴다. 기존 계정에서 로그인 요청의 locale로 서버 값을 덮으면
+      // "정본=서버"가 뒤집힌다 — 갱신은 명시적 updateLocale 한 길뿐이다.
+      if (!user) user = await users.create({ email: identity.email, google_sub: identity.sub, ...(args.locale ? { locale: args.locale } : {}) });
       const ent = effectiveEntitlement(user);
       const tokens = await issue(user, ent.effective_tier);
-      return { tokens, user: { email: user.email, tier: ent.effective_tier } };
+      return { tokens, user: { email: user.email, tier: ent.effective_tier, locale: user.locale } };
+    },
+
+    async updateLocale(userId, locale) {
+      await users.updateLocale(userId, locale);
     },
 
     async refresh(refreshToken) {

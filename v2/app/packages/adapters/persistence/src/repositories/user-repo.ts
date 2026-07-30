@@ -1,15 +1,24 @@
 // UserRepository의 PG 구현(v1 D1UserRepository 이식). SqlRunner에만 의존.
 
-import type { SqlRunner, UserRepository, NewUser, EntitlementPatch, UserRecord, Tier, SubscriptionStatus, Currency, PgProvider } from "@vock/shared";
+import type { SqlRunner, UserRepository, NewUser, EntitlementPatch, UserRecord, Tier, SubscriptionStatus, Currency, PgProvider, OutputLocale } from "@vock/shared";
+import { OUTPUT_LOCALES } from "@vock/shared";
 import { asNum, asNumOrNull } from "../json.js";
 
 type Row = Record<string, unknown>;
+
+// DB 값을 그대로 믿지 않는다 — 열거 밖 값이면 ko로 좁힌다(마이그레이션·수동 수정 대비).
+function asLocale(v: unknown): OutputLocale {
+  const s = String(v ?? "ko");
+  return (OUTPUT_LOCALES as readonly string[]).includes(s) ? (s as OutputLocale) : "ko";
+}
 
 function toUser(r: Row): UserRecord {
   return {
     user_id: String(r.user_id),
     email: String(r.email),
     google_sub: r.google_sub == null ? null : String(r.google_sub),
+    // C4 S2까지 이 컬럼을 읽는 코드가 없었다(스키마부터 있었는데도). FR-952의 배선이다.
+    locale: asLocale(r.locale),
     tier: String(r.tier) as Tier,
     subscription_status: String(r.subscription_status) as SubscriptionStatus,
     expires_at: asNumOrNull(r.expires_at),
@@ -49,12 +58,19 @@ export class PgUserRepository implements UserRepository {
     const id = crypto.randomUUID();
     const now = Date.now();
     await this.sql.execute(
-      "INSERT INTO users (user_id, email, google_sub, tier, subscription_status, cancel_at_period_end, failed_payment_count, billing_interval, created_at) VALUES ($1,$2,$3,'free','none',FALSE,0,'monthly',$4)",
-      [id, rec.email, rec.google_sub, now],
+      "INSERT INTO users (user_id, email, google_sub, locale, tier, subscription_status, cancel_at_period_end, failed_payment_count, billing_interval, created_at) VALUES ($1,$2,$3,$4,'free','none',FALSE,0,'monthly',$5)",
+      // 첫 로그인 시점의 클라 언어를 심는다. 없으면 ko — DB DEFAULT에 맡기지 않는 이유는
+      // 열 목록을 명시한 INSERT에서 "무엇이 기본값인지"가 코드에서 보이게 하기 위해서다.
+      [id, rec.email, rec.google_sub, rec.locale ?? "ko", now],
     );
     const created = await this.findById(id);
     if (!created) throw new Error("user_create_failed");
     return created;
+  }
+
+  // FR-952: 언어 설정 영속. 정본=서버이므로 갱신 경로는 이 한 곳뿐이다.
+  async updateLocale(userId: string, locale: OutputLocale): Promise<void> {
+    await this.sql.execute("UPDATE users SET locale=$1 WHERE user_id=$2", [locale, userId]);
   }
 
   // 멱등 엔타이틀먼트 upsert. 부분 패치를 현재 행과 병합해 갱신한다.

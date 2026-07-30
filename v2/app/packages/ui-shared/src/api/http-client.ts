@@ -43,6 +43,9 @@ export interface HttpApiConfig {
   // 전 사용자가 조용히 한국어로 고정됐다. e2e는 자기가 값을 주입해 검사했으므로 초록이었다.
   // 필수로 두면 안 넘기는 셸은 타입 검사에서 막힌다 — 잊을 수 있는 자리를 없앤다.
   getOutputLocale: () => OutputLocale;
+  // 같은 이유로 필수다(C4 S2 DS2-5). 선택이면 데스크톱 셸이 빠뜨렸을 때 서버가 web 자격증명으로
+  // 교환을 시도하고, 그 실패는 Google 쪽 메시지로만 온다 — 원인이 한 층 건너에 있는 오류가 된다.
+  platform: "web" | "desktop";
   fetch?: typeof globalThis.fetch;
   // 401을 받았을 때 한 번만 재발급을 시도한다. 성공하면 원 요청을 한 번만 다시 보낸다.
   // 재발급도 실패하면 null을 돌려주고, 그때는 재시도하지 않는다(스펙 A-7).
@@ -57,6 +60,7 @@ export class HttpApiClient implements ApiPort, AuthPort {
   private readonly base: string;
   private readonly token: () => string | null;
   private readonly outputLocale: () => OutputLocale;
+  private readonly platform: "web" | "desktop";
   private readonly doFetch: typeof globalThis.fetch;
   private readonly onUnauthorized: (() => Promise<string | null>) | null;
 
@@ -65,6 +69,7 @@ export class HttpApiClient implements ApiPort, AuthPort {
     this.base = cfg.baseUrl.replace(/\/+$/, "");
     this.token = cfg.getAccessToken ?? (() => null);
     this.outputLocale = cfg.getOutputLocale;
+    this.platform = cfg.platform;
     this.doFetch = cfg.fetch ?? globalThis.fetch.bind(globalThis);
     this.onUnauthorized = cfg.onUnauthorized ?? null;
   }
@@ -75,8 +80,17 @@ export class HttpApiClient implements ApiPort, AuthPort {
       code: args.code,
       code_verifier: args.codeVerifier,
       redirect_uri: args.redirectUri,
-      platform: "web",
+      // "web" 하드코딩이었다(C4 S2에서 교체). 데스크톱 교환이 web 자격증명을 타면 안 된다.
+      platform: this.platform,
+      // 첫 로그인(계정 생성) 씨앗값. 기존 계정에는 영향이 없다(서버가 생성 경로에만 쓴다).
+      locale: this.outputLocale(),
     });
+  }
+
+  // FR-952(C4 S2): 언어 설정 영속. 응답은 204 — attempt가 빈 본문 성공을 null로 정상 처리한다
+  // (읽고 확인함: "204처럼 본문이 없는 성공은 정상이다").
+  async updateLocale(locale: OutputLocale, signal?: AbortSignal): Promise<void> {
+    await this.send<unknown>("PATCH", "/me/locale", { locale }, signal);
   }
 
   async refresh(refreshToken: string): Promise<AuthSession | null> {

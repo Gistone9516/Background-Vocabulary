@@ -1,13 +1,12 @@
 // 데스크톱 플랫폼 조립. 웹의 deps.ts에 해당하는 파일이고, 여정(VockApp)은 ui-shared에서 온다.
 //
-// S1의 임시 상태 두 가지를 여기 명시한다(스펙 DS-6 아님 — C4-S1 §1-3):
-// - tokens = memoryTokenStore: 로그인 능력이 없으므로(auth: null) 저장할 토큰 자체가 없다.
-//   S2에서 OS 보안 저장소로 교체한다(D-5 — localStorage 금지는 데스크톱에 그대로 적용).
-// - locale = browserLocaleStore: 웹뷰에도 localStorage가 있어 웹과 같은 구현을 쓴다.
-//   S2에서 users.locale 서버 동기화가 붙으면 재판단한다.
+// S2에서 채워진 것: tokens = OS 보안 저장소(키링, main.tsx가 기동 시 1회 로드해 넘긴다),
+// auth = 시스템 브라우저 + 루프백(tauriAuthFlow). locale 동기화는 여정이 갖는다(FR-952 —
+// 플랫폼 무관 로직이라 여기 두면 웹과 갈라진다). browserLocaleStore는 로컬 캐시 역할로 유지.
 
 import { useMemo } from "react";
-import { HttpApiClient, browserLocaleStore, memoryTokenStore, type ShellDeps } from "@vock/ui-shared";
+import { HttpApiClient, browserLocaleStore, type ShellDeps, type TokenStore } from "@vock/ui-shared";
+import { tauriAuthFlow } from "@vock/tauri";
 
 // D-3: 상대경로 폴백을 두지 않는다. dev 값("/api")은 .env.development에 명시돼 있고,
 // 프로덕션 빌드는 vite.config.ts가 미설정 시 빌드를 깬다. 여기는 이중 방어다 —
@@ -20,14 +19,18 @@ const BASE_URL: string = (() => {
   return v;
 })();
 
-export function useShellDeps(): ShellDeps {
-  const tokens = useMemo(() => memoryTokenStore(), []);
+// tokens는 main.tsx가 기동 시 키링에서 1회 로드해 넘긴다(비동기 팩토리 — C4-S2 §1-3).
+// 훅 안에서 만들 수 없는 이유: TokenStore.read()는 동기인데 키링은 비동기라, 첫 로드가
+// 렌더보다 늦으면 "로그인 풀린 화면"이 먼저 그려진다.
+export function useShellDeps(tokens: TokenStore): ShellDeps {
   const locale = useMemo(() => browserLocaleStore(), []);
 
   const api = useMemo<HttpApiClient>(() => {
     // onUnauthorized가 자기 자신을 부르므로 타입을 명시해 추론 순환을 끊는다(web과 동일).
     const client: HttpApiClient = new HttpApiClient({
       baseUrl: BASE_URL,
+      // 서버가 이 값으로 web/desktop 자격증명 쌍을 고른다(계약 §135). 필수라 빠뜨릴 수 없다(DS2-5).
+      platform: "desktop",
       getAccessToken: () => tokens.read()?.access ?? null,
       getOutputLocale: () => locale.read(),
       // 401 한 번에 한해 재발급(S5a A-7). S1에서는 로그인이 없어 도달하지 않지만,
@@ -47,12 +50,8 @@ export function useShellDeps(): ShellDeps {
     return client;
   }, [tokens, locale]);
 
-  return {
-    api,
-    tokens,
-    locale,
-    // OAuth 능력 없음(S1). 로그인 버튼이 뜨지 않는다 — 화면 분기가 아니라 능력 강등이다(D-12).
-    // S2에서 시스템 브라우저 + 루프백 콜백으로 채운다(계약 §140).
-    auth: null,
-  };
+  // 시스템 브라우저 + 루프백(계약 §140, S2에서 채움). 리스너 수명은 어댑터가 관리한다.
+  const auth = useMemo(() => tauriAuthFlow(), []);
+
+  return { api, tokens, locale, auth };
 }

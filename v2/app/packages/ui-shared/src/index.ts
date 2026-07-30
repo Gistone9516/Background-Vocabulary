@@ -40,7 +40,7 @@ export type { ApiError, HttpApiConfig, KeepBody, ListSessionsArgs } from "./api/
 
 // 로그인(S5a). 로그인은 관문이 아니다. 비로그인으로도 전 여정이 돈다.
 export { AuthButton, useAuth, preparePkce, challengeOf, buildAuthorizeUrl, readCallback } from "./screens/auth/index.js";
-export type { AuthButtonProps, AuthState, AuthUser, UseAuthOptions, PkcePrep } from "./screens/auth/index.js";
+export type { AuthButtonProps, AuthState, AuthUser, AuthFlow, UseAuthOptions, PkcePrep } from "./screens/auth/index.js";
 
 // 좁히기. 상태 기계는 React와 무관한 순수 로직이라 게이트가 서버 없이 검증한다.
 export { NarrowScreen, useNarrow } from "./screens/narrow/index.js";

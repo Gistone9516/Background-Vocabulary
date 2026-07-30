@@ -2,6 +2,7 @@
 // 부트(서버 기동)는 여기 없다 — 계층별 부트(local·aws)가 이 앱을 감싼다.
 
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { createPipeline } from "@vock/core";
 import type { AuthService } from "@vock/core";
 import { DEFAULT_LIMITS } from "@vock/shared";
@@ -11,6 +12,7 @@ import { registerCrudRoutes } from "./routes/crud-routes.js";
 import { registerAuthRoutes } from "./routes/auth-routes.js";
 import { jwtResolveUserId, devResolveUserId } from "./middleware/auth.js";
 import { installGating } from "./middleware/gating.js";
+import { installClientCheck, type ClientCheckConfig } from "./middleware/client-check.js";
 
 // 앱 의존 계약. 부트가 계층별로 조립해 주입한다.
 // repos 미주입(mock UI 부트)=CRUD 미등록. authService 미주입=/auth 미등록+CRUD는 DEV(x-user-id).
@@ -22,6 +24,11 @@ export interface AppDeps extends PipelineDeps {
   // 구글 OAuth 클라이언트 식별자. 부트가 env에서 읽어 넣는다.
   // 운영 한도가 아니라 클라이언트 설정이라 Limits가 아니라 여기로 받는다.
   googleClientId?: string;
+  // CORS 허용 오리진(C4 S2 DS2-1). 미설정 = 미들웨어 자체가 안 붙는다 — 웹 단일 오리진
+  // 배포는 CORS가 필요 없고, 다른 오리진(Tauri 웹뷰)이 생길 때만 부트가 env로 켠다.
+  corsOrigins?: string[];
+  // clientCheck(NFR-305, DS2-3). 미설정 = skip(로컬 — C2.3 §0 계약). 남용 억제 수단이다.
+  clientCheck?: ClientCheckConfig;
 }
 
 // 운영 한도에서 클라이언트 게이팅용 부분집합(/config 응답)을 파생한다.
@@ -46,6 +53,22 @@ export function createApp(deps: AppDeps): Hono {
   };
 
   const app = new Hono();
+
+  // 순서가 계약이다: CORS → clientCheck → 게이팅 → 라우트.
+  // CORS가 먼저여야 프리플라이트(OPTIONS)가 clientCheck의 403을 맞지 않는다 — 프리플라이트에는
+  // 커스텀 헤더가 실리지 않으므로 뒤에 두면 데스크톱의 모든 교차 요청이 시작조차 못 한다.
+  if (deps.corsOrigins && deps.corsOrigins.length > 0) {
+    app.use(
+      "*",
+      cors({
+        origin: deps.corsOrigins,
+        allowHeaders: ["authorization", "content-type", "x-vock-client"],
+        allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+      })
+    );
+  }
+  if (deps.clientCheck) installClientCheck(app, deps.clientCheck);
+
   app.get("/health", (c) => c.json({ ok: true }));
   app.get("/config", (c) => c.json(clientLimits));
 

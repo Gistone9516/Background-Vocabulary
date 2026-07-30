@@ -11,6 +11,7 @@
     "types": [],
     "paths": {
       "@vock/ui-shared": ["../ui-shared/src/index.ts"],
+      "@vock/tauri": ["../adapters/tauri/src/index.ts"],
       "@vock/shared": ["../shared/src/index.ts"]
     }
   },

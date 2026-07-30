@@ -1,11 +1,13 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "enables the default permissions",
+  "description": "기본 권한 + C4 S2 로그인 경로(oauth 루프백·시스템 브라우저). 앱 자체 커맨드(secret_*)는 capabilities 대상이 아니다.",
   "windows": [
     "main"
   ],
   "permissions": [
-    "core:default"
+    "core:default",
+    "oauth:default",
+    "opener:default"
   ]
 }

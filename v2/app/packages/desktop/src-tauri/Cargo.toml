@@ -23,3 +23,8 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.11.3", features = [] }
 tauri-plugin-log = "2"
+# C4 S2 로그인 경로. oauth = 루프백 리스너, opener = 시스템 브라우저.
+tauri-plugin-oauth = "2"
+tauri-plugin-opener = "2"
+# OS 자격 증명 저장소(D-5). v3는 저장 백엔드를 feature로 고른다 — Windows/Linux 두 타깃만(D-9).
+keyring = { version = "3", features = ["windows-native", "sync-secret-service"] }

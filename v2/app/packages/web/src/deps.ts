@@ -18,6 +18,7 @@ export function useShellDeps(): ShellDeps {
     // 클로저는 생성 이후에만 실행되니 런타임에는 문제가 없다.
     const client: HttpApiClient = new HttpApiClient({
       baseUrl: BASE_URL,
+      platform: "web",
       getAccessToken: () => tokens.read()?.access ?? null,
       // 저장소를 매 요청 직접 읽는다. React 상태를 읽게 하면 locale이 이 memo의 의존성이 되어
       // 언어를 바꿀 때마다 클라이언트가 새로 생기고 /config 재호출과 세션·프로젝트 재구독이 딸려온다.
@@ -42,9 +43,14 @@ export function useShellDeps(): ShellDeps {
     api,
     tokens,
     locale,
-    // 웹의 OAuth 능력: 자기 오리진 콜백(S5a). location 가드는 App.tsx 시절 그대로 옮겼다.
+    // 웹의 OAuth 능력: 자기 오리진 콜백 + 페이지 이동(S5a). location 가드는 App.tsx 시절 그대로.
+    // waitForCallback이 없다 — 페이지가 떠났다 돌아오므로 마운트 경로가 콜백을 처리한다.
     auth: {
+      platform: "web",
       redirectUri: () => (typeof location === "undefined" ? "" : location.origin + location.pathname),
+      navigate: (url: string) => {
+        location.assign(url);
+      },
     },
   };
 }

@@ -1,6 +1,6 @@
 // 인증·엔타이틀먼트 타입(v1 §8 이월). 시각 단위 경계: JWT=초, DB·도메인=밀리초.
 
-import type { Tier } from "./enums.js";
+import type { OutputLocale, Tier } from "./enums.js";
 
 // 구독 상태. tier와 한 트랜잭션으로 같이 갱신해 불일치를 막는다.
 export const SUBSCRIPTION_STATUSES = ["none", "active", "canceling", "past_due", "grace", "expired", "suspended", "refunded"] as const;
@@ -18,6 +18,9 @@ export interface UserRecord {
   user_id: string;
   email: string;
   google_sub: string | null;
+  // FR-952 언어 설정 영속(크로스 플랫폼) — 정본은 서버다. 컬럼은 0001_init부터 있었으나
+  // C4 S2까지 어떤 코드도 읽지 않았다(실측). **필수**로 둔다 — 선택이면 빠뜨린 곳이 조용히 ko 고정이 된다.
+  locale: OutputLocale;
   tier: Tier;
   subscription_status: SubscriptionStatus;
   expires_at: number | null;
@@ -65,6 +68,8 @@ export interface RefreshTokenClaims {
 export interface NewUser {
   email: string;
   google_sub: string | null;
+  // 첫 로그인 시점의 클라 언어. 없으면 DB 기본값(ko) — 이후 정본은 서버(FR-952).
+  locale?: OutputLocale;
 }
 
 // 엔타이틀먼트 변경 패치. webhook·Cron이 적용. occurred_at으로 이벤트 순서 역전을 막는다.

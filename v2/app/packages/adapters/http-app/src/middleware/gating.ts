@@ -23,7 +23,8 @@ export interface GateDeps {
 const DAY_TTL = 24 * 60 * 60;
 const MIN_TTL = 60;
 const WEEK_TTL = 7 * 24 * 60 * 60;
-const COST_PATHS = ["/classify", "/next", "/preview", "/relate", "/recommend", "/detail", "/summarize", "/refine-primer"];
+// client-check.ts가 같은 목록을 쓴다(C4 S2). 두 벌이면 새 비용 경로가 한쪽에서만 걸러진다.
+export const COST_PATHS = ["/classify", "/next", "/preview", "/relate", "/recommend", "/detail", "/summarize", "/refine-primer"];
 
 function ipOf(c: Ctx): string {
   return c.req.header("x-real-ip") ?? c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ?? "0.0.0.0";

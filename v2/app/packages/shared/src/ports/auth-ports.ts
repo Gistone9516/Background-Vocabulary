@@ -1,7 +1,7 @@
 // 인증 포트. 구현은 adapters(persistence=UserRepository·JtiBlacklist, providers=GoogleOAuthClient).
 // core/auth 서비스는 이 포트에만 의존한다.
 
-import type { UserRecord, NewUser, EntitlementPatch } from "../types/index.js";
+import type { OutputLocale, UserRecord, NewUser, EntitlementPatch } from "../types/index.js";
 
 // 엔타이틀먼트 저장소. 구현은 PG(persistence), 후일 DynamoDB 등 교체 가능.
 export interface UserRepository {
@@ -10,6 +10,7 @@ export interface UserRepository {
   findByGoogleSub(sub: string): Promise<UserRecord | null>;
   create(rec: NewUser): Promise<UserRecord>;
   applyEntitlement(patch: EntitlementPatch): Promise<UserRecord>; // 멱등 upsert
+  updateLocale(userId: string, locale: OutputLocale): Promise<void>; // FR-952 — 정본=서버(C4 S2)
 }
 
 // Google에서 검증한 신원(id_token 클레임 부분집합).

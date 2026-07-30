@@ -26,6 +26,7 @@ export default defineConfig(({ command, mode }) => {
       alias: [
         { find: "@vock/ui-shared/styles.css", replacement: resolve(here, "../ui-shared/src/styles/bundle.css") },
         { find: "@vock/ui-shared", replacement: resolve(here, "../ui-shared/src/index.ts") },
+        { find: "@vock/tauri", replacement: resolve(here, "../adapters/tauri/src/index.ts") },
         { find: "@vock/shared", replacement: resolve(here, "../shared/src/index.ts") },
       ],
     },

@@ -5,3 +5,5 @@ dist/
 .DS_Store
 # Tauri 빌드 캐시(수 GB). Cargo.lock은 커밋한다 — 앱이므로 재현 빌드의 정본이다(DS-6).
 packages/desktop/src-tauri/target/
+# dev의 API 주소는 시크릿이 아니라 명시된 설정이다(DS-3) — 전역 .env.* 무시 규칙의 예외(C4 S2에서 S1 누락 발견).
+!packages/desktop/.env.development

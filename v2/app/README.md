@@ -14,11 +14,11 @@ packages/
 │  ├ providers/      [C2.2·C2.4] 외부 공급자 어댑터(웹표준 fetch, local·aws 공유) — Google OAuth·DeepSeek(SSE)·Tavily·Upstash
 │  ├ local/          [C1·C2.1·C2.2] node-server 부트 + mock LLM/Google + PgSqlRunner(실 PG) + DI 팩토리
 │  ├ aws/            [C2.5] Lambda 부트(streamHandle)·DataApiSqlRunner·Secrets — 코드 완료(배포=핸즈온, DEPLOY.md)
-│  └ tauri/          [C4] 파일첨부·알림·전역단축키·오프라인·업데이터 — 예정
+│  └ tauri/          [C4 S2~] 플랫폼 어댑터. S2 = 키링 토큰 저장·루프백 OAuth. 파일첨부·알림·단축키는 S4
 ├ ui-shared/         [C3] 웹·데스크톱 공유 화면 + **여정 배선(VockApp, C4 S1 승격)**. 셸은 ShellDeps만 구현
 │                    밖으로 내는 CSS 진입점 둘: `styles.css`(앱 전체) / `vars.css`(변수만, 랜딩용)
 ├ web/               [C3] Vite SPA 셸(5180). 남은 파일 = main·deps·auth-storage — 그것이 셸의 전부다
-├ desktop/           [C4 S1] Tauri 셸(5185) — 같은 VockApp + src-tauri(커스텀 커맨드 0, D-8). 로그인은 S2
+├ desktop/           [C4 S2] Tauri 셸(5185) — 같은 VockApp. 토큰=OS 키링, 로그인=시스템 브라우저+루프백. src-tauri 커맨드는 secret_* 3개(전부 배관 — 판정 금지, D-8)
 ├ landing/           [C3 S6] Astro 정적 랜딩(JS 0). 앱 코드 의존 없음, 디자인 토큰 변수만
 └ scripts/           [C1] 경계 게이트·파일크기·프롬프트 패리티·e2e(무의존 .mjs 툴링)
 ```
@@ -47,4 +47,4 @@ corepack pnpm run gate-db             # PG 게이트: build → e2e-pg(영속 CR
 - **C3 진행 중(S5-3)**: `ui-shared`(v1 theme.css를 바이트 동일 복사한 디자인 정본 + 여정 전 화면 + 순수 상태 기계) · `web`(Vite SPA, 5180). 진입부터 담은 어휘까지 실서버와 관통하고, 로그인·세션 저장·재개·프로젝트·연결 턴이 붙어 있다. 화면 확인 = `corepack pnpm --dir packages/web run dev`.
 - **언어**: 헤더의 선택이 저장되고 UI 문구와 생성 출력에 같은 값이 쓰인다. 문구 표는 `strings.ts`(ko, 손으로 관리)와 `strings.{en,ja,zh}.ts`(`port-i18n.mjs`가 v1 원문에서 생성)로 나뉘며, `Record<StringKey, string>` 타이핑이 키 누락을 빌드에서 막는다. 컴포넌트는 `useTr()`, React 밖은 `trIn(locale, key)`를 쓴다 — ko 전용 함수는 없다. `HttpApiConfig.getOutputLocale`도 **필수**다: 선택 사항이던 동안 셸이 빠뜨려 전 사용자가 한국어로 고정된 적이 있다.
 - 남은 것 = C4 데스크톱(상위 스펙 `../docs/specs/C4-데스크톱.md` 확정, S1 착수 대기), 실 AWS 배포(핸즈온 `DEPLOY.md`), C5 신규·수익.
-- **C4 착수 전 알아 둘 것**: 데스크톱은 클라이언트만의 일이 아니다. 서버가 CORS 헤더를 어디서도 세팅하지 않고(웹은 CloudFront 단일 오리진이라 성립한다), `clientCheck`의 데스크톱 분기와 `users.locale` 배선도 비어 있다. 셋 다 C4 범위다(스펙 D-2).
+- **C4 S2에서 서버가 함께 바뀌었다(스펙 D-2 해소)**: CORS는 `corsOrigins` 주입 시에만 붙고(미설정=현행 무변화), `clientCheck`는 웹 Origin/데스크톱 `x-vock-client` 표식을 비용 경로에서 검사한다(**남용 억제 수단** — NFR-308, 로컬 skip). `users.locale`은 로그인 응답에 실리고 `PATCH /me/locale`로 갱신된다(FR-952, 정본=서버). 세 경계는 `e2e-clientcheck`가 양성·음성으로 검사한다.

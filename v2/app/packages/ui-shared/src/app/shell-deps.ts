@@ -6,14 +6,13 @@
 
 import type { HttpApiClient, TokenStore } from "../api/index.js";
 import type { LocaleStore } from "../i18n/locale.js";
+import type { AuthFlow } from "../screens/auth/index.js";
 
-// OAuth 능력(D-12 능력 모델). 로그인 여정은 화면 한 벌이고, 플랫폼은 능력의 유무만 선언한다.
-// - 웹: 자기 오리진 콜백이 가능하므로 redirectUri를 준다.
-// - 데스크톱 S1: null — 시스템 브라우저+루프백(S2)이 붙기 전까지 로그인 버튼이 뜨지 않는다.
-//   client_id 미등록 시 버튼이 뜨지 않는 것(S5a A-2)과 같은 강등 모양이다.
-export interface ShellAuth {
-  redirectUri(): string;
-}
+// OAuth 능력(D-12 능력 모델). 로그인 여정은 화면 한 벌이고, 플랫폼은 왕복 방식만 선언한다.
+// C4 S2에서 redirectUri 하나에서 AuthFlow(플랫폼·이동·콜백 대기)로 넓어졌다 — journey의
+// 그림자 노트가 예고한 그대로("여정에 분기를 넣지 말고 포트를 넓힐 것").
+// null = 이 플랫폼은 아직 OAuth 능력이 없다 → 로그인 버튼이 뜨지 않는다(S5a A-2와 같은 강등).
+export type ShellAuth = AuthFlow;
 
 export interface ShellDeps {
   api: HttpApiClient;
