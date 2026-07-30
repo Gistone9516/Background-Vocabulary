@@ -9,13 +9,14 @@
 | [C2.3-게이팅.md](C2.3-게이팅.md) | C2 | 티어·IP/전역캡·고위험·주간한도(TR-02)·pro전용·/usage(CounterStore 포트) | 구현 완료(게이팅 e2e 9/9) |
 | [C2.4-실공급자.md](C2.4-실공급자.md) | C2 | DeepSeek(SSE)·Tavily(ko가드)·Upstash(cache+counter) 어댑터·buildLocalRealDeps | 구현·**실키 스모크 완료(7/7)** |
 | [C2.5-aws.md](C2.5-aws.md) | C2 | DataApiSqlRunner·Secrets·streamHandle 핸들러·buildAwsDeps(배포 게이트 코드) | 코드 완료(타입체크, 실배포=핸즈온) |
-| [C3-웹랜딩.md](C3-웹랜딩.md) | C3 | ui-shared 화면 계층·web Vite SPA·landing Astro(6 슬라이스) | S1~S4b·S5a 완료. 진행 중 = S5 |
+| [C3-웹랜딩.md](C3-웹랜딩.md) | C3 | ui-shared 화면 계층·web Vite SPA·landing Astro(6 슬라이스) | S1~S5 완료. 진행 중 = S6(랜딩) |
 | [C3-S2-진입과좁히기.md](C3-S2-진입과좁히기.md) | C3 S2 | API 클라(classify·next)·에러 분류·좁히기 상태 기계·narrow 화면 | 구현 완료(전이 27/27) |
 | [C3-S3-난이도와어휘생성.md](C3-S3-난이도와어휘생성.md) | C3 S3 | SSE 클라·/preview·난이도 화면·/recommend 스트리밍·어휘 카드 | 구현 완료(전이 23/23). relate는 S5로, detail은 S3b로 이월 |
 | [C3-S3b-카드상세.md](C3-S3b-카드상세.md) | C3 S3b | /detail·카드 펼치기·3단 본문·출처·열람 캐시 | 구현 완료(전이 17/17). 그룹별 추가 생성은 S4로 이월 |
 | [C3-S4-담기와게이팅.md](C3-S4-담기와게이팅.md) | C3 S4 | 담기·담은 어휘 화면·기본 정리(무비용) | 구현 완료(담기 14/14). 서버 저장은 S5 |
 | [C3-S5a-로그인.md](C3-S5a-로그인.md) | C3 S5a | PKCE OAuth·토큰 저장·401 1회 재발급·로그인 버튼 | 구현 완료(로그인 클라 검증). `client_id` 콘솔 등록은 핸즈온 |
 | [C3-S4b-프라이머.md](C3-S4b-프라이머.md) | C3 S4b | /summarize를 PrimerDoc으로 개편·AI로 더 정리·pro 게이팅·통신 경계 형태 검사 | 구현 완료(담기와 정리 44/44) |
-| [C3-S5-세션과프로젝트.md](C3-S5-세션과프로젝트.md) | C3 S5 | 세션 저장·재개·사이드바 실데이터·프로젝트·연결 턴·4개 언어 | S5-1 구현 완료(세션 32/32). 서버는 C2에서 완료, 클라 배선만 |
+| [C3-S5-세션과프로젝트.md](C3-S5-세션과프로젝트.md) | C3 S5 | 세션 저장·재개·사이드바 실데이터·프로젝트·연결 턴·4개 언어 | **구현 완료**(S5-1·S5-2·S5-3 전량). 문구 117키 x 4언어, 게이트 `check-i18n` 신설 |
+| [C3-S6-랜딩.md](C3-S6-랜딩.md) | C3 S6 | Astro 정적 랜딩(JS 0)·설득 콘텐츠·게이트 등록·배포 경로 분할 | 스펙 확정(L-1~L-11, 12건). 구현 착수 전 |
 
-C2 코드 전량 완료(C2.1~C2.4 로컬 검증, C2.5 타입체크). 실 AWS 배포 = 핸즈온(`../app/DEPLOY.md`). 진행 중 = C3 웹·랜딩.
+C2 코드 전량 완료(C2.1~C2.4 로컬 검증, C2.5 타입체크). 실 AWS 배포 = 핸즈온(`../app/DEPLOY.md`). 진행 중 = C3 S6 랜딩. S1~S5는 앱 여정 전량 완료.
