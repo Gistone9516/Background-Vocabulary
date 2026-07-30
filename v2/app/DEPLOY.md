@@ -16,7 +16,28 @@ C2.1~C2.4 코드는 로컬(Docker PG)로 검증됐고, **aws 어댑터 코드(@v
 ## 2. 프로비저닝(IaC로 코드화)
 - [ ] Aurora Serverless v2(PostgreSQL) + **Data API 활성화** + DB 시크릿(Secrets Manager).
 - [ ] Secrets Manager 시크릿 1개(JSON = `VockSecrets` 형태: jwtSecretCurrent·jwtKid·deepseekKey·tavilyKey·upstash{url,token}·google{web,desktop}).
-- [ ] Lambda(**nodejs22.x**, ESM) + **Function URL(RESPONSE_STREAM)** + 환경변수(SECRET_ID·DB_RESOURCE_ARN·DB_SECRET_ARN·DB_NAME·AWS_REGION, 선택: **VOCK_ALLOWED_ORIGINS**[콤마 구분 — CORS와 clientCheck 웹 표식이 같은 목록]·**VOCK_CLIENT_CHECK=1**[명시적으로 켬]) + IAM(rds-data·secretsmanager:GetSecretValue). Secrets JSON에 선택 키 둘(C4 S2): `google.desktop{clientId,clientSecret}`(콘솔 등록 후), `desktopClientToken`(x-vock-client 표식 — 비밀 아님, NFR-308). **데스크톱 웹뷰의 실제 Origin 값은 S5 패키징 스모크에서 실측해 VOCK_ALLOWED_ORIGINS를 좁힌다**(후보: https://tauri.localhost·http://tauri.localhost·tauri://localhost).
+- [ ] Lambda(**nodejs22.x**, ESM) + **Function URL(RESPONSE_STREAM)** + 환경변수(SECRET_ID·DB_RESOURCE_ARN·DB_SECRET_ARN·DB_NAME·AWS_REGION, 선택: **VOCK_ALLOWED_ORIGINS**[콤마 구분 — CORS와 clientCheck 웹 표식이 같은 목록]·**VOCK_CLIENT_CHECK=1**[명시적으로 켬]) + IAM(rds-data·secretsmanager:GetSecretValue). Secrets JSON에 선택 키 둘(C4 S2): `google.desktop{clientId,clientSecret}`(콘솔 등록 후), `desktopClientToken`(x-vock-client 표식 — 비밀 아님, NFR-308). **데스크톱 웹뷰 Origin 실측값(C4 S5 설치본) = `http://tauri.localhost`** — VOCK_ALLOWED_ORIGINS에 웹 도메인과 함께 이 값을 넣는다. curl 증명 완료(허용 시 ACAO 반환·타 Origin 거부).
+
+## 데스크톱 패키징 (C4 S5 — 무서명. 서명·업데이터는 인증서 결정 뒤)
+
+재현 절차(Windows, 관리자 불요):
+```
+cd packages/desktop
+VITE_API_BASE=<실 API 절대 URL>  corepack pnpm exec tauri build
+# 산출: src-tauri/target/release/bundle/nsis/vock-note_<버전>_x64-setup.exe (스모크 실측 4.1MB)
+# 설치: setup.exe /S  → %LOCALAPPDATA%\vock-note (per-user, HKCU 언인스톨 등록)
+```
+- `VITE_API_BASE` 미주입 시 vite 단계에서 빌드가 깨진다(D-3 — 의도된 실패). 스모크는 로컬 mock
+  (`http://127.0.0.1:8787`) 주입으로 했다 — 실배포는 CloudFront/Function URL 절대 주소.
+- 형식 = **NSIS 단일**(`bundle.targets`): per-user 설치라 관리자 승인이 필요 없다(이 세션에서
+  원격 중 UAC 불가를 실측한 것이 근거). v2 업데이터는 NSIS 지원이라 후일 그대로 잇는다.
+- identifier `kr.co.bewe.vocknote` / productName `vock-note`는 **S5에서 확정** — 설치 후 바꾸면
+  다른 앱으로 취급된다.
+- ★SmartScreen: 로컬 빌드 파일은 MOTW(다운로드 표식)가 없어 경고가 **뜨지 않았다** — 실배포
+  경로(웹 다운로드)에서의 경고는 미실측이며, 그것이 서명 인증서 지출 판단의 실측 항목이다.
+- **서명 + 업데이터(FR-905) 선행 조건**: ① OV 인증서(사용자 지출 결정, 연 $200~300) →
+  ② bundle 서명 설정 → ③ updater 플러그인 + 서명 공개키 + 배포 엔드포인트 → ④ 업데이트 왕복
+  스모크. **서명 없는 업데이터는 켜지 않는다**(NFR-604와 쌍 — C4 완료 기준 원문).
   - 런타임은 로컬 개발 환경과 맞춘다(로컬 Node 22.x, `package.json` engines `>=22`). 최초 문서는 Node 20으로 적혀 있었으나 Node 20은 2026년 4월경 업스트림 지원이 끝나 폐기 대상이다(2026-07-28 정정).
   - **배포 직전에 AWS 공식 런타임 표에서 nodejs22.x의 폐기 예정일을 직접 확인할 것.** 이 문서 작성 시점에 정확한 날짜를 확정하지 못했다. 표: `https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html`
 - [ ] CloudFront + S3(웹/랜딩, C3 배포 시). **경로 분할(S6 L-7): 랜딩 = `/`, 앱 SPA = `/app`.**

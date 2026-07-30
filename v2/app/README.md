@@ -47,5 +47,6 @@ corepack pnpm run gate-db             # PG 게이트: build → e2e-pg(영속 CR
 - **C3 완료(S1~S6)**: `ui-shared`(디자인 정본 + 여정 전 화면 + 순수 상태 기계) · `web`(Vite SPA, 5180) · `landing`(Astro). 진입부터 담은 어휘까지 실서버와 관통하고, 로그인·세션 저장·재개·프로젝트·연결 턴·4개 언어가 붙어 있다. 화면 확인 = `corepack pnpm --dir packages/web run dev`.
 - **C4 S4까지 완료**: 파일 첨부(FR-901 — 두 플랫폼 공통, env 티어 게이트 + 서버 절단), 퀵 캡처(FR-903 — Rust 핸들러, Ctrl+Shift+K 실측 2/2), 복습 알림(FR-904)은 알릴 대상 부재로 근거 이월(`C4-S4` §0). 남은 것 = S5(패키징·서명 — 인증서 결정 대기)·콘솔 등록 핸즈온.
 - **언어**: 헤더의 선택이 저장되고 UI 문구와 생성 출력에 같은 값이 쓰인다. 문구 표는 `strings.ts`(ko, 손으로 관리)와 `strings.{en,ja,zh}.ts`(`port-i18n.mjs`가 v1 원문에서 생성)로 나뉘며, `Record<StringKey, string>` 타이핑이 키 누락을 빌드에서 막는다. 컴포넌트는 `useTr()`, React 밖은 `trIn(locale, key)`를 쓴다 — ko 전용 함수는 없다. `HttpApiConfig.getOutputLocale`도 **필수**다: 선택 사항이던 동안 셸이 빠뜨려 전 사용자가 한국어로 고정된 적이 있다.
-- 남은 것 = C4 S5(패키징·서명·업데이터 — 인증서 지출 결정 대기), 실 AWS 배포(핸즈온 `DEPLOY.md`), C5 신규·수익.
+- **C4 S5 완료(무서명 범위)**: NSIS 설치 파일(per-user, 관리자 불요) + 설치 스모크 + 웹뷰 Origin 실측(`http://tauri.localhost` — DEPLOY.md). 서명+업데이터는 인증서 결정 뒤 별도 슬라이스(선행 조건 = DEPLOY.md).
+- 남은 것 = 실 AWS 배포(핸즈온 `DEPLOY.md`), C5 결제·수익 재설계, 서명·업데이터(인증서 대기), Linux 패키징(빌드 호스트 대기).
 - **C4 S2에서 서버가 함께 바뀌었다(스펙 D-2 해소)**: CORS는 `corsOrigins` 주입 시에만 붙고(미설정=현행 무변화), `clientCheck`는 웹 Origin/데스크톱 `x-vock-client` 표식을 비용 경로에서 검사한다(**남용 억제 수단** — NFR-308, 로컬 skip). `users.locale`은 로그인 응답에 실리고 `PATCH /me/locale`로 갱신된다(FR-952, 정본=서버). 세 경계는 `e2e-clientcheck`가 양성·음성으로 검사한다.

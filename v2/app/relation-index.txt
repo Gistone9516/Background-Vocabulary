@@ -738,6 +738,7 @@ packages/ui-shared/src/screens/terms/TermsScreen.tsx:20 TermsScreenProps.keptCou
 ## css-classes-unused (기준선이지 결함 목록이 아니다)
 # 아직 안 만든 화면의 클래스와 정말 죽은 클래스를 구분하지 못한다.
 # 쓸모는 diff에 있다. 쓰이던 클래스가 이 목록에 새로 들어오면 그때가 신호다.
+packages/desktop/src-tauri/target/release/build/app-665dd4b34c8ca9c0/out/tauri-codegen-assets/3efd52d8dad09819f1cc9cbc9fcd17308ebd05d4b67d8d9470f53ccfe2d26b5f.css:5 .m
 packages/ui-shared/src/styles/shell.css:119 .sbItem
 packages/ui-shared/src/styles/tokens.css:26 .bar
 packages/ui-shared/src/styles/tokens.css:40 .plan

@@ -21,6 +21,10 @@ export default defineConfig(({ command, mode }) => {
 
   return {
     plugins: [react()],
+    // 렌더 전 키링 1회 로드(main.tsx 최상위 await)가 es2022를 요구한다. vite 기본 타깃(es2020)은
+    // 프로덕션 빌드에서 이를 거부한다(S5 실측 — dev는 통과해서 빌드에서야 드러났다).
+    // 이 앱의 브라우저는 WebView2(에버그린 크로뮴) 하나라 낡은 타깃을 지킬 이유가 없다.
+    build: { target: "es2022" },
     resolve: {
       // 더 구체적인 경로를 먼저 둔다(web/vite.config.ts와 같은 이유).
       alias: [
