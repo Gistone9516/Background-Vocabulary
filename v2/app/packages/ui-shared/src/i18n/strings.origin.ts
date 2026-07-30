@@ -18,6 +18,7 @@ export const AI_AUTHORED: readonly StringKey[] = [
   "done_exhausted",
   "err_network",
   "menu",
+  "nav_sessions",
   "next",
   "project_delete",
   "project_delete_hint",

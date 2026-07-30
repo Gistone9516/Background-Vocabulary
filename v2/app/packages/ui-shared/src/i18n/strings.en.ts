@@ -71,7 +71,7 @@ export const en: Record<StringKey, string> = {
   narrow_range_pro: "{min}–{max} turns · auto-ends when the AI has enough", // [v1]
   narrow_simplified: "I'll ask again in simpler words", // [v1]
   nav_projects: "Projects", // [v1]
-  nav_sessions: "saved exploration", // [v1]
+  nav_sessions: "Previous explorations", // [AI]
   next: "Next", // [AI]
   paste_head: "Paste into your main AI (optional)", // [v1]
   paste_sub: "Copy this and paste it into a main AI like ChatGPT or Claude. It treats these terms as context you already know and helps with your work directly, instead of re-explaining them.", // [v1]
