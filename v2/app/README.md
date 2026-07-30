@@ -46,4 +46,5 @@ corepack pnpm run gate-db             # PG 게이트: build → e2e-pg(영속 CR
 - **C2 실키 스모크 완료**: DeepSeek(complete·실 SSE 스트리밍)·Tavily·Upstash 실호출 7/7(`pnpm e2e-real`, 수동).
 - **C3 진행 중(S5-3)**: `ui-shared`(v1 theme.css를 바이트 동일 복사한 디자인 정본 + 여정 전 화면 + 순수 상태 기계) · `web`(Vite SPA, 5180). 진입부터 담은 어휘까지 실서버와 관통하고, 로그인·세션 저장·재개·프로젝트·연결 턴이 붙어 있다. 화면 확인 = `corepack pnpm --dir packages/web run dev`.
 - **언어**: 헤더의 선택이 저장되고 UI 문구와 생성 출력에 같은 값이 쓰인다. 문구 표는 `strings.ts`(ko, 손으로 관리)와 `strings.{en,ja,zh}.ts`(`port-i18n.mjs`가 v1 원문에서 생성)로 나뉘며, `Record<StringKey, string>` 타이핑이 키 누락을 빌드에서 막는다. 컴포넌트는 `useTr()`, React 밖은 `trIn(locale, key)`를 쓴다 — ko 전용 함수는 없다. `HttpApiConfig.getOutputLocale`도 **필수**다: 선택 사항이던 동안 셸이 빠뜨려 전 사용자가 한국어로 고정된 적이 있다.
-- 남은 것 = S6 카피 확정, 실 AWS 배포(핸즈온 `DEPLOY.md`), C4 데스크톱, C5 신규·수익.
+- 남은 것 = C4 데스크톱(상위 스펙 `../docs/specs/C4-데스크톱.md` 확정, S1 착수 대기), 실 AWS 배포(핸즈온 `DEPLOY.md`), C5 신규·수익.
+- **C4 착수 전 알아 둘 것**: 데스크톱은 클라이언트만의 일이 아니다. 서버가 CORS 헤더를 어디서도 세팅하지 않고(웹은 CloudFront 단일 오리진이라 성립한다), `clientCheck`의 데스크톱 분기와 `users.locale` 배선도 비어 있다. 셋 다 C4 범위다(스펙 D-2).
