@@ -26,5 +26,7 @@ tauri-plugin-log = "2"
 # C4 S2 로그인 경로. oauth = 루프백 리스너, opener = 시스템 브라우저.
 tauri-plugin-oauth = "2"
 tauri-plugin-opener = "2"
+# C4 S3 오프라인 캐시(FR-902). 앱 데이터 폴더의 JSON — 서버 응답 사본만 담는다(비밀은 키링).
+tauri-plugin-store = "2"
 # OS 자격 증명 저장소(D-5). v3는 저장 백엔드를 feature로 고른다 — Windows/Linux 두 타깃만(D-9).
 keyring = { version = "3", features = ["windows-native", "sync-secret-service"] }

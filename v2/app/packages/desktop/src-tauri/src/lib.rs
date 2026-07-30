@@ -39,6 +39,8 @@ pub fn run() {
     // oauth: 루프백 리스너(start/cancel/onUrl). opener: 시스템 브라우저 열기. 둘 다 C4 S2 로그인 경로.
     .plugin(tauri_plugin_oauth::init())
     .plugin(tauri_plugin_opener::init())
+    // store: 오프라인 캐시 JSON(C4 S3, FR-902).
+    .plugin(tauri_plugin_store::Builder::new().build())
     .invoke_handler(tauri::generate_handler![secret_get, secret_set, secret_delete])
     .setup(|app| {
       if cfg!(debug_assertions) {

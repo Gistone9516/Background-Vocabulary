@@ -113,6 +113,7 @@ export const en: Record<StringKey, string> = {
   sessions_loading: "Loading…", // [AI]
   sessions_more: "More", // [v1]
   sessions_off: "Sign in to save your explorations.", // [AI]
+  offline_notice: "You're offline — showing the last saved list.", // [AI]
   sessions_search_ph: "Search explorations", // [AI]
   shuffle: "Other examples", // [v1]
   terms_capped: "That's all this exploration can hold.", // [AI]

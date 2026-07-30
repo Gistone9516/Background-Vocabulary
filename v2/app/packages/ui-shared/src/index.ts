@@ -16,6 +16,9 @@ export type { ProjectListProps } from "./app/ProjectList.js";
 // 세션 서버 동기화(S5). 저장 시점은 좁히기·생성 상태 기계가 이미 정한다.
 export { toSnapshot, fromSnapshot, toSessionRec, resumeTarget, useSessionSync, useProjects } from "./session/index.js";
 export type { Resume, SnapshotArgs, SessionListState, UseSessionSyncOptions, UseProjectsOptions } from "./session/index.js";
+// 오프라인 캐시(FR-902, C4 S3). 포트는 세션 모듈, 조율은 ApiPort 데코레이터.
+export type { OfflineStore, CachedList } from "./session/offline-store.js";
+export { withOfflineCache } from "./api/offline-cache.js";
 export { EntryScreen } from "./screens/EntryScreen.js";
 export type { EntryScreenProps } from "./screens/EntryScreen.js";
 // 문구. 컴포넌트는 useTr()로, React 밖은 trIn(locale, key)로 쓴다. ko 전용 함수는 없다 —

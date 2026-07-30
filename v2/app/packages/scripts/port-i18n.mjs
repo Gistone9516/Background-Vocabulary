@@ -33,6 +33,13 @@ const AUTHORED = {
   brand_sub: { en: "VOCK NOTE", ja: "VOCK NOTE", zh: "VOCK NOTE" },
   // v1은 화살표를 문구에 넣었고 v2는 뺐다
   next: { en: "Next", ja: "次へ", zh: "下一步" },
+  // [C4 S3 신규] 오프라인 폴백 고지(DS3-1). v1에 없던 문구라 전량 AI 작성.
+  offline_notice: {
+    en: "You're offline — showing the last saved list.",
+    ja: "オフラインです — 最後に保存された一覧を表示しています。",
+    zh: "当前处于离线状态 — 显示最后保存的列表。",
+  },
+
   // v1 "이 프로젝트 삭제" -> v2 "프로젝트 삭제". 지시대명사를 뺐다
   project_delete: { en: "Delete project", ja: "プロジェクトを削除", zh: "删除项目" },
   // v1은 라벨, v2는 추가 버튼을 겸한 자리표시자

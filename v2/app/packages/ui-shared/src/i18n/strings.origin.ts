@@ -30,6 +30,7 @@ export const AI_AUTHORED: readonly StringKey[] = [
   "menu",
   "nav_sessions",
   "next",
+  "offline_notice",
   "primer_ask",
   "primer_condition",
   "primer_context",

@@ -4,12 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>배경노트</title>
-    <!-- S1은 온라인 전제라 web과 같은 CDN 폰트를 쓴다. 오프라인(S3)에서 번들 내장으로 바뀐다(D-10). -->
-    <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
-    />
+    <!-- 폰트 내장(D-10, C4 S3). CDN을 지우고 동봉한 가변 woff2를 같은 패밀리 이름으로 선언한다 —
+         오프라인 열람(FR-902)에서 화면이 같은 모양이어야 한다(NFR-502). 라이선스는 OFL,
+         public/fonts/LICENSE.txt 동봉. tokens.css의 스택 선두('Pretendard Variable')와 이름이 맞아야
+         실제로 쓰인다 — 그 이름이 어긋나 웹폰트가 로드된 적 없던 결함을 S3에서 실측으로 잡았다. -->
+    <style>
+      @font-face {
+        font-family: "Pretendard Variable";
+        src: url("/fonts/PretendardVariable.woff2") format("woff2-variations");
+        font-weight: 45 920;
+        font-style: normal;
+        font-display: swap;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

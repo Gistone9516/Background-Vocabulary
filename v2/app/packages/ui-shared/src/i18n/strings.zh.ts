@@ -113,6 +113,7 @@ export const zh: Record<StringKey, string> = {
   sessions_loading: "加载中…", // [AI]
   sessions_more: "更多", // [v1]
   sessions_off: "登录后即可保存探索。", // [AI]
+  offline_notice: "当前处于离线状态 — 显示最后保存的列表。", // [AI]
   sessions_search_ph: "搜索探索", // [AI]
   shuffle: "换一批", // [v1]
   terms_capped: "本次探索能装的已经装满了。", // [AI]

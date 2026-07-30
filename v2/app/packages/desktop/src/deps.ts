@@ -6,7 +6,7 @@
 
 import { useMemo } from "react";
 import { HttpApiClient, browserLocaleStore, type ShellDeps, type TokenStore } from "@vock/ui-shared";
-import { tauriAuthFlow } from "@vock/tauri";
+import { tauriAuthFlow, tauriOfflineStore } from "@vock/tauri";
 
 // D-3: 상대경로 폴백을 두지 않는다. dev 값("/api")은 .env.development에 명시돼 있고,
 // 프로덕션 빌드는 vite.config.ts가 미설정 시 빌드를 깬다. 여기는 이중 방어다 —
@@ -52,6 +52,8 @@ export function useShellDeps(tokens: TokenStore): ShellDeps {
 
   // 시스템 브라우저 + 루프백(계약 §140, S2에서 채움). 리스너 수명은 어댑터가 관리한다.
   const auth = useMemo(() => tauriAuthFlow(), []);
+  // 오프라인 캐시(FR-902, S3). plugin-store JSON — 여정이 데코레이터로 감싼다.
+  const offline = useMemo(() => tauriOfflineStore(), []);
 
-  return { api, tokens, locale, auth };
+  return { api, tokens, locale, auth, offline };
 }

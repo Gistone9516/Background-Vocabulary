@@ -5,6 +5,15 @@
     "outDir": "dist",
     "types": []
   },
-  "references": [{ "path": "../../ui-shared" }],
-  "include": ["src/**/*.ts"]
+  "references": [
+    {
+      "path": "../../shared"
+    },
+    {
+      "path": "../../ui-shared"
+    }
+  ],
+  "include": [
+    "src/**/*.ts"
+  ]
 }

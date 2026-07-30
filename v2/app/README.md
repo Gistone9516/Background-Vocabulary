@@ -14,11 +14,11 @@ packages/
 │  ├ providers/      [C2.2·C2.4] 외부 공급자 어댑터(웹표준 fetch, local·aws 공유) — Google OAuth·DeepSeek(SSE)·Tavily·Upstash
 │  ├ local/          [C1·C2.1·C2.2] node-server 부트 + mock LLM/Google + PgSqlRunner(실 PG) + DI 팩토리
 │  ├ aws/            [C2.5] Lambda 부트(streamHandle)·DataApiSqlRunner·Secrets — 코드 완료(배포=핸즈온, DEPLOY.md)
-│  └ tauri/          [C4 S2~] 플랫폼 어댑터. S2 = 키링 토큰 저장·루프백 OAuth. 파일첨부·알림·단축키는 S4
+│  └ tauri/          [C4 S2~] 플랫폼 어댑터. S2 = 키링 토큰·루프백 OAuth, S3 = 오프라인 캐시(plugin-store). 파일첨부·알림·단축키는 S4
 ├ ui-shared/         [C3] 웹·데스크톱 공유 화면 + **여정 배선(VockApp, C4 S1 승격)**. 셸은 ShellDeps만 구현
 │                    밖으로 내는 CSS 진입점 둘: `styles.css`(앱 전체) / `vars.css`(변수만, 랜딩용)
 ├ web/               [C3] Vite SPA 셸(5180). 남은 파일 = main·deps·auth-storage — 그것이 셸의 전부다
-├ desktop/           [C4 S2] Tauri 셸(5185) — 같은 VockApp. 토큰=OS 키링, 로그인=시스템 브라우저+루프백. src-tauri 커맨드는 secret_* 3개(전부 배관 — 판정 금지, D-8)
+├ desktop/           [C4 S3] Tauri 셸(5185) — 같은 VockApp. 토큰=OS 키링, 로그인=시스템 브라우저+루프백, 오프라인 열람=plugin-store 캐시(read-through, 정본=서버), 폰트=번들 내장. src-tauri 커맨드는 secret_* 3개(전부 배관 — 판정 금지, D-8)
 ├ landing/           [C3 S6] Astro 정적 랜딩(JS 0). 앱 코드 의존 없음, 디자인 토큰 변수만
 └ scripts/           [C1] 경계 게이트·파일크기·프롬프트 패리티·e2e(무의존 .mjs 툴링)
 ```

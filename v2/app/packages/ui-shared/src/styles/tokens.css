@@ -6,7 +6,7 @@
 html,body{height:100%;width:100%;max-width:100%;overflow-x:hidden}
 body{
   background:var(--bg); color:var(--text);
-  font-family:'Pretendard',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;/* C4 S3 실측: CDN CSS가 선언하는 이름은 'Pretendard Variable'인데 참조가 0곳이라 웹폰트가 로드된 적이 없었다(document.fonts 미로드). 선두에 추가해 웹(CDN)·데스크톱(번들 @font-face) 둘 다 실제로 그 폰트로 그려지게 한다 */
   -webkit-font-smoothing:antialiased; font-size:.9375rem; line-height:1.5;
   display:flex; justify-content:center;
   word-break:keep-all; overflow-wrap:anywhere; text-wrap:pretty;

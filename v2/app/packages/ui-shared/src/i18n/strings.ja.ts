@@ -113,6 +113,7 @@ export const ja: Record<StringKey, string> = {
   sessions_loading: "読み込み中…", // [AI]
   sessions_more: "もっと見る", // [v1]
   sessions_off: "ログインすると探索が保存されます。", // [AI]
+  offline_notice: "オフラインです — 最後に保存された一覧を表示しています。", // [AI]
   sessions_search_ph: "探索を検索", // [AI]
   shuffle: "別の例", // [v1]
   terms_capped: "今回の探索で入れられる分はすべて埋まりました。", // [AI]

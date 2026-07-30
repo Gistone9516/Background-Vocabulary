@@ -9,6 +9,9 @@ export interface SessionListProps {
   items: SessionSummary[];
   // 로그인하지 않아 저장 자체가 꺼진 상태(스펙 S-1). 빈 목록과 다른 뜻이라 따로 받는다.
   off: boolean;
+  // 오프라인 폴백 고지(C4 S3 DS3-1). off(비로그인)·빈 목록과 셋 다 다른 축이라 문구를 통째로
+  // 받는다 — 문구를 아는 쪽(여정)이 넘긴다(S-34와 같은 방향). null이면 없음.
+  notice?: string | null;
   loading: boolean;
   hasMore: boolean;
   query: string;
@@ -23,6 +26,7 @@ export interface SessionListProps {
 export function SessionList({
   items,
   off,
+  notice,
   loading,
   hasMore,
   query,
@@ -40,6 +44,7 @@ export function SessionList({
 
   return (
     <>
+      {notice ? <p className="sbEmpty">{notice}</p> : null}
       {(items.length > 0 || query) ? (
         <input
           className="sbSearch"

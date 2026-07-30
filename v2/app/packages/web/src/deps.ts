@@ -43,6 +43,8 @@ export function useShellDeps(): ShellDeps {
     api,
     tokens,
     locale,
+    // 오프라인 캐시 능력 없음(C4 S3 — 포트만 준비됨). IndexedDB 구현은 별도 결정.
+    offline: null,
     // 웹의 OAuth 능력: 자기 오리진 콜백 + 페이지 이동(S5a). location 가드는 App.tsx 시절 그대로.
     // waitForCallback이 없다 — 페이지가 떠났다 돌아오므로 마운트 경로가 콜백을 처리한다.
     auth: {

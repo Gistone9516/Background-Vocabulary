@@ -25,6 +25,7 @@ import type { KeptMap } from "../screens/kept/index.js";
 import { trIn } from "./../i18n/strings.js";
 import { LocaleProvider, useOutputLocale, useTr } from "../i18n/locale.js";
 import { limitsFor } from "../api/index.js";
+import { useShellBridge } from "./shell-bridge.js";
 import { useProjects, useSessionSync, resumeTarget } from "../session/index.js";
 import type { ClientLimits, OutputLocale, RecommendInput, Tier } from "@vock/shared";
 
@@ -56,17 +57,18 @@ export function VockApp({ deps }: { deps: ShellDeps }) {
 }
 
 function AppBody({ deps }: { deps: ShellDeps }) {
-  const { api, tokens } = deps;
+  const { tokens } = deps;
   const tr = useTr();
-  const { locale: loc, setLocale } = useOutputLocale();
+  const { locale: loc } = useOutputLocale();
   const [limits, setLimits] = useState<ClientLimits | null>(null);
   const [journey, setJourney] = useState<Journey>({ at: "entry" });
 
   useEffect(() => {
     const ac = new AbortController();
-    api.config(ac.signal).then(setLimits).catch(() => setLimits(null));
+    // 원본 클라이언트로 부른다 — /config는 캐시 경로가 아니고, 다리는 auth 상태가 필요해 아래에 있다.
+    deps.api.config(ac.signal).then(setLimits).catch(() => setLimits(null));
     return () => ac.abort();
-  }, [api]);
+  }, [deps.api]);
 
   const onRefusal = useCallback(() => setJourney({ at: "refusal" }), []);
   const onEntryNotice = useCallback((notice: "weekly") => setJourney({ at: "entry", notice }), []);
@@ -77,32 +79,17 @@ function AppBody({ deps }: { deps: ShellDeps }) {
 
   // 로그인. 능력(deps.auth)이 null이면 훅이 available=false를 돌려 버튼 자체가 뜨지 않는다 —
   // client_id 미등록 시 버튼이 없는 것(S5a A-2)과 같은 강등 경로를 태운다. 화면 분기가 아니다.
+  // auth에는 **원본** 클라이언트를 준다: 데코레이터는 ApiPort(읽기 캐시)지 AuthPort가 아니고,
+  // 로그인·재발급이 캐시를 지나면 안 된다 — 타입이 이 분리를 강제한다.
   const auth = useAuth({
-    auth: api,
+    auth: deps.api,
     tokens,
     clientId: limits?.googleClientId ?? null,
     flow: deps.auth,
   });
 
-  // 언어 설정 동기화(FR-952, C4 S2 §1-4). 정본=서버.
-  // 로그인 직후 1회: 서버 locale이 로컬을 덮는다. 이후 로그인 중 변경: 서버에 반영한다.
-  // 실패는 삼키되 경고 1줄 — 화면은 로컬 값을 유지하고, 다음 로그인 때 서버 값이 이긴다(§1-4 트레이드오프).
-  const serverLocale = useRef<OutputLocale | null>(null);
-  useEffect(() => {
-    if (auth.state.phase !== "signed_in") {
-      serverLocale.current = null;
-      return;
-    }
-    if (serverLocale.current === null) {
-      serverLocale.current = auth.state.user.locale;
-      if (auth.state.user.locale !== loc) setLocale(auth.state.user.locale);
-      return;
-    }
-    if (loc !== serverLocale.current) {
-      serverLocale.current = loc;
-      api.updateLocale(loc).catch(() => console.warn("언어 설정 서버 반영 실패 — 다음 로그인 때 서버 값이 이긴다"));
-    }
-  }, [auth.state, loc, setLocale, api]);
+  // 셸 능력과의 다리(C4 S2·S3): 캐시 데코레이터·언어 정본 동기화·로그아웃 캐시 삭제(shell-bridge.ts).
+  const { api, offline } = useShellBridge(deps, auth.state);
 
   // 한도는 로그인한 사용자의 티어로 고른다(B-4 narrowMax[tier], R-5 maxTotal[tier]).
   // .free를 여기서 직접 읽으면 유료 사용자가 무료 한도를 받는다.
@@ -118,6 +105,14 @@ function AppBody({ deps }: { deps: ShellDeps }) {
 
   // 로그인 여부. 저장은 로그인한 사용자만 한다(스펙 S-1).
   const signedIn = auth.state.phase === "signed_in";
+
+  // 로그아웃 = 캐시 삭제(DS3-5). 같은 기기의 다음 사용자에게 남의 목록이 보이면
+  // 소유권 규칙(PUT 409 횡령 방지)의 클라이언트 판 위반이다.
+  const wasSignedIn = useRef(false);
+  useEffect(() => {
+    if (wasSignedIn.current && !signedIn) void deps.offline?.clear().catch(() => {});
+    wasSignedIn.current = signedIn;
+  }, [signedIn, deps.offline]);
   const projects = useProjects({ api, enabled: signedIn });
   const sync = useSessionSync({ api, enabled: signedIn, projectId: projects.selected });
 
@@ -230,7 +225,13 @@ function AppBody({ deps }: { deps: ShellDeps }) {
     setJourney({ at: "entry" });
   }, [narrow, terms]);
 
-  const slots = sidebarSlots({ sync, projects, onOpenSession: resume });
+  const slots = sidebarSlots({
+    sync,
+    projects,
+    onOpenSession: resume,
+    // 고지는 로그인 상태에서만 뜻이 있다 — 비로그인은 off 문구가 이미 자리를 차지한다(DS3-1).
+    offlineNotice: offline && signedIn ? tr("offline_notice") : null,
+  });
 
   // 로케일 제공자가 셸 바깥이다. 헤더의 언어 선택과 진입 화면의 예시 칩이 같은 값을 읽는다.
   return (

@@ -10,14 +10,17 @@ export interface SidebarProps {
   sync: ReturnType<typeof useSessionSync>;
   projects: ReturnType<typeof useProjects>;
   onOpenSession(id: string): void;
+  // 오프라인 폴백 고지(C4 S3). 문구를 아는 쪽(여정)이 만들어 넘긴다. null = 없음.
+  offlineNotice?: string | null;
 }
 
-export function sidebarSlots({ sync, projects, onOpenSession }: SidebarProps) {
+export function sidebarSlots({ sync, projects, onOpenSession, offlineNotice }: SidebarProps) {
   return {
     sessions: (
       <SessionList
         items={sync.list.items}
         off={sync.list.off}
+        notice={offlineNotice ?? null}
         loading={sync.list.loading}
         hasMore={sync.list.cursor !== null}
         query={sync.query}

@@ -7,6 +7,7 @@
 import type { HttpApiClient, TokenStore } from "../api/index.js";
 import type { LocaleStore } from "../i18n/locale.js";
 import type { AuthFlow } from "../screens/auth/index.js";
+import type { OfflineStore } from "../session/offline-store.js";
 
 // OAuth 능력(D-12 능력 모델). 로그인 여정은 화면 한 벌이고, 플랫폼은 왕복 방식만 선언한다.
 // C4 S2에서 redirectUri 하나에서 AuthFlow(플랫폼·이동·콜백 대기)로 넓어졌다 — journey의
@@ -19,4 +20,7 @@ export interface ShellDeps {
   tokens: TokenStore;
   locale: LocaleStore;
   auth: ShellAuth | null;
+  // 오프라인 캐시 능력(FR-902, C4 S3). null = 캐시 없음(현재 웹) — 데코레이터가 안 감싸져
+  // 기존 동작 그대로다. 데스크톱은 plugin-store 구현을 넣는다.
+  offline: OfflineStore | null;
 }

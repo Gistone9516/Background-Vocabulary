@@ -139,6 +139,8 @@ export const ko = {
 
   // 세션 목록 [신규]. v1은 확장 로컬 저장이라 로그인 조건이 없었다
   sessions_off: "로그인하면 탐색이 저장돼요.",
+  // [신규 C4 S3] 오프라인 폴백 고지(DS3-1). off(비로그인)와 다른 축이다.
+  offline_notice: "오프라인이에요 — 마지막으로 저장된 목록을 보여드려요.",
   sessions_search_ph: "탐색 검색",
   sessions_more: "더 보기",
   session_untitled: "제목 없는 탐색",
