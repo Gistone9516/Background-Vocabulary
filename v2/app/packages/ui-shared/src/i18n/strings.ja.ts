@@ -57,6 +57,7 @@ export const ja: Record<StringKey, string> = {
   entry_title: "今日はどんな用件ですか？", // [v1]
   err_auth_failed: "ログインに失敗しました。もう一度お試しください。", // [AI]
   err_auth_required: "ログインが必要です。", // [AI]
+  err_capacity: "ただいま混み合っています。しばらくしてからお試しください。", // [AI]
   err_detail_limit: "無料の詳細閲覧を使い切りました。", // [AI]
   err_malformed: "応答を解釈できませんでした。", // [AI]
   err_network: "接続が一時的に切れました。", // [AI]

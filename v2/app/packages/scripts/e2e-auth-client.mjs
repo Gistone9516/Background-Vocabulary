@@ -1,6 +1,6 @@
 // 로그인 클라이언트 검증(C3 S5a). 네트워크 없이 순수 함수와 재시도 규칙만 돌린다.
 // 목 fetch를 주입해 401 재발급 경로를 실측한다.
-import { challengeOf, readCallback, buildAuthorizeUrl, classifyResponse, HttpApiClient } from "@vock/ui-shared";
+import { challengeOf, readCallback, buildAuthorizeUrl, classifyResponse, isRetryable, HttpApiClient } from "@vock/ui-shared";
 
 let failures = 0;
 function check(name, cond, detail) {
@@ -54,6 +54,17 @@ console.log("로그인 클라이언트 검증:");
     const e = classifyResponse(401, { error: code, message: "서버 문구" });
     check(`${code} → ${kind}`, e.kind === kind && e.message === "서버 문구");
   }
+}
+
+// 429 두 종류는 갈려 있어야 한다(C5-S1 E-13). 접히면 사용자가 우리 장애를 자기 탓으로 읽는다.
+{
+  const rate = classifyResponse(429, { error: "RATE_LIMITED", message: "서버 문구" });
+  const cap = classifyResponse(429, { error: "CAPACITY", message: "서버 문구" });
+  check("RATE_LIMITED → rate_limited", rate.kind === "rate_limited");
+  check("CAPACITY → capacity", cap.kind === "capacity");
+  // 이 한 줄이 음성 케이스다. 다시 한 종류로 접으면 여기서 걸린다.
+  check("두 종류가 같은 kind로 접히지 않는다", rate.kind !== cap.kind);
+  check("둘 다 재시도 가능으로 분류된다", isRetryable(rate) && isRetryable(cap));
 }
 
 // 401 재발급 1회 (A-7)

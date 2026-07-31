@@ -57,6 +57,7 @@ export const zh: Record<StringKey, string> = {
   entry_title: "今天想做什么？", // [v1]
   err_auth_failed: "登录失败，请重试。", // [AI]
   err_auth_required: "需要登录。", // [AI]
+  err_capacity: "服务当前繁忙，请稍后再试。", // [AI]
   err_detail_limit: "免费详情查看次数已用完。", // [AI]
   err_malformed: "无法解析响应。", // [AI]
   err_network: "连接暂时中断了。", // [AI]

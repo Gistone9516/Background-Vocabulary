@@ -18,6 +18,7 @@ export const AI_AUTHORED: readonly StringKey[] = [
   "done_exhausted",
   "err_auth_failed",
   "err_auth_required",
+  "err_capacity",
   "err_detail_limit",
   "err_malformed",
   "err_network",

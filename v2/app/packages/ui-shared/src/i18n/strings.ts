@@ -68,6 +68,8 @@ export const ko = {
   err_pro_only: "pro 전용 기능이에요.",
   err_detail_limit: "무료 상세 열람을 다 썼어요.",
   err_rate_limited: "잠시 후 다시 시도해 주세요.",
+  // 전역 캡. "당신이 많이 썼다"가 아니라 "우리 쪽이 혼잡하다"라 문구가 달라야 한다.
+  err_capacity: "지금 서비스가 혼잡해요. 잠시 후 다시 시도해 주세요.",
   err_auth_failed: "로그인에 실패했어요. 다시 시도해 주세요.",
   err_session_expired: "세션이 만료되었어요. 다시 로그인해 주세요.",
   err_auth_required: "로그인이 필요해요.",

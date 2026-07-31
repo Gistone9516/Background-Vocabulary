@@ -57,6 +57,7 @@ export const en: Record<StringKey, string> = {
   entry_title: "What brings you here?", // [v1]
   err_auth_failed: "Sign-in failed. Please try again.", // [AI]
   err_auth_required: "Sign-in required.", // [AI]
+  err_capacity: "The service is busy right now. Please try again in a moment.", // [AI]
   err_detail_limit: "You've used up your free detail views.", // [AI]
   err_malformed: "Couldn't read the response.", // [AI]
   err_network: "The connection dropped for a moment.", // [AI]

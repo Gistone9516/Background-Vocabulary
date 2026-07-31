@@ -52,15 +52,19 @@ async function mergeProjectExclude(body: Body, userId: string | null, dedup?: Pr
 
 export type ProjectDedup = (userId: string, sessionId: string) => Promise<string[]>;
 
-// 생성된 상세를 영속한다(FR-401). 성공 응답만 부른다(E-6).
-export type DetailSave = (userId: string | null, body: Record<string, unknown>, out: Prompt5Out) => Promise<void>;
+// 펼친 상세의 읽기-통과 캐시(FR-401). 라우트 안에 두는 이유는 한도와 순서 제약이 없기 때문이다 —
+// 한도는 게이팅이 이미 차감했고, 캐시는 LLM 호출만 아낀다(E-5).
+export interface DetailCachePort {
+  find(userId: string | null, body: Record<string, unknown>): Promise<Prompt5Out | null>;
+  save(userId: string | null, body: Record<string, unknown>, out: Prompt5Out): Promise<void>;
+}
 
 export function registerPipelineRoutes(
   app: Hono,
   pipeline: Pipeline,
   dedup?: ProjectDedup,
   limits?: Limits,
-  saveDetail?: DetailSave
+  detailCache?: DetailCachePort
 ): void {
   const maxCtx = (limits ?? DEFAULT_LIMITS).maxContextChars;
 
@@ -96,10 +100,17 @@ export function registerPipelineRoutes(
 
   app.post("/detail", async (c) => {
     const body = (await c.req.json()) as Body;
-    // 캐시 히트는 여기까지 오지 않는다(게이팅 앞단에서 응답). 여기 온 것은 전부 새 생성이다.
+    const userId = userIdOf(c);
+    // 여기 왔다는 것은 한도를 이미 차감했다는 뜻이다(E-5). 캐시가 아끼는 것은 LLM 호출뿐이고,
+    // 그 절약은 사용자 한도가 아니라 운영 원가로 돌아간다.
+    // 캐시는 절약이지 관문이 아니다 — 조회 실패가 열람 실패가 되면 안 된다(fail-open).
+    if (detailCache) {
+      const hit = await detailCache.find(userId, body).catch(() => null);
+      if (hit) return c.json(hit);
+    }
     const out = await pipeline.detail(body as never, tierOf(c), readLocale(body));
     // 성공만 저장한다(E-6). 저장 실패가 열람 실패가 되면 안 된다 — 본문은 이미 손에 있다.
-    if (saveDetail) await saveDetail(userIdOf(c), body, out).catch(() => undefined);
+    if (detailCache) await detailCache.save(userId, body, out).catch(() => undefined);
     return c.json(out);
   });
 

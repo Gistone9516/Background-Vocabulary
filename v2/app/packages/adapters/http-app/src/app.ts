@@ -74,7 +74,6 @@ export function createApp(deps: AppDeps): Hono {
   app.get("/health", (c) => c.json({ ok: true }));
   app.get("/config", (c) => c.json(clientLimits));
 
-  // 상세 캐시는 게이팅보다 먼저 조립되어야 한다 — 캐시 조회 미들웨어를 게이팅이 등록하기 때문이다(E-5).
   const repos = deps.repos;
   const detailCache = repos ? buildDetailCache(repos) : undefined;
 
@@ -92,12 +91,7 @@ export function createApp(deps: AppDeps): Hono {
           return { tier, userId: claims ? claims.sub : null };
         }
       : async (): Promise<{ tier: Tier; userId: string | null }> => ({ tier: "free", userId: null });
-    installGating(app, {
-      counters: deps.counters,
-      limits: deps.limits ?? DEFAULT_LIMITS,
-      resolveIdentity,
-      ...(detailCache ? { detailCacheFind: detailCache.find } : {}),
-    });
+    installGating(app, { counters: deps.counters, limits: deps.limits ?? DEFAULT_LIMITS, resolveIdentity });
   }
 
   // 세션에서 프로젝트를 읽는다. 요청 본문이 프로젝트를 지정하지 않는다(S5 S-25) —
@@ -108,7 +102,7 @@ export function createApp(deps: AppDeps): Hono {
         return rec?.project_id ? repos.assets.termNormsByProject(userId, rec.project_id) : [];
       }
     : undefined;
-  registerPipelineRoutes(app, pipeline, dedup, deps.limits ?? DEFAULT_LIMITS, detailCache?.save);
+  registerPipelineRoutes(app, pipeline, dedup, deps.limits ?? DEFAULT_LIMITS, detailCache);
   if (deps.authService) registerAuthRoutes(app, deps.authService);
   const resolveUserId = deps.authService ? jwtResolveUserId(deps.authService) : devResolveUserId();
   if (deps.repos) registerCrudRoutes(app, deps.repos, resolveUserId);

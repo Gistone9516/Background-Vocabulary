@@ -90,6 +90,11 @@ const AUTHORED = {
     zh: "免费详情查看次数已用完。",
   },
   err_rate_limited: { en: "Please try again in a moment.", ja: "しばらくしてからお試しください。", zh: "请稍后再试。" },
+  err_capacity: {
+    en: "The service is busy right now. Please try again in a moment.",
+    ja: "ただいま混み合っています。しばらくしてからお試しください。",
+    zh: "服务当前繁忙，请稍后再试。",
+  },
   err_auth_failed: {
     en: "Sign-in failed. Please try again.",
     ja: "ログインに失敗しました。もう一度お試しください。",

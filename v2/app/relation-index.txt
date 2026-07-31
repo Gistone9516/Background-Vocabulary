@@ -24,7 +24,7 @@ packages/adapters/http-app/src/middleware/gating.ts::GateDeps readers=0
 packages/adapters/http-app/src/middleware/gating.ts::installGating readers=1  <- packages/adapters/http-app/src/app.ts
 packages/adapters/http-app/src/routes/auth-routes.ts::registerAuthRoutes readers=1  <- packages/adapters/http-app/src/app.ts
 packages/adapters/http-app/src/routes/crud-routes.ts::registerCrudRoutes readers=1  <- packages/adapters/http-app/src/app.ts
-packages/adapters/http-app/src/routes/pipeline-routes.ts::DetailSave readers=0
+packages/adapters/http-app/src/routes/pipeline-routes.ts::DetailCachePort readers=0
 packages/adapters/http-app/src/routes/pipeline-routes.ts::ProjectDedup readers=0
 packages/adapters/http-app/src/routes/pipeline-routes.ts::clampContext readers=1  <- packages/scripts/e2e-attach.mjs
 packages/adapters/http-app/src/routes/pipeline-routes.ts::registerPipelineRoutes readers=1  <- packages/adapters/http-app/src/app.ts
@@ -223,7 +223,7 @@ packages/ui-shared/src/api/errors.ts::ApiError readers=5  <- packages/ui-shared/
 packages/ui-shared/src/api/errors.ts::classifyResponse readers=3  <- packages/scripts/e2e-auth-client.mjs,packages/scripts/e2e-detail.mjs,packages/ui-shared/src/api/http-client.ts
 packages/ui-shared/src/api/errors.ts::errorKey readers=4  <- packages/ui-shared/src/screens/kept/primer.ts,packages/ui-shared/src/screens/narrow/NarrowScreen.tsx,packages/ui-shared/src/screens/terms/TermDetail.tsx
 packages/ui-shared/src/api/errors.ts::isApiError readers=7  <- packages/ui-shared/src/api/http-client.ts,packages/ui-shared/src/api/offline-cache.ts,packages/ui-shared/src/screens/auth/useAuth.ts
-packages/ui-shared/src/api/errors.ts::isRetryable readers=2  <- packages/scripts/e2e-detail.mjs,packages/ui-shared/src/screens/narrow/NarrowScreen.tsx
+packages/ui-shared/src/api/errors.ts::isRetryable readers=3  <- packages/scripts/e2e-auth-client.mjs,packages/scripts/e2e-detail.mjs,packages/ui-shared/src/screens/narrow/NarrowScreen.tsx
 packages/ui-shared/src/api/http-client.ts::HttpApiClient readers=4  <- packages/desktop/src/deps.ts,packages/scripts/e2e-auth-client.mjs,packages/ui-shared/src/app/shell-deps.ts
 packages/ui-shared/src/api/http-client.ts::HttpApiConfig readers=0
 packages/ui-shared/src/api/limits.ts::FALLBACK_LIMITS readers=1  <- packages/scripts/e2e-session.mjs
@@ -457,7 +457,7 @@ packages/ui-shared/src/screens/terms/TermsScreen.tsx:20 TermsScreenProps.keptCou
 "AUTH_FAILED" defs=4 packages/adapters/http-app/src/routes/auth-routes.ts,packages/scripts/e2e-auth-client.mjs,packages/scripts/e2e-auth.mjs,packages/ui-shared/src/api/errors.ts
 "AUTH_REQUIRED" defs=3 packages/adapters/http-app/src/routes/auth-routes.ts,packages/scripts/e2e-auth-client.mjs,packages/ui-shared/src/api/errors.ts
 "Assume I already know the terms below when you answer." defs=2 packages/scripts/port-i18n.mjs,packages/ui-shared/src/i18n/strings.en.ts
-"CAPACITY" defs=2 packages/adapters/http-app/src/middleware/gating.ts,packages/ui-shared/src/api/errors.ts
+"CAPACITY" defs=3 packages/adapters/http-app/src/middleware/gating.ts,packages/scripts/e2e-auth-client.mjs,packages/ui-shared/src/api/errors.ts
 "Constraints" defs=2 packages/scripts/port-i18n.mjs,packages/ui-shared/src/i18n/strings.en.ts
 "Content-Type" defs=5 packages/adapters/providers/src/deepseek/client.ts,packages/adapters/providers/src/google-oauth.ts,packages/adapters/providers/src/tavily.ts,packages/adapters/providers/src/upstash-cache.ts,packages/adapters/providers/src/upstash-counter.ts
 "Context" defs=2 packages/scripts/port-i18n.mjs,packages/ui-shared/src/i18n/strings.en.ts
@@ -481,7 +481,7 @@ packages/ui-shared/src/screens/terms/TermsScreen.tsx:20 TermsScreenProps.keptCou
 "Picking terms…" defs=2 packages/scripts/port-i18n.mjs,packages/ui-shared/src/i18n/strings.en.ts
 "Please try again in a moment." defs=2 packages/scripts/port-i18n.mjs,packages/ui-shared/src/i18n/strings.en.ts
 "Previous explorations" defs=2 packages/scripts/port-i18n.mjs,packages/ui-shared/src/i18n/strings.en.ts
-"RATE_LIMITED" defs=2 packages/adapters/http-app/src/middleware/gating.ts,packages/ui-shared/src/api/errors.ts
+"RATE_LIMITED" defs=3 packages/adapters/http-app/src/middleware/gating.ts,packages/scripts/e2e-auth-client.mjs,packages/ui-shared/src/api/errors.ts
 "SELECT user_id FROM users WHERE email = $1" defs=2 packages/scripts/e2e-auth.mjs,packages/scripts/e2e-gate.mjs
 "SHA-256" defs=3 packages/core/src/auth/jwt.ts,packages/shared/src/detail-key.ts,packages/ui-shared/src/screens/auth/pkce.ts
 "Search explorations" defs=2 packages/scripts/port-i18n.mjs,packages/ui-shared/src/i18n/strings.en.ts
@@ -489,6 +489,7 @@ packages/ui-shared/src/screens/terms/TermsScreen.tsx:20 TermsScreenProps.keptCou
 "Sign-in required." defs=2 packages/scripts/port-i18n.mjs,packages/ui-shared/src/i18n/strings.en.ts
 "TOKEN_EXPIRED" defs=3 packages/adapters/http-app/src/routes/auth-routes.ts,packages/scripts/e2e-auth-client.mjs,packages/ui-shared/src/api/errors.ts
 "TOKEN_REVOKED" defs=4 packages/adapters/http-app/src/routes/auth-routes.ts,packages/scripts/e2e-auth-client.mjs,packages/scripts/e2e-auth.mjs,packages/ui-shared/src/api/errors.ts
+"The service is busy right now. Please try again in a moment." defs=2 packages/scripts/port-i18n.mjs,packages/ui-shared/src/i18n/strings.en.ts
 "This is a pro feature." defs=2 packages/scripts/port-i18n.mjs,packages/ui-shared/src/i18n/strings.en.ts
 "This record belongs to another account, so it can't be saved." defs=2 packages/scripts/port-i18n.mjs,packages/ui-shared/src/i18n/strings.en.ts
 "UNAUTHENTICATED" defs=2 packages/adapters/http-app/src/routes/crud-routes.ts,packages/ui-shared/src/api/errors.ts
@@ -522,6 +523,7 @@ packages/ui-shared/src/screens/terms/TermsScreen.tsx:20 TermsScreenProps.keptCou
 "callDetail" defs=3 packages/scripts/e2e-detail.mjs,packages/ui-shared/src/screens/terms/detail-machine.ts,packages/ui-shared/src/screens/terms/useDetail.ts
 "callNext" defs=4 packages/scripts/e2e-narrow.mjs,packages/ui-shared/src/screens/narrow/machine.ts,packages/ui-shared/src/screens/narrow/runner.ts,packages/ui-shared/src/screens/narrow/types.ts
 "callRelate" defs=4 packages/scripts/e2e-narrow.mjs,packages/ui-shared/src/screens/narrow/machine.ts,packages/ui-shared/src/screens/narrow/runner.ts,packages/ui-shared/src/screens/narrow/types.ts
+"capacity" defs=2 packages/scripts/e2e-auth-client.mjs,packages/ui-shared/src/api/errors.ts
 "capped" defs=4 packages/scripts/e2e-terms.mjs,packages/ui-shared/src/screens/terms/TermsScreen.tsx,packages/ui-shared/src/screens/terms/machine.ts,packages/ui-shared/src/screens/terms/types.ts
 "center" defs=2 packages/ui-shared/src/screens/EntryScreen.tsx,packages/ui-shared/src/screens/narrow/NarrowScreen.tsx
 "choices" defs=2 packages/shared/src/guards.ts,packages/ui-shared/src/screens/narrow/machine.ts
@@ -542,6 +544,7 @@ packages/ui-shared/src/screens/terms/TermsScreen.tsx:20 TermsScreenProps.keptCou
 "detail_close" defs=2 packages/ui-shared/src/i18n/strings.origin.ts,packages/ui-shared/src/screens/terms/TermsScreen.tsx
 "detail_limit" defs=3 packages/scripts/e2e-detail.mjs,packages/ui-shared/src/api/errors.ts,packages/ui-shared/src/screens/terms/detail-machine.ts
 "detail_open" defs=2 packages/ui-shared/src/i18n/strings.origin.ts,packages/ui-shared/src/screens/terms/TermsScreen.tsx
+"details" defs=2 packages/scripts/e2e-auth.mjs,packages/scripts/e2e-gate.mjs
 "diff_preview_failed" defs=2 packages/ui-shared/src/i18n/strings.origin.ts,packages/ui-shared/src/screens/difficulty/DifficultyScreen.tsx
 "difficulty" defs=3 packages/ui-shared/src/app/journey-state.ts,packages/ui-shared/src/app/journey.tsx,packages/ui-shared/src/session/resume.ts
 "discarded" defs=3 packages/shared/src/types/persistence.ts,packages/ui-shared/src/screens/narrow/decide.ts,packages/ui-shared/src/screens/narrow/machine.ts
@@ -551,6 +554,7 @@ packages/ui-shared/src/screens/terms/TermsScreen.tsx:20 TermsScreenProps.keptCou
 "enough" defs=5 packages/adapters/local/src/mocks/mock-llm.ts,packages/scripts/e2e-narrow.mjs,packages/ui-shared/src/app/journey-state.ts,packages/ui-shared/src/screens/narrow/decide.ts,packages/ui-shared/src/screens/narrow/types.ts
 "err_auth_failed" defs=2 packages/ui-shared/src/api/errors.ts,packages/ui-shared/src/i18n/strings.origin.ts
 "err_auth_required" defs=2 packages/ui-shared/src/api/errors.ts,packages/ui-shared/src/i18n/strings.origin.ts
+"err_capacity" defs=2 packages/ui-shared/src/api/errors.ts,packages/ui-shared/src/i18n/strings.origin.ts
 "err_detail_limit" defs=2 packages/ui-shared/src/api/errors.ts,packages/ui-shared/src/i18n/strings.origin.ts
 "err_malformed" defs=2 packages/ui-shared/src/api/errors.ts,packages/ui-shared/src/i18n/strings.origin.ts
 "err_network" defs=3 packages/scripts/e2e-keep.mjs,packages/ui-shared/src/api/errors.ts,packages/ui-shared/src/i18n/strings.origin.ts
@@ -578,7 +582,6 @@ packages/ui-shared/src/screens/terms/TermsScreen.tsx:20 TermsScreenProps.keptCou
 "job_type" defs=2 packages/adapters/http-app/src/routes/crud-routes.ts,packages/ui-shared/src/screens/kept/usePrimer.ts
 "keep_on" defs=2 packages/ui-shared/src/screens/kept/KeptScreen.tsx,packages/ui-shared/src/screens/terms/TermsScreen.tsx
 "kept_none" defs=2 packages/ui-shared/src/screens/kept/KeptScreen.tsx,packages/ui-shared/src/screens/kept/primer.ts
-"knowledge" defs=2 packages/scripts/e2e-auth.mjs,packages/scripts/e2e-gate.mjs
 "labor_contract" defs=2 packages/core/src/locale/index.ts,packages/core/src/rag/index.ts
 "listnote" defs=4 packages/ui-shared/src/screens/EntryScreen.tsx,packages/ui-shared/src/screens/difficulty/DifficultyScreen.tsx,packages/ui-shared/src/screens/kept/KeptScreen.tsx,packages/ui-shared/src/screens/terms/TermsScreen.tsx
 "loaded" defs=3 packages/scripts/e2e-detail.mjs,packages/ui-shared/src/screens/terms/detail-machine.ts,packages/ui-shared/src/screens/terms/useDetail.ts
@@ -618,6 +621,7 @@ packages/ui-shared/src/screens/terms/TermsScreen.tsx:20 TermsScreenProps.keptCou
 "projects" defs=2 packages/scripts/e2e-auth.mjs,packages/scripts/e2e-gate.mjs
 "projects_empty" defs=3 packages/ui-shared/src/app/AppShell.tsx,packages/ui-shared/src/app/ProjectList.tsx,packages/ui-shared/src/i18n/strings.origin.ts
 "projects_off" defs=2 packages/ui-shared/src/app/ProjectList.tsx,packages/ui-shared/src/i18n/strings.origin.ts
+"rate_limited" defs=2 packages/scripts/e2e-auth-client.mjs,packages/ui-shared/src/api/errors.ts
 "readbtn close" defs=2 packages/ui-shared/src/screens/kept/KeptScreen.tsx,packages/ui-shared/src/screens/terms/TermDetail.tsx
 "refine_failed" defs=2 packages/ui-shared/src/i18n/strings.origin.ts,packages/ui-shared/src/screens/kept/primer.ts
 "refresh" defs=2 packages/core/src/auth/jwt.ts,packages/shared/src/types/auth.ts
@@ -677,6 +681,7 @@ packages/ui-shared/src/screens/terms/TermsScreen.tsx:20 TermsScreenProps.keptCou
 "x-vock-client" defs=3 packages/adapters/http-app/src/app.ts,packages/adapters/http-app/src/middleware/client-check.ts,packages/scripts/e2e-clientcheck.mjs
 "yearly" defs=2 packages/adapters/persistence/src/repositories/user-repo.ts,packages/shared/src/types/auth.ts
 "しばらくしてからお試しください。" defs=2 packages/scripts/port-i18n.mjs,packages/ui-shared/src/i18n/strings.ja.ts
+"ただいま混み合っています。しばらくしてからお試しください。" defs=2 packages/scripts/port-i18n.mjs,packages/ui-shared/src/i18n/strings.ja.ts
 "まだ作成したプロジェクトがありません。" defs=2 packages/scripts/port-i18n.mjs,packages/ui-shared/src/i18n/strings.ja.ts
 "まだ続けられる探索がありません。" defs=2 packages/scripts/port-i18n.mjs,packages/ui-shared/src/i18n/strings.ja.ts
 "やりたいこと" defs=2 packages/scripts/port-i18n.mjs,packages/ui-shared/src/i18n/strings.ja.ts
@@ -696,6 +701,7 @@ packages/ui-shared/src/screens/terms/TermsScreen.tsx:20 TermsScreenProps.keptCou
 "応答を解釈できませんでした。" defs=2 packages/scripts/port-i18n.mjs,packages/ui-shared/src/i18n/strings.ja.ts
 "无法处理请求。" defs=2 packages/scripts/port-i18n.mjs,packages/ui-shared/src/i18n/strings.zh.ts
 "无法解析响应。" defs=2 packages/scripts/port-i18n.mjs,packages/ui-shared/src/i18n/strings.zh.ts
+"服务当前繁忙，请稍后再试。" defs=2 packages/scripts/port-i18n.mjs,packages/ui-shared/src/i18n/strings.zh.ts
 "正在挑选术语…" defs=2 packages/scripts/port-i18n.mjs,packages/ui-shared/src/i18n/strings.zh.ts
 "無料の詳細閲覧を使い切りました。" defs=2 packages/scripts/port-i18n.mjs,packages/ui-shared/src/i18n/strings.ja.ts
 "用語を選んでいます…" defs=2 packages/scripts/port-i18n.mjs,packages/ui-shared/src/i18n/strings.ja.ts

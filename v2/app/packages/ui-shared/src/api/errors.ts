@@ -11,6 +11,7 @@ export type ApiError =
   | { kind: "detail_limit"; message: string }
   | { kind: "high_risk"; message: string }
   | { kind: "rate_limited"; message: string }
+  | { kind: "capacity"; message: string }
   // 인증 계열. 이전에는 전부 server로 떨어져 화면이 로그인 실패와 세션 만료를
   // 구분하지 못했다(스펙 A-9).
   | { kind: "auth_failed"; message: string } // 로그인 자체가 실패. 다시 로그인
@@ -48,8 +49,11 @@ export function classifyResponse(status: number, body: unknown): ApiError {
     case "HIGH_RISK_REFUSED":
       return { kind: "high_risk", message: say(b, "안전상 직접 다루지 않는 주제예요.") };
     case "RATE_LIMITED":
-    case "CAPACITY":
       return { kind: "rate_limited", message: say(b, "잠시 후 다시 시도해 주세요.") };
+    // 전역 캡은 "당신이 많이 썼다"가 아니라 "우리 쪽이 혼잡하다"다. 같은 종류로 접으면
+    // 사용자가 자기 잘못으로 읽고, 기다려도 안 풀릴 수 있다는 것을 알 방법이 없다.
+    case "CAPACITY":
+      return { kind: "capacity", message: say(b, "지금 서비스가 혼잡해요.") };
     case "AUTH_FAILED":
       return { kind: "auth_failed", message: say(b, "로그인에 실패했어요. 다시 시도해 주세요.") };
     case "TOKEN_REVOKED":
@@ -85,6 +89,7 @@ const ERROR_KEY: Record<ApiError["kind"], StringKey> = {
   detail_limit: "err_detail_limit",
   high_risk: "refusal_title",
   rate_limited: "err_rate_limited",
+  capacity: "err_capacity",
   auth_failed: "err_auth_failed",
   session_expired: "err_session_expired",
   auth_required: "err_auth_required",
@@ -102,7 +107,7 @@ export function errorKey(e: ApiError): StringKey {
 
 // 다시 눌러 볼 만한 실패인지. 이 판정이 좁히기를 끝낼지 화면에 머물지를 가른다(스펙 D-7).
 export function isRetryable(e: ApiError): boolean {
-  if (e.kind === "network" || e.kind === "rate_limited") return true;
+  if (e.kind === "network" || e.kind === "rate_limited" || e.kind === "capacity") return true;
   return e.kind === "server" && e.status >= 500;
 }
 

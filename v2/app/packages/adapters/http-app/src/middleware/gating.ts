@@ -18,9 +18,6 @@ export interface GateDeps {
   limits: Limits;
   // Bearer → 신원. 로그인=JWT claims, 익명=null userId·free.
   resolveIdentity: (bearerToken: string | null) => Promise<{ tier: Tier; userId: string | null }>;
-  // 펼친 상세 캐시 조회(E-5). 미주입이면 캐시 없이 평소대로 돈다.
-  // 여기에 있는 이유는 순서가 곧 규칙이기 때문이다 — 상세 한도보다 먼저 돌아야 히트가 차감되지 않는다.
-  detailCacheFind?: (userId: string | null, body: Record<string, unknown>) => Promise<unknown | null>;
 }
 
 const DAY_TTL = 24 * 60 * 60;
@@ -105,20 +102,9 @@ export function installGating(app: Hono, deps: GateDeps): void {
     }
   }
 
-  // 캐시 히트는 한도를 차감하지 않는다(E-5) — 이미 지불한 생성을 다시 청구하지 않는다.
-  // 아래 상세 한도보다 **먼저** 등록해야 성립한다. 순서가 뒤집히면 히트해도 카운터는 이미 올라간 뒤다.
-  const findCached = deps.detailCacheFind;
-  if (findCached) {
-    app.use("/detail", async (c, next) => {
-      const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
-      // 캐시는 절약이지 관문이 아니다. 조회 실패가 열람 실패가 되면 안 된다(fail-open).
-      const hit = await findCached(getVar(c, "gateUserId") as string | null, body).catch(() => null);
-      if (hit) return c.json(hit as Record<string, unknown>);
-      await next();
-    });
-  }
-
   // free 상세 열람 한도(세션당, NFR-304).
+  // 상세 캐시와 무관하게 돈다 — 한도는 우리 원가가 아니라 사용자가 받는 가치를 센다(E-5).
+  // 그래서 캐시는 이 미들웨어를 우회하지 않고, 라우트 안에서 LLM 호출만 아낀다.
   app.use("/detail", async (c, next) => {
     if ((getVar(c, "tier") as Tier) === "paid") return next();
     const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;

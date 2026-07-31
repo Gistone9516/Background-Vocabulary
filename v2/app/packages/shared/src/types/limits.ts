@@ -42,15 +42,22 @@ export const DEFAULT_LIMITS: Limits = {
     detail: { free: 900, paid: 1300 },
   },
   freeWeeklyLimit: 7,
-  globalDailyCap: 300,
+  // 사용자 보호가 아니라 우리 지갑 보호다. 정본은 월 예산에서 역산해야 하며(ADR $10~30/월),
+  // 실 LLM 단가를 확인하기 전까지는 사실상 상한이 없는 값으로 둔다.
+  // 300은 개발용 안전핀이었고 운영값이 아니었다 — 전역 하루 300회면 서비스 전체가 탐색 30개다.
+  globalDailyCap: 20000,
   narrowMax: { free: 3, paid: 8 },
   narrowMin: 3,
   detailLimitFree: 3,
   maxTotal: { free: 8, paid: 32 },
   groupGen: { free: 2, paid: 4 },
   maxInputChars: 4000,
-  ratePerMin: 20,
-  ratePerDay: 200,
+  // 한 번의 탐색이 실제로 부르는 횟수에서 잡는다: free ~10회, paid ~15~30회
+  // (classify 1 + next 최대 8 + preview 1 + relate 0~1 + recommend 1+ + detail N + summarize 1).
+  // 20/200은 정상 사용이 걸리는 값이었다 — 좁히기 8턴만으로 분당 8회다.
+  ratePerMin: 60, // 두 탐색을 몰아쳐도 안 걸리되 초당 연타는 막힌다
+  ratePerDay: 1000, // paid 1탐색 ~30회 × 하루 30탐색. 그 이상은 남용 경계
+
   maxContextChars: 12000,
   attachRequiresPro: true,
 };
