@@ -125,7 +125,7 @@ function AppBody({ deps }: { deps: ShellDeps }) {
       if (c) sync.completeSession(c, items);
     },
   });
-  const detail = useDetail(api);
+  const detail = useDetail(api, () => lastCtx.current?.sessionId ?? null);
   const primer = usePrimer(api);
 
   // 담기는 화면 상태로만 유지한다.

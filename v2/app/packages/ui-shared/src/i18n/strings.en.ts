@@ -96,7 +96,6 @@ export const en: Record<StringKey, string> = {
   primer_ask: "Assume I already know the terms below when you answer.", // [AI]
   primer_condition: "Constraints", // [AI]
   primer_context: "Context", // [AI]
-  primer_known: "Terms I already know", // [AI]
   primer_task: "What I'm doing", // [AI]
   project_delete: "Delete project", // [AI]
   project_delete_hint: "Deletes the project only; explorations stay", // [AI]

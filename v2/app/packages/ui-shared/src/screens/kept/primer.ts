@@ -55,8 +55,7 @@ export function buildPrimerText(doc: PrimerDoc, kept: Term[]): string {
     ...section(t("primer_area"), doc.area),
     ...section(t("primer_condition"), doc.user_condition),
     ...section(t("primer_context"), doc.context_note),
-    ...(doc.known_terms.length ? ["", t("primer_known"), ...doc.known_terms.map(withLine)] : []),
-    ...(doc.unknown_terms.length ? ["", t("primer_ask"), ...doc.unknown_terms.map(withLine)] : []),
+    ...(doc.terms.length ? ["", t("primer_ask"), ...doc.terms.map(withLine)] : []),
   ].join("\n");
 }
 

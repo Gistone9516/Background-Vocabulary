@@ -135,7 +135,6 @@ export const ko = {
   primer_area: "분야",
   primer_condition: "조건",
   primer_context: "참고 맥락",
-  primer_known: "이미 아는 어휘",
 
   // 세션 목록 [신규]. v1은 확장 로컬 저장이라 로그인 조건이 없었다
   sessions_off: "로그인하면 탐색이 저장돼요.",

@@ -2,16 +2,11 @@
 // v1은 terms 배열 안에 kept 불리언을 섞어 서버가 준 값에 사용자 상태가 끼어들었다.
 
 import type { Term } from "@vock/shared";
+import { normTerm } from "@vock/shared";
 
-// 중복 담기 판정 키. 표기가 달라도 같은 어휘면 한 번만 담긴다(스펙 K-2).
-// 괄호 안 원어 표기, 공백, 대소문자 차이를 흡수한다.
-export function normTerm(term: string): string {
-  return term
-    .replace(/[（(][^)）]*[)）]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
-}
+// 중복 담기 판정 키(K-2). 정의는 shared에 있다 — 서버의 상세 기록이 같은 키를 쓴다.
+// 여기서 다시 내보내는 것은 기존 소비자의 import 경로를 지키기 위해서다(구현은 한 벌).
+export { normTerm };
 
 export type KeptMap = ReadonlyMap<string, Term>;
 

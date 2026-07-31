@@ -33,7 +33,7 @@ await migrate(sql);
 for (const u of [U, U2]) {
   await sql.execute("DELETE FROM assets WHERE user_id = $1", [u]);
   await sql.execute("DELETE FROM sessions WHERE user_id = $1", [u]);
-  await sql.execute("DELETE FROM knowledge WHERE user_id = $1", [u]);
+  await sql.execute("DELETE FROM details WHERE user_id = $1", [u]);
   await sql.execute("DELETE FROM projects WHERE user_id = $1", [u]);
   await sql.execute("INSERT INTO users (user_id, email, created_at) VALUES ($1,$2,$3) ON CONFLICT (user_id) DO NOTHING", [u, u + "@test.local", Date.now()]);
 }
@@ -89,14 +89,30 @@ try {
   check("목록 요약(narrow 미포함·generating 플래그)", list.json.items[0] && list.json.items[0].narrow === undefined && typeof list.json.items[0].generating === "boolean");
 
   // 3. 담기(자산) + 목록
-  const keep = await req(base, "PUT", `/sessions/${sid}/keep`, U, { keep: true, term_norm: "anti-windup", term: { term: "안티와인드업", kind: "기법", priority: 1, why: "w", one_line: "o", tag: "몰라" }, domain_tags: ["control"] });
+  const keep = await req(base, "PUT", `/sessions/${sid}/keep`, U, { keep: true, term_norm: "anti-windup", term: { term: "안티와인드업", kind: "기법", priority: 1, why: "w", one_line: "o" }, domain_tags: ["control"] });
   check("PUT keep 담기", keep.status === 200 && keep.json?.kept === true && keep.json?.asset?.term_norm === "anti-windup");
   const assets = await req(base, "GET", `/assets`, U);
   check("GET /assets 요약 포함(term_name 뽑힘)", assets.json?.items?.some((a) => a.term_norm === "anti-windup" && a.term_name === "안티와인드업"));
 
-  // 4. 지식 상태 배치
-  const know = await req(base, "PUT", `/knowledge`, U, { states: [{ term_norm: "anti-windup", tag: "알아" }] });
-  check("PUT /knowledge upsert", know.json?.upserted === 1);
+  // 4. 상세 캐시 스키마(C5-S1 E-3·E-4·E-12). 리포 왕복은 HTTP로 못 탄다 —
+  // 캐시는 gateUserId(JWT)에 걸려 있고 이 부트는 DEV x-user-id라 신원이 null이다.
+  // 그래서 여기서는 스키마가 보장하는 것만 본다: 소유자 분리와 키 멱등, 그리고 옛 테이블의 부재.
+  const body = JSON.stringify({ what: "w", whymine: "m", how: "h", related: [], sources: [] });
+  const ins = (u, key) =>
+    sql.execute(
+      `INSERT INTO details (user_id, session_id, term_norm, input_key, body, created_at) VALUES ($1,$2,$3,$4,$5,$6)
+       ON CONFLICT (user_id, input_key) DO NOTHING`,
+      [u, sid, "anti-windup", key, body, Date.now()],
+    );
+  await ins(U, "k1");
+  await ins(U, "k1"); // 같은 키 재저장은 멱등이어야 한다(E-6 주변 — created_at을 첫 조회 시각으로 남긴다)
+  await ins(U2, "k1"); // 다른 사용자의 같은 키는 별개 행이다(E-4)
+  const mine = await sql.query("SELECT input_key FROM details WHERE user_id = $1", [U]);
+  const other = await sql.query("SELECT input_key FROM details WHERE user_id = $1", [U2]);
+  check("같은 키 재저장은 행이 늘지 않는다", mine.length === 1, `rows=${mine.length}`);
+  check("사용자가 다르면 같은 키도 별개 행이다", other.length === 1);
+  const gone = await sql.query("SELECT to_regclass('public.knowledge') AS t");
+  check("knowledge 테이블은 사라졌다(E-12)", gone[0]?.t === null, `to_regclass=${gone[0]?.t}`);
 
   // 5. 소프트삭제 → 404 → restore → 200
   const del = await req(base, "DELETE", `/sessions/${sid}`, U);

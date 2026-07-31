@@ -3,21 +3,21 @@
 import type { SqlRunner, Repositories } from "@vock/shared";
 import { SessionRepositoryImpl } from "./session-repo.js";
 import { AssetRepositoryImpl } from "./asset-repo.js";
-import { KnowledgeRepositoryImpl } from "./knowledge-repo.js";
+import { DetailRepositoryImpl } from "./detail-repo.js";
 import { ProjectRepositoryImpl } from "./project-repo.js";
 
 export function buildRepositories(sql: SqlRunner): Repositories {
   return {
     sessions: new SessionRepositoryImpl(sql),
     assets: new AssetRepositoryImpl(sql),
-    knowledge: new KnowledgeRepositoryImpl(sql),
+    details: new DetailRepositoryImpl(sql),
     projects: new ProjectRepositoryImpl(sql),
   };
 }
 
 export { SessionRepositoryImpl } from "./session-repo.js";
 export { AssetRepositoryImpl } from "./asset-repo.js";
-export { KnowledgeRepositoryImpl } from "./knowledge-repo.js";
+export { DetailRepositoryImpl } from "./detail-repo.js";
 export { ProjectRepositoryImpl } from "./project-repo.js";
 export { PgUserRepository } from "./user-repo.js";
 export { PgJtiBlacklist } from "./jti-blacklist.js";

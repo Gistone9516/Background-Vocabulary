@@ -4,7 +4,7 @@
 import type {
   SessionRec,
   AssetTerm,
-  KnowledgeState,
+  DetailRec,
   Project,
   Page,
   SessionSummary,
@@ -47,9 +47,13 @@ export interface AssetRepository {
   termNormsByProject(userId: string, projectId: string): Promise<string[]>;
 }
 
-export interface KnowledgeRepository {
-  upsertBatch(states: KnowledgeState[]): Promise<void>;
-  listByUser(userId: string): Promise<KnowledgeState[]>;
+// 펼친 상세의 읽기-통과 캐시(FR-401). 목록 조회는 소비자(우측 패널)가 오는 슬라이스에서 붙인다 —
+// 지금 넣으면 읽는 곳 없는 export가 되어 동작하는 것으로 오인된다(E-11).
+export interface DetailRepository {
+  // 판정은 input_key만 본다(E-3). term_norm으로 찾지 않는다.
+  find(userId: string, inputKey: string): Promise<DetailRec | null>;
+  // 성공 응답만 저장한다(E-6). 같은 키 재저장은 멱등.
+  save(rec: DetailRec): Promise<void>;
 }
 
 export interface ProjectRepository {
@@ -63,6 +67,6 @@ export interface ProjectRepository {
 export interface Repositories {
   sessions: SessionRepository;
   assets: AssetRepository;
-  knowledge: KnowledgeRepository;
+  details: DetailRepository;
   projects: ProjectRepository;
 }

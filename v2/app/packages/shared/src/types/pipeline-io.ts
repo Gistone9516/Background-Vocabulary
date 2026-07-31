@@ -1,7 +1,7 @@
 // 파이프라인 입출력 타입(P1~P5·preview·relate). 정본 = 인터페이스계약-v2 §2-1. 키 변동 금지.
 // PreviewIn/Out·RelateIn/Out은 v1 코드가 정본이며 여기로 무손실 이식한다.
 
-import type { JobType, GapType, Tag, Locale, DomainRisk } from "./enums.js";
+import type { JobType, GapType, Locale, DomainRisk } from "./enums.js";
 
 // 좁히기 단계의 선택지.
 export interface Choice {
@@ -23,7 +23,6 @@ export interface Term {
   priority: number; // 1이 최우선. 오름차순.
   why: string; // 이 상황에서 왜 이 우선순위인지 근거.
   one_line: string; // 한 줄 정의.
-  tag: Tag;
   group?: string; // 그룹뷰 분류(프론트 groupView). 예: 일반화, 학습 설정.
   // 조건부 (gap_type 또는 job_type에 따라 켬)
   direction?: string; // 적용 방향. gap_type c d e 또는 의사결정 진단판단 협상설득준비에서 켬.
@@ -110,7 +109,7 @@ export interface Prompt3Out {
 export interface Prompt4In {
   area: string;
   job_type: JobType[];
-  vocab: { term: string; tag: Tag }[];
+  vocab: string[]; // 담은 어휘 이름. 지식 상태로 가르지 않는다 — 서버가 가를 근거가 없다(E-3 계열)
   user_condition?: string; // 화면3 우선 병합 최종값(화면0 값을 덮음)
   context_object?: string;
   background_hint?: string;

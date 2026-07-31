@@ -11,7 +11,6 @@ export const SAMPLE_TERMS: Term[] = [
     priority: 1,
     why: "PID 제어에서 적분기 와인드업을 방지하는 핵심 기법.",
     one_line: "출력이 제한될 때 적분기의 과도한 축적을 막아 안정성을 높이는 방법",
-    tag: "몰라",
     direction: "출력 제한이 있는 시스템에서 필수적",
     context_note: "백계산 같은 구체적 방식 이해가 필요",
   },
@@ -21,7 +20,6 @@ export const SAMPLE_TERMS: Term[] = [
     priority: 2,
     why: "PID 제어의 일반적 문제점. 문제해결의 출발점.",
     one_line: "출력이 포화되어도 적분이 계속되어 오버슈트나 느린 응답을 유발하는 현상",
-    tag: "몰라",
   },
 ];
 

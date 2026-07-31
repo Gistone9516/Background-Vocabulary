@@ -5,7 +5,8 @@
 ## 구조
 ```
 migrations/
-└ 0001_init.sql        영속 스키마 정본(§6, FK 순서 users→projects→sessions→assets→knowledge)
+└ 0001_init.sql        영속 스키마 정본(§6, FK 순서 users→projects→sessions→assets→details)
+└ 0003_details.sql     펼친 상세 본문 캐시(FR-401) 신설 + knowledge 폐기
 src/
 ├ index.ts             공개 배럴(migrate·buildRepositories·*Impl)
 ├ migrate.ts           순번 마이그레이션 러너(SqlRunner 경유, 다중문장 DDL=단순 프로토콜)
@@ -14,7 +15,7 @@ src/
 └ repositories/
    ├ session-repo.ts   소유권 409·keyset 목록·소프트삭제·restore
    ├ asset-repo.ts     담기(멱등)·목록(요약 필드만)·term_norm dedup 입력
-   ├ knowledge-repo.ts 태깅 배치 upsert
+   ├ detail-repo.ts    펼친 상세 캐시(input_key 조회·멱등 저장). 행의 존재가 곧 조회 기록
    ├ project-repo.ts   CRUD(삭제는 FK로 세션 소속만 해제)
    └ index.ts          buildRepositories(sql) 팩토리
 ```

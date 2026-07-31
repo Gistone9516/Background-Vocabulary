@@ -76,7 +76,6 @@ export function isPrimerDoc(v: unknown): v is PrimerDoc {
     typeof d["task_intent"] === "string" &&
     isOptionalString(d["user_condition"]) &&
     isOptionalString(d["context_note"]) &&
-    isStringArray(d["known_terms"]) &&
-    isStringArray(d["unknown_terms"])
+    isStringArray(d["terms"])
   );
 }

@@ -34,7 +34,6 @@ export const AI_AUTHORED: readonly StringKey[] = [
   "primer_ask",
   "primer_condition",
   "primer_context",
-  "primer_known",
   "primer_task",
   "project_delete",
   "project_delete_hint",

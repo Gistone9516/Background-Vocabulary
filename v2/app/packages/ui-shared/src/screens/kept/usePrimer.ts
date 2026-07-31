@@ -1,7 +1,7 @@
 // AI 정리 호출과 캐시. 실패해도 기본 정리는 그대로 남는다(스펙 P-7).
 
 import { useCallback, useRef, useState } from "react";
-import type { Prompt4In, PrimerDoc, Tag, Term } from "@vock/shared";
+import type { Prompt4In, PrimerDoc, Term } from "@vock/shared";
 import type { ApiPort } from "../../api/index.js";
 import { primerFailure, primerKey, type PrimerState } from "./primer.js";
 
@@ -28,8 +28,7 @@ export function usePrimer(api: ApiPort) {
       const input: Prompt4In = {
         area: args.area,
         job_type: args.jobType,
-        // 담은 어휘는 사용자가 모르는 것으로 본다. 아는 것을 구분하는 UI는 아직 없다.
-        vocab: args.kept.map((t) => ({ term: t.term, tag: (t.tag ?? "몰라") as Tag })),
+        vocab: args.kept.map((t) => t.term),
         ...(args.condition ? { user_condition: args.condition } : {}),
       };
 

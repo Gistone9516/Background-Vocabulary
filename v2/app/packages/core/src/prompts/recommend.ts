@@ -32,7 +32,7 @@ export function buildPrompt3(input: {
     "group is the higher-level category name that bundles terms (a category label such as 'Generalization' or 'Training setup', written in the output language). Give the same group string to terms of the same nature (used by the group view).",
     "If a list of already-shown terms is given, exclude them and fill with the next-priority terms (no duplicates).",
     `SELF-CHECK before output: exactly ${n} items; none is a generic intro-textbook term; none restates an anchor term from the input; each why is exactly ONE sentence; if a difficulty target was given, the depth of every term matches it. Fix any violation before returning.`,
-    'Output exactly one JSON object. Format: {"terms":[{"term","kind","group","priority","why","one_line","tag","direction"?,"use_example"?,"context_note"?,"relates_to"?,"order"?}]}. priority: 1 is top (ascending). why: why this priority in this situation. Always set tag to "몰라".',
+    'Output exactly one JSON object. Format: {"terms":[{"term","kind","group","priority","why","one_line","direction"?,"use_example"?,"context_note"?,"relates_to"?,"order"?}]}. priority: 1 is top (ascending). why: why this priority in this situation.',
     JSON_ONLY,
   ].filter(Boolean).join("\n");
   const user = [

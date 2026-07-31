@@ -135,8 +135,9 @@ export class HttpApiClient implements ApiPort, AuthPort {
     return this.send<PreviewOut>("POST", "/preview", this.gen(input), signal);
   }
 
-  detail(input: Prompt5In, signal?: AbortSignal): Promise<Prompt5Out> {
-    return this.send<Prompt5Out>("POST", "/detail", this.gen(input), signal);
+  detail(input: Prompt5In, sessionId: string | null, signal?: AbortSignal): Promise<Prompt5Out> {
+    const body = sessionId ? { ...this.gen(input), session_id: sessionId } : this.gen(input);
+    return this.send<Prompt5Out>("POST", "/detail", body, signal);
   }
 
   summarize(input: Prompt4In, signal?: AbortSignal): Promise<PrimerDoc> {

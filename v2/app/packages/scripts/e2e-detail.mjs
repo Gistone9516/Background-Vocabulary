@@ -1,6 +1,7 @@
 // 카드 상세 상태 기계 검증(C3 S3b). 네트워크 없이 전이 규칙만 돌린다.
 // 핵심은 무료 열람 횟수를 클라가 세지 않는다는 것이다. 소진은 서버 402로만 알 수 있다.
 import { reduceDetail as reduce, initialDetail, classifyResponse, isRetryable } from "@vock/ui-shared";
+import { canonicalDetailInput, detailInputKey, DETAIL_PROMPT_VERSION } from "@vock/shared";
 
 let failures = 0;
 function check(name, cond, detail) {
@@ -128,8 +129,27 @@ console.log("카드 상세 상태 기계 검증:");
   check("D-3 잠김에는 서버 문구가 실린다", b.s.phase === "locked" && b.s.message === "무료 상세 열람을 다 썼어요.");
 }
 
+// C5-S1 캐시 키(E-3·E-7). 서버 캐시가 무엇을 같은 요청으로 볼지 정하는 순수 함수다.
+{
+  const key = (o) => canonicalDetailInput({ ...IN, ...o });
+  check("같은 입력은 같은 키다", key({}) === key({}));
+  // whymine이 세션 맥락에 의존하므로 어휘가 같아도 topic이 다르면 다른 본문이어야 한다.
+  check("topic이 다르면 키가 갈린다", key({}) !== key({ topic: "다른 주제" }));
+  check("connection_hint 유무로 키가 갈린다", key({}) !== key({ connection_hint: "x" }));
+  // 고른 순서는 같은 요청이다. 정렬하지 않으면 같은 화면에서 캐시가 빗나간다.
+  check("job_type 순서는 키를 바꾸지 않는다", key({ job_type: ["a", "b"] }) === key({ job_type: ["b", "a"] }));
+  // 길이 접두어를 쓰는 이유. 구분자였다면 아래 둘이 같은 키로 접힌다.
+  check("필드 경계가 섞이지 않는다", key({ term: "xy", kind: "" }) !== key({ term: "x", kind: "y" }));
+  check("프롬프트 버전이 키에 들어간다", key({}).includes(`v${DETAIL_PROMPT_VERSION}`));
+
+  const h1 = await detailInputKey({ ...IN });
+  const h2 = await detailInputKey({ ...IN, topic: "다른 주제" });
+  check("해시는 64자 hex다", /^[0-9a-f]{64}$/.test(h1), h1);
+  check("다른 정규 문자열은 다른 해시다", h1 !== h2);
+}
+
 if (failures) {
   console.error(`\n카드 상세 상태 기계 검증 실패: ${failures}건`);
   process.exit(1);
 }
-console.log("\n카드 상세 상태 기계 검증 통과: 전이 규칙 무회귀.");
+console.log("\n카드 상세 상태 기계 검증 통과: 전이 규칙 + 캐시 키 무회귀.");

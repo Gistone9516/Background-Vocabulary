@@ -52,7 +52,9 @@ export interface ApiPort {
   classify(input: Prompt1In, signal?: AbortSignal): Promise<Prompt1Out>;
   next(input: Prompt2In, signal?: AbortSignal): Promise<Prompt2Out>;
   preview(input: PreviewIn, signal?: AbortSignal): Promise<PreviewOut>;
-  detail(input: Prompt5In, signal?: AbortSignal): Promise<Prompt5Out>;
+  // sessionId는 프롬프트 입력이 아니라 요청 메타다(Prompt5In에 넣지 않는다 — 키 변동 금지).
+  // 서버가 상세 기록의 세션 스코프와 무료 열람 한도(NFR-304)에 쓴다.
+  detail(input: Prompt5In, sessionId: string | null, signal?: AbortSignal): Promise<Prompt5Out>;
   // pro 전용. 구조만 돌려주고 붙여넣을 본문은 클라가 조립한다.
   summarize(input: Prompt4In, signal?: AbortSignal): Promise<PrimerDoc>;
   // 서버가 흘리는 이벤트를 순서 그대로 넘긴다. 취소는 signal로 전파한다.

@@ -11,8 +11,8 @@ function check(name, cond, detail) {
 const encoder = new TextEncoder();
 const full = JSON.stringify({
   terms: [
-    { term: "안티와인드업", kind: "기법", priority: 1, why: "출력 제한 시 적분 축적을 막는다.", one_line: "적분 폭주 방지", tag: "몰라" },
-    { term: "적분기 와인드업", kind: "현상", priority: 2, why: "포화에도 적분이 계속된다.", one_line: "오버슈트 유발", tag: "몰라" },
+    { term: "안티와인드업", kind: "기법", priority: 1, why: "출력 제한 시 적분 축적을 막는다.", one_line: "적분 폭주 방지" },
+    { term: "적분기 와인드업", kind: "현상", priority: 2, why: "포화에도 적분이 계속된다.", one_line: "오버슈트 유발" },
   ],
 });
 function sseData(content) {
@@ -47,7 +47,7 @@ for (;;) {
 const terms = got.filter((e) => e.type === "term");
 check("term 이벤트 2건", terms.length === 2, `got=${terms.length}`);
 check("순서·내용 보존", terms[0]?.term?.term === "안티와인드업" && terms[1]?.term?.term === "적분기 와인드업");
-check("Term 필드 온전", terms[0]?.term?.priority === 1 && terms[0]?.term?.tag === "몰라");
+check("Term 필드 온전", terms[0]?.term?.priority === 1 && terms[0]?.term?.one_line === "적분 폭주 방지");
 check("done 이벤트로 종료", got[got.length - 1]?.type === "done");
 
 if (failures > 0) { console.error(`\nSSE 파서 테스트 실패: ${failures}건.`); process.exit(1); }

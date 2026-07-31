@@ -96,7 +96,6 @@ export const ja: Record<StringKey, string> = {
   primer_ask: "以下の用語はすでに知っているものとして答えてください。", // [AI]
   primer_condition: "条件", // [AI]
   primer_context: "参考の文脈", // [AI]
-  primer_known: "すでに知っている用語", // [AI]
   primer_task: "やりたいこと", // [AI]
   project_delete: "プロジェクトを削除", // [AI]
   project_delete_hint: "プロジェクトのみ削除し、探索は残ります", // [AI]

@@ -2,7 +2,7 @@
 // user_id는 주입된 리졸버로 얻는다(인증 구성 시 JWT sub, 미구성 DEV 시 x-user-id).
 
 import type { Hono } from "hono";
-import type { Repositories, SessionRec, AssetTerm, KnowledgeState, Project } from "@vock/shared";
+import type { Repositories, SessionRec, AssetTerm, Project } from "@vock/shared";
 import { OwnershipError } from "@vock/shared";
 import type { ResolveUserId } from "../middleware/auth.js";
 
@@ -137,21 +137,5 @@ export function registerCrudRoutes(app: Hono, repos: Repositories, resolveUserId
     if (!userId) return c.json({ error: "UNAUTHENTICATED" }, 401);
     const ok = await repos.projects.delete(userId, c.req.param("id"));
     return ok ? c.body(null, 204) : c.json({ error: "NOT_FOUND" }, 404);
-  });
-
-  // ── 지식 상태 ─────────────────────────────────────────
-  app.put("/knowledge", async (c) => {
-    const userId = await resolveUserId(c);
-    if (!userId) return c.json({ error: "UNAUTHENTICATED" }, 401);
-    const body = (await c.req.json()) as Body;
-    const now = Date.now();
-    const states: KnowledgeState[] = ((body.states as Body[]) ?? []).map((s) => ({
-      user_id: userId,
-      term_norm: s.term_norm as string,
-      tag: s.tag as KnowledgeState["tag"],
-      updated_at: now,
-    }));
-    await repos.knowledge.upsertBatch(states);
-    return c.json({ upserted: states.length });
   });
 }

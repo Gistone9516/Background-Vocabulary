@@ -1,8 +1,8 @@
 // 영속 도메인 타입(서버 정본). 정본 = 인터페이스계약-v2 §2-3. 목록·페이지 타입도 함께 둔다.
-// MindMap(GET /map)·RefinePrimer(FR-607)은 C5에서 추가한다.
+// MindMap(GET /map)·RefinePrimer(FR-607)은 뒤 슬라이스에서 추가한다.
 
-import type { Choice, Prompt1Out, Term } from "./pipeline-io.js";
-import type { DomainRisk, JobType, GapType, Tag, OutputLocale } from "./enums.js";
+import type { Choice, Prompt1Out, Prompt5Out, Term } from "./pipeline-io.js";
+import type { DomainRisk, JobType, GapType, OutputLocale } from "./enums.js";
 
 // 구조화 프라이머(FR-604). 서버 정본은 SessionRec.primer.
 export interface PrimerDoc {
@@ -11,8 +11,9 @@ export interface PrimerDoc {
   task_intent: string;
   user_condition?: string;
   context_note?: string;
-  known_terms: string[];
-  unknown_terms: string[];
+  // 담은 어휘 전체. 조회/저장으로 가르지 않는다(E-3의 이유와 같다 — 서버는 가를 근거가 없고,
+  // 클라는 assets·details로 이미 안다. 두 곳이 가르면 같은 구분에 출처가 둘이 된다).
+  terms: string[];
   refined?: { audience?: string; goal_detail?: string; constraints?: string[] }; // FR-607 산출
 }
 
@@ -91,12 +92,15 @@ export interface AssetTerm {
   created_at: number;
 }
 
-// 지식 상태(FR-502). unconfirmed는 클라 전용이라 없음.
-export interface KnowledgeState {
-  user_id: string;
-  term_norm: string;
-  tag: Tag;
-  updated_at: number;
+// 펼친 상세 본문(FR-401 "한 번 연 내용은 캐시"). 행의 존재 자체가 "조회했다"는 기록이다 —
+// 조회 플래그를 따로 두면 한 사실에 출처가 둘이 된다(E-2).
+export interface DetailRec {
+  user_id: string; // 캐시는 사용자 간 공유하지 않는다. whymine이 개인 맥락이라 남의 것을 주면 조용한 오답이 된다(E-4)
+  session_id: string; // 어느 세션에서 펼쳤는가. 패널의 세션 스코프가 읽는다
+  term_norm: string; // 표시·목록용. 캐시 판정은 이것으로 하지 않는다(E-3)
+  input_key: string; // Prompt5In 전 필드 + 프롬프트 버전. 캐시 판정은 이것만 본다
+  body: Prompt5Out;
+  created_at: number;
 }
 
 export interface Project {

@@ -27,7 +27,7 @@ await migrate(sql);
 const existing = await sql.query("SELECT user_id FROM users WHERE email = $1", [EMAIL]);
 if (existing[0]) {
   const uid = existing[0].user_id;
-  for (const t of ["assets", "sessions", "knowledge", "projects"]) await sql.execute(`DELETE FROM ${t} WHERE user_id = $1`, [uid]);
+  for (const t of ["assets", "sessions", "details", "projects"]) await sql.execute(`DELETE FROM ${t} WHERE user_id = $1`, [uid]);
   await sql.execute("DELETE FROM users WHERE user_id = $1", [uid]);
 }
 

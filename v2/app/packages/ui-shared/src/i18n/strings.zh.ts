@@ -96,7 +96,6 @@ export const zh: Record<StringKey, string> = {
   primer_ask: "回答时请假设我已经了解下面的术语。", // [AI]
   primer_condition: "条件", // [AI]
   primer_context: "参考背景", // [AI]
-  primer_known: "我已经知道的词汇", // [AI]
   primer_task: "我想做的事", // [AI]
   project_delete: "删除项目", // [AI]
   project_delete_hint: "仅删除项目，保留探索", // [AI]

@@ -14,7 +14,7 @@ function check(name, cond, detail) {
 
 const CFG = { maxTotal: 4 };
 const INPUT = { area: "요리", job_type: ["학습"], domain: "요리", topic: "빵", locale: "ko", domain_risk: "normal" };
-const term = (n) => ({ type: "term", term: { term: `어휘${n}`, kind: "개념", priority: n, why: "근거", one_line: "한 줄", tag: "몰라" } });
+const term = (n) => ({ type: "term", term: { term: `어휘${n}`, kind: "개념", priority: n, why: "근거", one_line: "한 줄" } });
 const runOf = (s) => ("runId" in s ? s.runId : 0);
 
 function drive(events, cfg = CFG, start = initialTerms) {

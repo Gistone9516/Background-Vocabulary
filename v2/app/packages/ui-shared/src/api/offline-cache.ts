@@ -69,7 +69,7 @@ export function withOfflineCache(api: ApiPort, store: OfflineStore, onChange?: (
     classify: (input, signal) => api.classify(input, signal),
     next: (input, signal) => api.next(input, signal),
     preview: (input, signal) => api.preview(input, signal),
-    detail: (input, signal) => api.detail(input, signal),
+    detail: (input, sessionId, signal) => api.detail(input, sessionId, signal),
     summarize: (input, signal) => api.summarize(input, signal),
     recommendStream: (input, signal) => api.recommendStream(input, signal),
     putSession: (rec, signal) => api.putSession(rec, signal),

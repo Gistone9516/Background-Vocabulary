@@ -13,6 +13,7 @@ import { registerAuthRoutes } from "./routes/auth-routes.js";
 import { jwtResolveUserId, devResolveUserId } from "./middleware/auth.js";
 import { installGating } from "./middleware/gating.js";
 import { installClientCheck, type ClientCheckConfig } from "./middleware/client-check.js";
+import { buildDetailCache } from "./detail-cache.js";
 
 // 앱 의존 계약. 부트가 계층별로 조립해 주입한다.
 // repos 미주입(mock UI 부트)=CRUD 미등록. authService 미주입=/auth 미등록+CRUD는 DEV(x-user-id).
@@ -73,6 +74,10 @@ export function createApp(deps: AppDeps): Hono {
   app.get("/health", (c) => c.json({ ok: true }));
   app.get("/config", (c) => c.json(clientLimits));
 
+  // 상세 캐시는 게이팅보다 먼저 조립되어야 한다 — 캐시 조회 미들웨어를 게이팅이 등록하기 때문이다(E-5).
+  const repos = deps.repos;
+  const detailCache = repos ? buildDetailCache(repos) : undefined;
+
   // 게이팅은 라우트 등록 전에 install해야 핸들러보다 먼저 돈다(§4).
   if (deps.counters) {
     const authService = deps.authService;
@@ -87,19 +92,23 @@ export function createApp(deps: AppDeps): Hono {
           return { tier, userId: claims ? claims.sub : null };
         }
       : async (): Promise<{ tier: Tier; userId: string | null }> => ({ tier: "free", userId: null });
-    installGating(app, { counters: deps.counters, limits: deps.limits ?? DEFAULT_LIMITS, resolveIdentity });
+    installGating(app, {
+      counters: deps.counters,
+      limits: deps.limits ?? DEFAULT_LIMITS,
+      resolveIdentity,
+      ...(detailCache ? { detailCacheFind: detailCache.find } : {}),
+    });
   }
 
   // 세션에서 프로젝트를 읽는다. 요청 본문이 프로젝트를 지정하지 않는다(S5 S-25) —
   // 세션 조회가 소유자 대조를 하므로 남의 프로젝트 어휘는 구조적으로 못 읽는다.
-  const repos = deps.repos;
   const dedup = repos
     ? async (userId: string, sessionId: string): Promise<string[]> => {
         const rec = await repos.sessions.get(userId, sessionId);
         return rec?.project_id ? repos.assets.termNormsByProject(userId, rec.project_id) : [];
       }
     : undefined;
-  registerPipelineRoutes(app, pipeline, dedup, deps.limits ?? DEFAULT_LIMITS);
+  registerPipelineRoutes(app, pipeline, dedup, deps.limits ?? DEFAULT_LIMITS, detailCache?.save);
   if (deps.authService) registerAuthRoutes(app, deps.authService);
   const resolveUserId = deps.authService ? jwtResolveUserId(deps.authService) : devResolveUserId();
   if (deps.repos) registerCrudRoutes(app, deps.repos, resolveUserId);

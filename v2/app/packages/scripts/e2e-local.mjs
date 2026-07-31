@@ -98,7 +98,7 @@ try {
   const sum = await postJson(base, "/summarize", {
     area: clf.json.domain,
     job_type: clf.json.job_type,
-    vocab: [{ term: "안티와인드업", tag: "몰라" }],
+    vocab: ["안티와인드업"],
     outputLocale: "ko",
     tier: "pro",
   });
@@ -114,7 +114,7 @@ try {
   const ja = await postJson(base, "/summarize", {
     area: clf.json.domain,
     job_type: clf.json.job_type,
-    vocab: [{ term: "안티와인드업", tag: "몰라" }],
+    vocab: ["안티와인드업"],
     outputLocale: "ja",
     tier: "pro",
   });

@@ -27,6 +27,18 @@ export function normalizeTopic(raw: string): string {
   return alias ?? s;
 }
 
+// 어휘 동일성 판정 키(K-2). 표기가 달라도 같은 어휘면 같은 키다 —
+// 괄호 안 원어 표기, 공백, 대소문자 차이를 흡수한다.
+// shared에 있는 이유: 담기(클라)와 상세 기록(서버)이 같은 키를 써야 한다.
+// 두 벌이면 같은 어휘가 두 행으로 갈리고, 그 어긋남은 화면에서 안 보인다.
+export function normTerm(term: string): string {
+  return term
+    .replace(/[（(][^)）]*[)）]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
 // 캐시키 조립. domain은 정적 맵의 열거 키여야 한다(자유 문장 금지).
 export function ragCacheKey(domain: string, topic: string, locale: string): string {
   return `rag:${domain}:${normalizeTopic(topic)}:${locale}`;

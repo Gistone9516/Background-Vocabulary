@@ -13,7 +13,12 @@ interface Wrapped {
   seq: number;
 }
 
-export function useDetail(api: ApiPort) {
+// sessionIdOf는 함수로 받는다 — 세션은 여정 도중 바뀌므로 값으로 받으면 effect가 옛 세션을 보낸다.
+export function useDetail(api: ApiPort, sessionIdOf: () => string | null) {
+  // 매 렌더 새 클로저가 와도 effect 의존성을 흔들지 않도록 ref로 받는다.
+  const sidRef = useRef(sessionIdOf);
+  sidRef.current = sessionIdOf;
+
   const step = useCallback((w: Wrapped, e: DetailEvent): Wrapped => {
     const [state, cmds, cache] = reduce(w.state, e, w.cache);
     return { state, cache, cmds, seq: w.seq + 1 };
@@ -37,7 +42,7 @@ export function useDetail(api: ApiPort) {
         const ac = new AbortController();
         inflight.current = ac;
         api
-          .detail(cmd.input, ac.signal)
+          .detail(cmd.input, sidRef.current(), ac.signal)
           .then((out) => {
             if (ac.signal.aborted) return;
             dispatch({ t: "loaded", runId: cmd.runId, id: cmd.id, out });

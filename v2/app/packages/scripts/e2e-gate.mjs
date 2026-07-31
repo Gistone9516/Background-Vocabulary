@@ -43,7 +43,7 @@ await migrate(sql);
 const existing = await sql.query("SELECT user_id FROM users WHERE email = $1", [EMAIL]);
 if (existing[0]) {
   const uid = existing[0].user_id;
-  for (const t of ["assets", "sessions", "knowledge", "projects"]) await sql.execute(`DELETE FROM ${t} WHERE user_id = $1`, [uid]);
+  for (const t of ["assets", "sessions", "details", "projects"]) await sql.execute(`DELETE FROM ${t} WHERE user_id = $1`, [uid]);
   await sql.execute("DELETE FROM users WHERE user_id = $1", [uid]);
 }
 
@@ -85,7 +85,13 @@ try {
   const paidAccess = refreshed.json?.access_token;
   check("refresh로 paid 토큰", refreshed.status === 200 && typeof paidAccess === "string");
   const sumPaid = await req(base, "POST", "/summarize", { bearer: paidAccess, body: { area: "PID", job_type: ["이해학습"], vocab: [] } });
-  check("summarize(paid) 200", sumPaid.status === 200 && typeof sumPaid.json?.paste_text === "string", `status=${sumPaid.status}`);
+  // paste_text는 C3-S4b에서 없앴다(서버는 구조만, 본문 조립은 클라). 여기 단언이 그때 안 따라와
+  // gate-db가 기본 체인 밖인 동안 계속 깨져 있었다 — 체인 밖 스크립트는 통과 여부를 사람이 봐야 한다.
+  check(
+    "summarize(paid) 200 + PrimerDoc 구조",
+    sumPaid.status === 200 && Array.isArray(sumPaid.json?.terms) && sumPaid.json?.paste_text === undefined,
+    `status=${sumPaid.status} body=${JSON.stringify(sumPaid.json).slice(0, 80)}`
+  );
   const cPaid = await req(base, "POST", "/classify", { bearer: paidAccess, body: CLASSIFY });
   check("classify(paid) 주간한도 우회 200", cPaid.status === 200, `status=${cPaid.status}`);
 } finally {

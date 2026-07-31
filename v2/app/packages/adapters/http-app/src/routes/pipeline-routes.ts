@@ -2,7 +2,7 @@
 // tier·outputLocale는 C1에서 요청 바디로 받는다(인증 기반 판정은 C2 게이팅에서 대체).
 
 import type { Hono } from "hono";
-import type { Limits, Pipeline, OutputLocale, Tier } from "@vock/shared";
+import type { Limits, Pipeline, OutputLocale, Prompt5Out, Tier } from "@vock/shared";
 import { DEFAULT_LIMITS } from "@vock/shared";
 import { streamEventsToResponse } from "../sse-response.js";
 
@@ -52,7 +52,16 @@ async function mergeProjectExclude(body: Body, userId: string | null, dedup?: Pr
 
 export type ProjectDedup = (userId: string, sessionId: string) => Promise<string[]>;
 
-export function registerPipelineRoutes(app: Hono, pipeline: Pipeline, dedup?: ProjectDedup, limits?: Limits): void {
+// 생성된 상세를 영속한다(FR-401). 성공 응답만 부른다(E-6).
+export type DetailSave = (userId: string | null, body: Record<string, unknown>, out: Prompt5Out) => Promise<void>;
+
+export function registerPipelineRoutes(
+  app: Hono,
+  pipeline: Pipeline,
+  dedup?: ProjectDedup,
+  limits?: Limits,
+  saveDetail?: DetailSave
+): void {
   const maxCtx = (limits ?? DEFAULT_LIMITS).maxContextChars;
 
   app.post("/classify", async (c) => {
@@ -87,7 +96,11 @@ export function registerPipelineRoutes(app: Hono, pipeline: Pipeline, dedup?: Pr
 
   app.post("/detail", async (c) => {
     const body = (await c.req.json()) as Body;
-    return c.json(await pipeline.detail(body as never, tierOf(c), readLocale(body)));
+    // 캐시 히트는 여기까지 오지 않는다(게이팅 앞단에서 응답). 여기 온 것은 전부 새 생성이다.
+    const out = await pipeline.detail(body as never, tierOf(c), readLocale(body));
+    // 성공만 저장한다(E-6). 저장 실패가 열람 실패가 되면 안 된다 — 본문은 이미 손에 있다.
+    if (saveDetail) await saveDetail(userIdOf(c), body, out).catch(() => undefined);
+    return c.json(out);
   });
 
   app.post("/summarize", async (c) => {

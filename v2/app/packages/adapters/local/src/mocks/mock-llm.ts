@@ -59,8 +59,7 @@ const SUMMARIZE: Omit<PrimerDoc, "locale"> = {
   area: "PID 제어",
   task_intent: "PID 제어의 배경 개념을 이해하려 한다",
   context_note: "출력 포화 상황에서 적분 제어의 거동을 정리한다.",
-  known_terms: ["피드백"],
-  unknown_terms: ["안티와인드업", "적분기 와인드업"],
+  terms: ["안티와인드업", "적분기 와인드업"],
 };
 
 const DETAIL: Prompt5Out = {
@@ -77,7 +76,8 @@ function pickFixture(sys: string): unknown {
   if (sys.includes('"enough"')) return NEXT;
   if (sys.includes('"relevant"')) return RELATE;
   if (sys.includes('"inter"')) return PREVIEW;
-  if (sys.includes('"unknown_terms"')) return SUMMARIZE;
+  // "terms"는 recommend 포맷에도 있어 판별에 못 쓴다. task_intent는 PrimerDoc 전용이다.
+  if (sys.includes('"task_intent"')) return SUMMARIZE;
   if (sys.includes('"whymine"')) return DETAIL;
   throw new Error("MockLlmClient: 알 수 없는 프롬프트 형식(픽스처 매칭 실패)");
 }

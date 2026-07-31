@@ -23,7 +23,7 @@ function check(name, cond, detail) {
   }
 }
 
-const term = (t, line = "한 줄") => ({ term: t, kind: "개념", priority: 1, why: "근거", one_line: line, tag: "몰라" });
+const term = (t, line = "한 줄") => ({ term: t, kind: "개념", priority: 1, why: "근거", one_line: line });
 
 console.log("담기와 정리 검증:");
 
@@ -87,33 +87,33 @@ console.log("담기와 정리 검증:");
       task_intent: "PID 튜닝",
       user_condition: "실무 중심",
       context_note: "모터 온도가 오른다",
-      known_terms: ["PID"],
-      unknown_terms: ["적분 와인드업"],
+      terms: ["PID", "적분 와인드업"],
       locale: "ko",
     },
     kept
   );
-  check("아는 어휘와 모르는 어휘가 갈려 들어간다", full.includes("이미 아는 어휘") && full.includes("- PID: 세 항으로 제어"));
-  check("모르는 어휘는 설명 요청 아래로 간다", full.indexOf("적분 와인드업") > full.indexOf("- PID"));
+  // 지식 상태로 가르지 않는다(C5-S1). 서버가 준 순서 그대로 한 목록이다.
+  check("담은 어휘가 한 목록으로 전부 들어간다", full.includes("- PID: 세 항으로 제어") && full.includes("- 적분 와인드업: 적분이 쌓이는 현상"));
+  check("서버가 준 순서를 지킨다", full.indexOf("- PID") < full.indexOf("- 적분 와인드업"));
   check("항목 값이 본문에 들어간다", full.includes("분야: 제어공학") && full.includes("참고 맥락: 모터 온도가 오른다"));
 
   const bare = buildPrimerText(
-    { area: "", task_intent: "PID 튜닝", known_terms: [], unknown_terms: ["적분 와인드업"], locale: "ko" },
+    { area: "", task_intent: "PID 튜닝", terms: ["적분 와인드업"], locale: "ko" },
     kept
   );
   check("빈 항목은 줄 자체가 없다", !bare.includes("분야:") && !bare.includes("조건:") && !bare.includes("참고 맥락:"));
-  check("빈 known_terms는 제목도 없다", !bare.includes("이미 아는 어휘"));
+  check("어휘 목록이 비면 제목도 없다", !buildPrimerText({ area: "", task_intent: "x", terms: [], locale: "ko" }, kept).includes("아래 어휘는"));
   check("어휘 한 줄 설명을 담은 목록에서 붙인다", bare.includes("- 적분 와인드업: 적분이 쌓이는 현상"));
 
   const noLine = buildPrimerText(
-    { area: "", task_intent: "", known_terms: [], unknown_terms: ["처음 보는 말"], locale: "ko" },
+    { area: "", task_intent: "", terms: ["처음 보는 말"], locale: "ko" },
     kept
   );
   check("담은 목록에 없는 어휘는 설명 없이 나온다", noLine.includes("- 처음 보는 말") && !noLine.includes("처음 보는 말:"));
 
   // 서버는 맨 문자열을, 카드는 괄호 원어를 가진다. 정확 일치로 이으면 설명이 떨어진다(K-2).
   const paren = buildPrimerText(
-    { area: "", task_intent: "", known_terms: [], unknown_terms: ["안티와인드업"], locale: "ko" },
+    { area: "", task_intent: "", terms: ["안티와인드업"], locale: "ko" },
     [term("안티와인드업 (Anti-Windup)", "적분 축적을 막는 기법")]
   );
   check("괄호 원어 표기가 달라도 한 줄 설명이 붙는다", paren.includes("적분 축적을 막는 기법"));
@@ -124,7 +124,7 @@ console.log("담기와 정리 검증:");
 {
   const kept = [term("적분 와인드업", "적분이 쌓이는 현상")];
   const basic = buildBasicPrimer({ topic: "PID 튜닝", kept, locale: "ko" });
-  const ai = buildPrimerText({ area: "", task_intent: "PID 튜닝", known_terms: [], unknown_terms: ["적분 와인드업"], locale: "ko" }, kept);
+  const ai = buildPrimerText({ area: "", task_intent: "PID 튜닝", terms: ["적분 와인드업"], locale: "ko" }, kept);
   const ask = "아래 어휘는 이미 알고 있다고 두고 답해 주세요.";
   check("둘 다 같은 요청 문구를 쓴다", basic.includes(ask) && ai.includes(ask));
   check("둘 다 같은 어휘 줄 형식을 쓴다", basic.includes("- 적분 와인드업: 적분이 쌓이는 현상") && ai.includes("- 적분 와인드업: 적분이 쌓이는 현상"));
@@ -148,9 +148,11 @@ console.log("담기와 정리 검증:");
 
   // 형태가 어긋난 응답은 ready로 올라오면 안 된다. 렌더 도중에 터져 화면 전체가 죽는다(실측).
   check("옛 형태 응답은 PrimerDoc이 아니다", !isPrimerDoc({ area: "PID", paste_text: "…", vocab: [] }));
-  check("필드가 빠지면 PrimerDoc이 아니다", !isPrimerDoc({ locale: "ko", area: "", task_intent: "", known_terms: [] }));
-  check("배열에 문자열 아닌 것이 섞이면 아니다", !isPrimerDoc({ locale: "ko", area: "", task_intent: "", known_terms: [1], unknown_terms: [] }));
-  check("온전한 형태는 통과한다", isPrimerDoc({ locale: "ko", area: "", task_intent: "", known_terms: [], unknown_terms: [] }));
+  check("필드가 빠지면 PrimerDoc이 아니다", !isPrimerDoc({ locale: "ko", area: "", task_intent: "" }));
+  // 옛 형태(known/unknown 분리)를 그대로 받으면 terms가 undefined인 채 본문 조립이 터진다(실측).
+  check("옛 분리 형태는 PrimerDoc이 아니다", !isPrimerDoc({ locale: "ko", area: "", task_intent: "", known_terms: [], unknown_terms: [] }));
+  check("배열에 문자열 아닌 것이 섞이면 아니다", !isPrimerDoc({ locale: "ko", area: "", task_intent: "", terms: [1] }));
+  check("온전한 형태는 통과한다", isPrimerDoc({ locale: "ko", area: "", task_intent: "", terms: [] }));
   check("형태 위반은 malformed 실패로 떨어진다", primerFailure({ kind: "malformed" }).phase === "failed");
   check("호출 전에도 본문은 기본 정리다", primerBody({ phase: "idle" }, args) === basic);
   check("부르는 중에도 본문은 기본 정리다", primerBody({ phase: "loading" }, args) === basic);
@@ -158,7 +160,7 @@ console.log("담기와 정리 검증:");
   const ready = primerBody(
     {
       phase: "ready",
-      doc: { area: "제어공학", task_intent: "", known_terms: [], unknown_terms: ["적분 와인드업"], locale: "ko" },
+      doc: { area: "제어공학", task_intent: "", terms: ["적분 와인드업"], locale: "ko" },
     },
     args
   );
