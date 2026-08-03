@@ -32,8 +32,14 @@ src/
    └ TermDetail.tsx     개념·내 상황·활용 3단과 출처
 └ screens/kept/         담은 어휘
    ├ keep.ts            담긴 키 집합. 카드 원본은 건드리지 않는다
-   ├ primer.ts          기본 정리(무비용, 서버 없이)
-   └ KeptScreen.tsx     담은 목록과 붙여넣기용 정리
+   ├ primer.ts          붙여넣을 본문 조립 + 배경 브리핑 규칙 블록(C5-S2 T-7)
+   └ KeptScreen.tsx     담은 목록. 복사 UI는 종착 화면으로 옮겨갔다(C5-S2)
+└ screens/primer/       종착 화면(d-4) — 세션의 끝. C5-S2
+   ├ selection.ts       ★선택 집합. 화면 목록과 클립보드 문자열이 여기 하나에서 갈린다(T-2)
+   ├ usePrimerSources.ts 재료 모으기(이번 세션 조회·저장 + 담은 자산)
+   ├ PrimerScreen.tsx   본문·복사 CTA·포함된 어휘 목록
+   ├ SourcePanel.tsx    스코프 1·2 블록 패널. 스코프 3(마인드맵)은 mapPanel로 비워 둠(T-4)
+   └ EditSheet.tsx      좁은 화면 FAB + 바텀시트. 넓은 화면에서는 CSS가 우측 열로 바꾼다(T-5·T-6)
 ├ i18n/strings.ts       UI 문구(v1 한국어 원문 그대로). 4개 언어 전량은 S5
 ├ i18n/examples.ts      예시 칩 풀(v1에서 verbatim 복사)
 ├ app/journey.tsx       ★여정 배선(VockApp) — C4 S1에서 web/App.tsx를 승격. 화면·여정 변경은

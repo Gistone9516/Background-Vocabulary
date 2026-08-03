@@ -97,8 +97,6 @@ export const zh: Record<StringKey, string> = {
   nav_sessions: "历史探索", // [v1]
   next: "下一步", // [AI]
   offline_notice: "当前处于离线状态 — 显示最后保存的列表。", // [AI]
-  paste_head: "粘贴到主 AI（可选）", // [v1]
-  paste_sub: "复制后粘贴到 ChatGPT、Claude 等主 AI，它会把这些词汇当作你已经了解的背景，直接帮你推进工作，而不是再解释一遍。", // [v1]
   primer_area: "领域", // [v1]
   primer_ask: "用户认得的背景术语", // [AI]
   primer_condition: "条件", // [AI]

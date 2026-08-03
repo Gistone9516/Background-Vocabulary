@@ -12,7 +12,7 @@ import {
   limitsFor,
   FALLBACK_LIMITS,
 } from "@vock/ui-shared";
-import { isSessionSummary, isPage } from "@vock/shared";
+import { isSessionSummary, isPage, isPrimerDoc } from "@vock/shared";
 
 let failures = 0;
 function check(name, cond, detail) {
@@ -122,7 +122,7 @@ console.log("세션 저장과 재개 검증:");
     context_object: "첨부한 문서",
     narrow: null,
     generated: [{ term: "기존 어휘" }],
-    primer: { locale: "ko", area: "제어", task_intent: "", known_terms: [], unknown_terms: [] },
+    primer: { locale: "ko", area: "제어", task_intent: "", terms: ["기존 어휘"] },
     project_id: "p1",
     pinned: true,
     deleted_at: null,
@@ -130,7 +130,10 @@ console.log("세션 저장과 재개 검증:");
     updated_at: 200,
   };
   const next = toSessionRec({ ctx: CTX, narrow: toSnapshot(CTX, CUR), generated: null, prev, now: 999 });
+  // 형태까지 단언한다. `!== null`만 보면 폐기된 known_terms/unknown_terms 형태의 fixture가
+  // 그대로 통과한다 — .mjs라 tsc가 못 보고, 실제로 C5-S1 뒤 이 자리가 그렇게 남아 있었다.
   check("프라이머가 지워지지 않는다", next.primer !== null);
+  check("보존된 프라이머는 현행 PrimerDoc 형태다", isPrimerDoc(next.primer), JSON.stringify(next.primer));
   check("프로젝트 배속이 지워지지 않는다", next.project_id === "p1");
   check("핀이 지워지지 않는다", next.pinned === true);
   check("첨부 맥락이 지워지지 않는다", next.context_object === "첨부한 문서");

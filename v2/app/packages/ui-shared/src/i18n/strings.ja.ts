@@ -97,8 +97,6 @@ export const ja: Record<StringKey, string> = {
   nav_sessions: "過去の探索", // [v1]
   next: "次へ", // [AI]
   offline_notice: "オフラインです — 最後に保存された一覧を表示しています。", // [AI]
-  paste_head: "メインAIに貼り付け（任意）", // [v1]
-  paste_sub: "これをコピーしてChatGPTやClaudeなどのメインAIに貼り付けると、これらの語彙をすでに知っている文脈として扱い、用語の説明ではなく作業そのものを手伝ってくれます。", // [v1]
   primer_area: "分野", // [v1]
   primer_ask: "ユーザーが認識している背景用語", // [AI]
   primer_condition: "条件", // [AI]

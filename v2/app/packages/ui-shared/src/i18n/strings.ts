@@ -120,8 +120,9 @@ export const ko = {
   kept_none: "아직 담은 어휘가 없어요. 어휘 화면에서 쓸 만한 카드를 담아보세요.",
   kept_back_terms: "← 어휘로 돌아가기",
   kept_back_home: "← 처음으로",
-  paste_head: "메인 AI에 붙여넣기 (선택)",
-  paste_sub: "복사해서 ChatGPT·Claude 같은 메인 AI에 붙여넣으면, 이 어휘들을 이미 아는 맥락으로 두고 내 작업을 바로 도와줘요.",
+  // paste_head·paste_sub는 C5-S2에서 삭제했다. 담은 어휘 화면의 복사 UI가 종착 화면으로
+  // 옮겨가면서 소비처가 사라졌고, paste_sub의 "이미 아는 맥락으로 두고"는 숙달 전제라
+  // 사전 기조와 정면으로 어긋났다(T-15). 지금 그 자리는 primer_title·brief_* 가 진다.
   copy: "복사",
   copy_done: "복사됐어요",
   copy_fail: "복사 실패 · 아래 글을 직접 선택해 복사하세요",

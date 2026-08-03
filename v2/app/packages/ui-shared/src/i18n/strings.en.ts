@@ -97,8 +97,6 @@ export const en: Record<StringKey, string> = {
   nav_sessions: "Previous explorations", // [AI]
   next: "Next", // [AI]
   offline_notice: "You're offline — showing the last saved list.", // [AI]
-  paste_head: "Paste into your main AI (optional)", // [v1]
-  paste_sub: "Copy this and paste it into a main AI like ChatGPT or Claude. It treats these terms as context you already know and helps with your work directly, instead of re-explaining them.", // [v1]
   primer_area: "Field", // [v1]
   primer_ask: "Background terms the user recognizes", // [AI]
   primer_condition: "Constraints", // [AI]

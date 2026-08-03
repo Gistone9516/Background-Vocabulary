@@ -36,11 +36,11 @@ corepack pnpm install                 # 워크스페이스 설치
 corepack pnpm run build               # tsc -b (프로젝트 레퍼런스 빌드 = 경계 게이트 ①)
 corepack pnpm run gate                # 목 게이트: build → guard → boundary → size → prompt-parity → e2e(mock)
 docker compose up -d --wait           # 로컬 Postgres(5433)
-corepack pnpm run gate-db             # PG 게이트: build → e2e-pg(영속 CRUD 왕복)
+corepack pnpm run gate-db             # PG 게이트: build → e2e-pg(영속 CRUD·조회 목록) → e2e-auth → e2e-gate
 ```
 개별 게이트: `guard`(런타임 누수) · `boundary`(순환·역참조·딥임포트) · `size`(300행 상한) · `prompt-parity`(프롬프트 무손실) · `check-i18n`(로케일 표) · `check-landing`(랜딩 JS 0·금지 문구) · `e2e`(local mock 관통) · `e2e-pg`(Docker PG CRUD).
 
-## 현재 상태 (C2 코드 전량 완료)
+## 현재 상태 (C1~C4 완료, C5 진행 중)
 - **C1 뼈대** / **C2.1 영속**(PG e2e 18/18) / **C2.2 인증**(11/11) / **C2.3 게이팅**(9/9) / **C2.4 실 공급자**(SSE 파서 결정 검증).
 - **C2.5 aws**: `@vock/aws` — DataApiSqlRunner(리포 재사용, $n→:pn·Field 매핑·트랜잭션)·Secrets 로더·streamHandle 핸들러·buildAwsDeps. migrate 문장 분리(Data API 공용). **배포 게이트 코드**(타입체크로 @aws-sdk API-정확성 확인, 실배포·스모크는 핸즈온 → `DEPLOY.md`).
 - **C2 실키 스모크 완료**: DeepSeek(complete·실 SSE 스트리밍)·Tavily·Upstash 실호출 7/7(`pnpm e2e-real`, 수동).
@@ -48,5 +48,7 @@ corepack pnpm run gate-db             # PG 게이트: build → e2e-pg(영속 CR
 - **C4 S4까지 완료**: 파일 첨부(FR-901 — 두 플랫폼 공통, env 티어 게이트 + 서버 절단), 퀵 캡처(FR-903 — Rust 핸들러, Ctrl+Shift+K 실측 2/2), 복습 알림(FR-904)은 알릴 대상 부재로 근거 이월(`C4-S4` §0). 남은 것 = S5(패키징·서명 — 인증서 결정 대기)·콘솔 등록 핸즈온.
 - **언어**: 헤더의 선택이 저장되고 UI 문구와 생성 출력에 같은 값이 쓰인다. 문구 표는 `strings.ts`(ko, 손으로 관리)와 `strings.{en,ja,zh}.ts`(`port-i18n.mjs`가 v1 원문에서 생성)로 나뉘며, `Record<StringKey, string>` 타이핑이 키 누락을 빌드에서 막는다. 컴포넌트는 `useTr()`, React 밖은 `trIn(locale, key)`를 쓴다 — ko 전용 함수는 없다. `HttpApiConfig.getOutputLocale`도 **필수**다: 선택 사항이던 동안 셸이 빠뜨려 전 사용자가 한국어로 고정된 적이 있다.
 - **C4 S5 완료(무서명 범위)**: NSIS 설치 파일(per-user, 관리자 불요) + 설치 스모크 + 웹뷰 Origin 실측(`http://tauri.localhost` — DEPLOY.md). 서명+업데이터는 인증서 결정 뒤 별도 슬라이스(선행 조건 = DEPLOY.md).
-- 남은 것 = 실 AWS 배포(핸즈온 `DEPLOY.md`), C5 결제·수익 재설계, 서명·업데이터(인증서 대기), Linux 패키징(빌드 호스트 대기).
+- **C5 S1 완료(조회·저장 축)**: 지식 상태 태깅(알아/몰라/적용모름)을 폐기했다 — `recommend` 프롬프트가 LLM에게 `Always set tag to "몰라"`를 지시하고 있어서 그 축은 처음부터 죽어 있었다. 대신 **조회**(상세 본문 행의 존재)와 **저장**(자산 행의 존재)을 기록하며 둘은 독립이고 동시에 참일 수 있다. `details` 테이블 신설로 상세 본문이 서버에 남아(FR-401) 같은 어휘를 두 번 생성하지 않는다. 캐시 키는 `term_norm`이 아니라 **입력 전체 + 프롬프트 버전 해시**이고(E-3), 사용자별로 갈린다(E-4). **캐시 히트도 한도를 차감한다**(E-5) — 한도는 우리 원가가 아니라 사용자가 얻는 가치를 센다. 그 덕에 게이팅이 영속 계층을 몰라도 된다.
+- **C5 S2 완료(종착 화면)**: 프라이머가 세션의 종착점(d-4)으로 올라갔다. 화면에 보이는 "포함된 어휘" 목록과 클립보드로 나가는 문자열이 **같은 선택 집합에서 갈린다**(`screens/primer/selection.ts`) — 검사로 맞추지 않고 두 벌을 만들지 않는 쪽을 골랐다. 어긋나도 사용자가 확인할 방법이 없기 때문이다. 순서는 클릭 이력이 아니라 `priority`라 같은 선택이면 언제나 같은 본문이 나온다. 붙여넣을 글 앞에 **배경 브리핑 규칙 블록**이 붙어 메인 AI에게 "이 어휘는 사용자가 인지하고 있으니 깊이를 맞추되 작업 방향은 바꾸지 말라"고 전한다. 편집 진입점은 좁은 화면이면 FAB+바텀시트, 넓은 화면이면 우측 열이며 **어느 쪽인지는 CSS만 판정한다**(JS가 폭을 재면 임계값이 두 벌이 된다).
+- 남은 것 = 실 AWS 배포(핸즈온 `DEPLOY.md`), C5-S3 재방문 카드 · C5-S4 마인드맵(FR-312) · 결제·수익 재설계, 서명·업데이터(인증서 대기), Linux 패키징(빌드 호스트 대기).
 - **C4 S2에서 서버가 함께 바뀌었다(스펙 D-2 해소)**: CORS는 `corsOrigins` 주입 시에만 붙고(미설정=현행 무변화), `clientCheck`는 웹 Origin/데스크톱 `x-vock-client` 표식을 비용 경로에서 검사한다(**남용 억제 수단** — NFR-308, 로컬 skip). `users.locale`은 로그인 응답에 실리고 `PATCH /me/locale`로 갱신된다(FR-952, 정본=서버). 세 경계는 `e2e-clientcheck`가 양성·음성으로 검사한다.

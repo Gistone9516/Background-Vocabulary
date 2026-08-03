@@ -94,15 +94,17 @@ try {
   const assets = await req(base, "GET", `/assets`, U);
   check("GET /assets 요약 포함(term_name 뽑힘)", assets.json?.items?.some((a) => a.term_norm === "anti-windup" && a.term_name === "안티와인드업"));
 
-  // 4. 상세 캐시 스키마(C5-S1 E-3·E-4·E-12). 리포 왕복은 HTTP로 못 탄다 —
+  // 4. 상세 캐시 스키마(C5-S1 E-3·E-4·E-12). **캐시 왕복(find/save)은** HTTP로 못 탄다 —
   // 캐시는 gateUserId(JWT)에 걸려 있고 이 부트는 DEV x-user-id라 신원이 null이다.
-  // 그래서 여기서는 스키마가 보장하는 것만 본다: 소유자 분리와 키 멱등, 그리고 옛 테이블의 부재.
+  // 그래서 캐시에 대해서는 스키마가 보장하는 것만 본다: 소유자 분리와 키 멱등, 옛 테이블의 부재.
+  // 조회 목록(GET /sessions/:id/viewed)은 다르다 — resolveUserId를 쓰는 CRUD 라우트라
+  // 여기서 그대로 탄다. 4-b에서 HTTP 왕복을 본다.
   const body = JSON.stringify({ what: "w", whymine: "m", how: "h", related: [], sources: [] });
-  const ins = (u, key) =>
+  const ins = (u, key, termNorm = "anti-windup") =>
     sql.execute(
       `INSERT INTO details (user_id, session_id, term_norm, input_key, body, created_at) VALUES ($1,$2,$3,$4,$5,$6)
        ON CONFLICT (user_id, input_key) DO NOTHING`,
-      [u, sid, "anti-windup", key, body, Date.now()],
+      [u, sid, termNorm, key, body, Date.now()],
     );
   await ins(U, "k1");
   await ins(U, "k1"); // 같은 키 재저장은 멱등이어야 한다(E-6 주변 — created_at을 첫 조회 시각으로 남긴다)
@@ -113,6 +115,23 @@ try {
   check("사용자가 다르면 같은 키도 별개 행이다", other.length === 1);
   const gone = await sql.query("SELECT to_regclass('public.knowledge') AS t");
   check("knowledge 테이블은 사라졌다(E-12)", gone[0]?.t === null, `to_regclass=${gone[0]?.t}`);
+
+  // 4-b. 조회 목록 HTTP 왕복(C5-S2 T-8). 종착 화면 우측 패널 스코프 1의 유일한 서버 출처다.
+  // 여기까지가 없으면 details 테이블에서 화면까지 오는 길에 DB 왕복 검증이 한 칸도 없다.
+  await ins(U, "k2", "적분기-와인드업"); // U는 2건, U2는 1건 — 개수가 갈려야 경계가 보인다
+  const viewed = await req(base, "GET", `/sessions/${sid}/viewed`, U);
+  check("GET /sessions/:id/viewed 200", viewed.status === 200, `status=${viewed.status}`);
+  check("조회한 어휘가 나온다", viewed.json?.items?.some((d) => d.term_norm === "anti-windup"));
+  check("같은 세션의 조회 2건이 다 나온다", viewed.json?.items?.length === 2, `len=${viewed.json?.items?.length}`);
+  // E-8: 목록 응답은 본문을 담지 않는다. 담기 시작하면 세션 하나가 수백 KB가 된다.
+  check("목록에 상세 본문이 없다(E-8)", viewed.json?.items?.every((d) => d.body === undefined && typeof d.created_at === "number"));
+  // 소유권 경계는 세션 대조가 아니라 WHERE user_id다 — 남의 세션 id를 넣어도 자기 행만 나온다.
+  const viewedOther = await req(base, "GET", `/sessions/${sid}/viewed`, U2);
+  check("같은 세션 id라도 남의 조회 기록은 안 보인다", viewedOther.json?.items?.length === 1, `len=${viewedOther.json?.items?.length}`);
+  const viewedElse = await req(base, "GET", `/sessions/${crypto.randomUUID()}/viewed`, U);
+  check("다른 세션이면 비어 있다", Array.isArray(viewedElse.json?.items) && viewedElse.json.items.length === 0);
+  const viewedAnon = await req(base, "GET", `/sessions/${sid}/viewed`, null);
+  check("미인증 조회 목록은 401", viewedAnon.status === 401);
 
   // 5. 소프트삭제 → 404 → restore → 200
   const del = await req(base, "DELETE", `/sessions/${sid}`, U);

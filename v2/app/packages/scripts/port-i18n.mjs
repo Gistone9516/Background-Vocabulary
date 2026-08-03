@@ -24,7 +24,10 @@ const OUT_DIR = resolve(REPO, "v2/app/packages/ui-shared/src/i18n");
 const LOCALES = ["en", "ja", "zh"];
 
 // 소비처 0으로 확인된 키. 표에 넣지 않는다(스펙 §4).
-const DEAD = new Set(["handoff_title", "handoff_next"]);
+// paste_head·paste_sub 추가(2026-08-03): C5-S2가 담은 어휘 화면의 복사 UI를 종착 화면으로
+// 옮기면서 소비처를 지웠는데 키만 4로케일에 남았다. paste_sub는 T-15가 금지한 숙달 전제
+// 문구를 들고 있었고, check-i18n은 키가 모든 로케일에 있으면 통과하므로 영원히 못 잡는다.
+const DEAD = new Set(["handoff_title", "handoff_next", "paste_head", "paste_sub"]);
 
 // B갈래와 신규 키의 문구. v1 번역은 옛 한국어의 것이라 출발점으로만 쓴다 — 여기 있는 것은
 // v2 한국어에 맞춰 고친 결과이고, 전부 AI 작성분이다(S-37).
