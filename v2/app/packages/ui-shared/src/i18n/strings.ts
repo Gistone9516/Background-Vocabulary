@@ -132,7 +132,26 @@ export const ko = {
   // [신규] 붙여넣을 본문의 라벨(S-31). 화면 장식이 아니라 메인 AI에게 보낼 글이므로 UI 언어가
   // 아니라 PrimerDoc.locale을 따른다. v1에는 대응 원문이 없다 — FR-604가 산문 템플릿을 항목형으로
   // 바꿔서 v1의 sum_* 는 이식 대상이 아니다
-  primer_ask: "아래 어휘는 이미 알고 있다고 두고 답해 주세요.",
+  // 지시가 아니라 라벨이다. 지시는 배경 브리핑 규칙 블록이 진다(C5-S2 T-7).
+  // 옛 문구는 "이미 알고 있다고 두고 답해 주세요"였고, 그것은 숙달 전제라 사전 기조와 어긋났다(T-15).
+  primer_ask: "인지하고 있는 배경 어휘",
+  // 배경 브리핑 규칙 블록. 붙여넣을 본문 맨 앞에 이 다섯 줄이 붙는다.
+  brief_head: "[배경 브리핑 — 배경노트]",
+  brief_intro: "아래는 참고 자료입니다. 질문이 아닙니다.",
+  brief_recognize: "· 사용자는 이 어휘들을 인지하고 있습니다 — 외운 것이 아니라 필요할 때 찾아보는 사전입니다.",
+  brief_depth: "· 이 수준을 기준으로 진행 중인 작업의 깊이를 맞춰 주세요.",
+  brief_direction: "· 작업의 방향은 바꾸지 마세요.",
+  // 종착 화면
+  primer_title: "메인 AI에 붙여넣기",
+  primer_included: "포함된 어휘",
+  primer_none: "포함된 어휘가 없어요. 아래에서 골라 담을 수 있어요.",
+  primer_edit: "편집",
+  primer_scope_session: "이번 탐색",
+  primer_scope_assets: "담아 둔 어휘",
+  primer_from_kept: "저장",
+  primer_from_viewed: "조회",
+  primer_saved: "이 탐색은 저장됐어요.",
+  kept_to_primer: "메인 AI에 붙여넣기",
   primer_task: "하려는 일",
   primer_area: "분야",
   primer_condition: "조건",

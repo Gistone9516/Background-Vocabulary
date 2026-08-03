@@ -1,49 +1,22 @@
-// 담은 어휘 화면. 담은 목록과 메인 AI에 붙여넣을 기본 정리를 보여 준다.
-// "AI로 더 정리"는 서버 계약 정합이 끝나는 S4b에서 붙는다.
+// 담은 어휘 화면. 목록 관리만 한다.
+//
+// 붙여넣을 본문은 여기 없다 — 종착 화면(screens/primer)으로 옮겼다(C5-S2 T-1).
+// 두 화면이 같은 본문을 보이면 어느 쪽이 진짜인지 흐려지고, v1·v2 모두 이 화면 안에 묻혀 있어서
+// 사용자가 "이제 뭘 하지"에서 멈추던 자리다(승계원장 12d-7).
 
-import { useState } from "react";
 import type { Term } from "@vock/shared";
-import { useOutputLocale, useTr } from "../../i18n/locale.js";
-import { primerBody, type PrimerState } from "./primer.js";
+import { useTr } from "../../i18n/locale.js";
 
 export interface KeptScreenProps {
   kept: Term[];
-  topic: string;
-  condition?: string;
-  // AI 정리. 기본 정리를 대체하지 않고 성공했을 때만 본문을 바꾼다(스펙 P-7).
-  primerState?: PrimerState;
-  onRefine?(): void;
+  onToPrimer(): void;
   onBackToTerms(): void;
   onHome(): void;
   onRemove(term: Term): void;
 }
 
-export function KeptScreen({
-  kept,
-  topic,
-  condition,
-  primerState,
-  onRefine,
-  onBackToTerms,
-  onHome,
-  onRemove,
-}: KeptScreenProps) {
+export function KeptScreen({ kept, onToPrimer, onBackToTerms, onHome, onRemove }: KeptScreenProps) {
   const tr = useTr();
-  const [copied, setCopied] = useState<"idle" | "ok" | "fail">("idle");
-  // 붙여넣기 본문은 UI 언어가 아니라 프라이머의 로케일을 따라야 한다(S-31). 서버 정리가 붙기
-  // 전(기본 정리)에는 참조할 doc이 없으므로 현재 선택 언어를 쓴다.
-  const { locale } = useOutputLocale();
-  const primer = primerBody(primerState, { topic, kept, locale, ...(condition ? { condition } : {}) });
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(primer);
-      setCopied("ok");
-    } catch {
-      // 클립보드가 막힌 환경이 있다. 그때는 직접 고르라고 안내한다.
-      setCopied("fail");
-    }
-  };
 
   return (
     <main className="scroll pad screenIn">
@@ -66,32 +39,12 @@ export function KeptScreen({
         </article>
       ))}
 
+      {/* 종착으로 가는 주 버튼(T-10). 담기 수로 자동 전환하지 않는다 —
+          계속 담고 싶은 사용자를 끊는 것이 오히려 마찰이다. */}
       {kept.length > 0 ? (
-        <>
-          <div className="divider" style={{ marginTop: "1.125rem" }}>
-            <span>{tr("paste_head")}</span>
-          </div>
-          <p className="subhint" style={{ textAlign: "left" }}>{tr("paste_sub")}</p>
-          <pre className="nosrc" style={{ whiteSpace: "pre-wrap", marginTop: "0.625rem" }}>{primer}</pre>
-          <button className="btn btn-primary" style={{ marginTop: "0.625rem" }} onClick={copy}>
-            {copied === "ok" ? tr("copy_done") : tr("copy")}
-          </button>
-          {copied === "fail" ? <p className="errmsg">{tr("copy_fail")}</p> : null}
-
-          {onRefine ? (
-            <button
-              className="refinebtn"
-              style={{ marginTop: "0.625rem" }}
-              onClick={onRefine}
-              disabled={primerState?.phase === "loading"}
-            >
-              {primerState?.phase === "loading" ? tr("refine_loading") : tr("ai_extra")}
-            </button>
-          ) : null}
-          {/* pro 전용 안내는 페이월로 끌고 가지 않고 그 자리서 알린다(S4 K-7) */}
-          {primerState?.phase === "locked" ? <p className="listnote">{tr(primerState.key)}</p> : null}
-          {primerState?.phase === "failed" ? <p className="errmsg">{tr(primerState.key)}</p> : null}
-        </>
+        <button className="btn btn-primary" style={{ marginTop: "1.125rem" }} onClick={onToPrimer}>
+          {tr("kept_to_primer")}
+        </button>
       ) : null}
 
       <button className="link" style={{ marginTop: "1.125rem" }} onClick={onHome}>{tr("kept_back_home")}</button>

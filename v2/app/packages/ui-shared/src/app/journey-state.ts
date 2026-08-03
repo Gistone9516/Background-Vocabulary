@@ -11,6 +11,7 @@ export type Journey =
   | { at: "difficulty"; ctx: NarrowCtx; reason: DoneReason }
   | { at: "terms" }
   | { at: "kept" }
+  | { at: "primer" } // 세션의 종착(C5-S2). 되돌아가는 문이 아니라 나가는 문이다
   | { at: "refusal" };
 
 // 종료 사유 고지(S2 D-9). 사용자가 직접 끊은 경우와 내부 오류는 알리지 않는다.

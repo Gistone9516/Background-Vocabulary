@@ -19,6 +19,11 @@ export type { Resume, SnapshotArgs, SessionListState, UseSessionSyncOptions, Use
 // 오프라인 캐시(FR-902, C4 S3). 포트는 세션 모듈, 조율은 ApiPort 데코레이터.
 export type { OfflineStore, CachedList } from "./session/offline-store.js";
 export { withOfflineCache } from "./api/offline-cache.js";
+// 종착 화면(C5-S2). 선택 집합 순수 로직은 e2e가 React 없이 검증한다.
+export { PrimerScreen, SourcePanel, EditSheet, usePrimerSources } from "./screens/primer/index.js";
+export { buildSources, initialSelection, isSelected, selectedTerms, toggleSelection } from "./screens/primer/index.js";
+export type { PrimerScreenProps, SourcePanelProps, EditSheetProps, Selection, SourceTerm } from "./screens/primer/index.js";
+
 export { EntryScreen } from "./screens/EntryScreen.js";
 export { RefusalScreen } from "./screens/RefusalScreen.js";
 export type { EntryScreenProps } from "./screens/EntryScreen.js";

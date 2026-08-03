@@ -76,6 +76,7 @@ export function withOfflineCache(api: ApiPort, store: OfflineStore, onChange?: (
     restoreSession: (id, signal) => api.restoreSession(id, signal),
     keep: (sessionId, body, signal) => api.keep(sessionId, body, signal),
     listAssets: (projectId, cursor, signal) => api.listAssets(projectId, cursor, signal),
+    listViewed: (sessionId, signal) => api.listViewed(sessionId, signal),
     listProjects: (signal) => api.listProjects(signal),
     createProject: (name, signal) => api.createProject(name, signal),
     deleteProject: (id, signal) => api.deleteProject(id, signal),

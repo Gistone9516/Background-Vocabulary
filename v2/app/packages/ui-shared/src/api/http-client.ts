@@ -5,6 +5,7 @@ import type {
   ClientLimits,
   OutputLocale,
   AssetSummary,
+  DetailSummary,
   Page,
   Project,
   RelateIn,
@@ -184,6 +185,11 @@ export class HttpApiClient implements ApiPort, AuthPort {
       if (isApiError(e) && e.kind === "not_found") return false;
       throw e;
     }
+  }
+
+  async listViewed(sessionId: string, signal?: AbortSignal): Promise<DetailSummary[]> {
+    const res = await this.send<{ items?: DetailSummary[] }>("GET", `/sessions/${encodeURIComponent(sessionId)}/viewed`, undefined, signal);
+    return res.items ?? [];
   }
 
   keep(sessionId: string, body: KeepBody, signal?: AbortSignal): Promise<void> {

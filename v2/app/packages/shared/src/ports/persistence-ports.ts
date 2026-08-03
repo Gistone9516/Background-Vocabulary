@@ -5,6 +5,7 @@ import type {
   SessionRec,
   AssetTerm,
   DetailRec,
+  DetailSummary,
   Project,
   Page,
   SessionSummary,
@@ -47,13 +48,14 @@ export interface AssetRepository {
   termNormsByProject(userId: string, projectId: string): Promise<string[]>;
 }
 
-// 펼친 상세의 읽기-통과 캐시(FR-401). 목록 조회는 소비자(우측 패널)가 오는 슬라이스에서 붙인다 —
-// 지금 넣으면 읽는 곳 없는 export가 되어 동작하는 것으로 오인된다(E-11).
+// 펼친 상세의 읽기-통과 캐시(FR-401)이자 조회 기록.
 export interface DetailRepository {
   // 판정은 input_key만 본다(E-3). term_norm으로 찾지 않는다.
   find(userId: string, inputKey: string): Promise<DetailRec | null>;
   // 성공 응답만 저장한다(E-6). 같은 키 재저장은 멱등.
   save(rec: DetailRec): Promise<void>;
+  // 종착 화면 우측 패널의 스코프 1(C5-S2 T-8). body는 뽑지 않는다.
+  listBySession(userId: string, sessionId: string): Promise<DetailSummary[]>;
 }
 
 export interface ProjectRepository {

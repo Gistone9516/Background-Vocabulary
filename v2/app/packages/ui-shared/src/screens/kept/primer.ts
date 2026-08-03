@@ -72,12 +72,25 @@ export function primerFailure(e: unknown): PrimerState {
   return { phase: "failed", key: isApiError(e) ? errorKey(e) : "refine_failed" };
 }
 
+// 배경 브리핑 규칙 블록(C5-S2 T-7). 본문 맨 앞에 붙어 이 덩어리가 "질문"이 아니라 참고 자료임을
+// 선언한다 — 맨 목록만 보내면 메인 AI가 목록 자체에 반응할 수 있다.
+//
+// 사전 기조(T-15)가 문면을 정한다. "이미 알고 있다"가 아니라 "인지하고 있다"이며, 담기는 학습
+// 완료가 아니라 사전에 꽂아 두는 행위다. 그래서 지시가 금지("설명하지 마라")가 아니라 보정
+// ("이 수준에 맞춰라")이다 — 금지만 주면 메인 AI가 어느 깊이로 가야 할지 알 수 없다.
+function briefingBlock(locale: OutputLocale): string {
+  const t = (k: StringKey) => trIn(locale, k);
+  return [t("brief_head"), t("brief_intro"), t("brief_recognize"), t("brief_depth"), t("brief_direction")].join("\n");
+}
+
 // 화면에 붙일 본문. AI 정리가 성공했을 때만 기본 정리를 대체한다(P-7).
 // 이 분기를 화면에 두면 나중에 상태가 하나 늘 때 조용히 어긋난다. 여기 한 곳에만 둔다.
 export function primerBody(
   state: PrimerState | undefined,
   args: { topic: string; condition?: string; kept: Term[]; locale: OutputLocale }
 ): string {
-  if (state?.phase === "ready") return buildPrimerText(state.doc, args.kept);
-  return buildBasicPrimer(args);
+  const body = state?.phase === "ready" ? buildPrimerText(state.doc, args.kept) : buildBasicPrimer(args);
+  // 어휘가 하나도 없으면 본문은 안내 한 줄이다. 거기에 규칙 블록을 붙이면 안내가 묻힌다.
+  if (args.kept.length === 0) return body;
+  return `${briefingBlock(args.locale)}\n\n${body}`;
 }

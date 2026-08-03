@@ -103,6 +103,13 @@ export interface DetailRec {
   created_at: number;
 }
 
+// 조회 목록 항목. body를 담지 않는다(E-8: 대형 JSONB는 목록 응답에서 뺀다).
+// 표시용 이름은 SessionRec.generated에서 잇는다 — 서버가 이름을 또 저장하면 출처가 둘이 된다.
+export interface DetailSummary {
+  term_norm: string;
+  created_at: number;
+}
+
 export interface Project {
   project_id: string;
   user_id: string;

@@ -18,18 +18,19 @@ import { RefusalScreen } from "../screens/RefusalScreen.js";
 import { doneNotice, type Journey } from "./journey-state.js";
 import { NarrowScreen, useNarrow } from "../screens/narrow/index.js";
 import type { DoneReason, NarrowConfig, NarrowCtx } from "../screens/narrow/index.js";
-import { DifficultyScreen, usePreview } from "../screens/difficulty/index.js";
+import { DifficultyScreen, recommendInputOf, usePreview } from "../screens/difficulty/index.js";
 import type { Difficulty } from "../screens/difficulty/index.js";
 import { TermsScreen, detailInputOf, useDetail, useTerms } from "../screens/terms/index.js";
 import type { TermCard } from "../screens/terms/index.js";
 import { KeptScreen, emptyKept, isKept as isKeptIn, keptList, toggleKeep, usePrimer } from "../screens/kept/index.js";
+import { PrimerScreen, usePrimerSources } from "../screens/primer/index.js";
 import type { KeptMap } from "../screens/kept/index.js";
 import { trIn } from "./../i18n/strings.js";
 import { LocaleProvider, useOutputLocale, useTr } from "../i18n/locale.js";
 import { limitsFor } from "../api/index.js";
 import { useShellBridge } from "./shell-bridge.js";
 import { useProjects, useSessionSync, resumeTarget } from "../session/index.js";
-import type { ClientLimits, OutputLocale, RecommendInput, Tier } from "@vock/shared";
+import type { ClientLimits, Tier } from "@vock/shared";
 
 // 로케일 훅은 제공자 안에서만 유효하다. 그래서 제공자를 두는 컴포넌트와 그 훅을 쓰는 컴포넌트를
 // 가른다 — 한 컴포넌트가 자기 return 안에서 제공자를 만들고 자기 본문에서 useTr을 부르면,
@@ -149,6 +150,16 @@ function AppBody({ deps }: { deps: ShellDeps }) {
   if (journey.at === "difficulty") lastCtx.current = journey.ctx;
   const detailInput = useCallback((card: TermCard) => detailInputOf(card, lastCtx.current), []);
 
+  // 종착 화면의 재료. 조회 목록과 자산은 그 화면에 있을 때만 부른다.
+  const sources = usePrimerSources({
+    api,
+    sessionId: lastCtx.current?.sessionId ?? null,
+    kept: keptTerms,
+    generated: "items" in terms.state ? terms.state.items : [],
+    projectId: projects.selected,
+    enabled: journey.at === "primer",
+  });
+
   // 난이도 화면에 들어가면 깊이별 대표 어휘를 미리 부른다. 한도에 집계되지 않는다.
   // 요청 조립은 훅 안에서 한다. 여기서 만들면 매 렌더마다 새 객체가 되어 effect가 끝없이 돈다.
   const preview = usePreview(api, journey.at === "difficulty" ? journey.ctx : null);
@@ -164,24 +175,8 @@ function AppBody({ deps }: { deps: ShellDeps }) {
   const pickDifficulty = useCallback(
     (d: Difficulty) => {
       if (journey.at !== "difficulty") return;
-      const c = journey.ctx;
-      const input: RecommendInput = {
-        // 서버가 이 세션의 프로젝트를 찾아 이미 담은 어휘를 exclude에 병합한다(S-24).
-        // 클라가 exclude를 채우지 않는다 — 채우면 그것을 빠뜨린 호출부마다 중복이 나온다.
-        session_id: c.sessionId,
-        area: c.classifyOut.domain ?? "",
-        job_type: c.classifyOut.job_type ?? [],
-        domain: c.classifyOut.domain ?? "",
-        topic: c.topic,
-        locale: c.classifyOut.search_locale,
-        domain_risk: c.classifyOut.domain_risk,
-        difficulty: d, // 추천 전체가 이 깊이로 생성된다(Prompt3In)
-        ...(c.cond ? { user_condition: c.cond } : {}),
-        // 첨부 맥락(FR-901). v1 선례대로 classify·next와 같은 텍스트를 recommend에도 싣는다.
-        ...(c.context ? { context_object: c.context } : {}),
-      };
       setJourney({ at: "terms" });
-      terms.send({ t: "start", input, append: false });
+      terms.send({ t: "start", input: recommendInputOf(journey.ctx, d), append: false });
     },
     [journey, terms]
   );
@@ -263,6 +258,19 @@ function AppBody({ deps }: { deps: ShellDeps }) {
       {journey.at === "kept" ? (
         <KeptScreen
           kept={keptTerms}
+          onToPrimer={() => setJourney({ at: "primer" })}
+          onBackToTerms={() => setJourney({ at: "terms" })}
+          onHome={home}
+          onRemove={(t) => setKept((prev) => toggleKeep(prev, t))}
+        />
+      ) : null}
+
+      {journey.at === "primer" ? (
+        <PrimerScreen
+          session={sources.session}
+          assets={sources.assets}
+          selection={sources.selection}
+          onToggle={sources.onToggle}
           topic={lastCtx.current?.topic ?? ""}
           condition={lastCtx.current?.cond ?? ""}
           primerState={primer.state}
@@ -274,9 +282,10 @@ function AppBody({ deps }: { deps: ShellDeps }) {
               condition: lastCtx.current?.cond ?? "",
             })
           }
-          onBackToTerms={() => setJourney({ at: "terms" })}
+          onBackToKept={() => setJourney({ at: "kept" })}
           onHome={home}
-          onRemove={(t) => setKept((prev) => toggleKeep(prev, t))}
+          // 스코프 3은 마인드맵 슬라이스가 꽂는다(T-4). 지금은 절이 뜨지 않는다.
+          mapPanel={null}
         />
       ) : null}
 

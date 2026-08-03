@@ -138,4 +138,13 @@ export function registerCrudRoutes(app: Hono, repos: Repositories, resolveUserId
     const ok = await repos.projects.delete(userId, c.req.param("id"));
     return ok ? c.body(null, 204) : c.json({ error: "NOT_FOUND" }, 404);
   });
+
+  // ── 조회 기록 ─────────────────────────────────────────
+  // 종착 화면 우측 패널의 스코프 1(C5-S2). 소유권 경계는 WHERE user_id다 —
+  // 세션 소유자 대조를 따로 하지 않는 이유는, 남의 세션 id를 넣어도 자기 행만 나오기 때문이다.
+  app.get("/sessions/:id/viewed", async (c) => {
+    const userId = await resolveUserId(c);
+    if (!userId) return c.json({ error: "UNAUTHENTICATED" }, 401);
+    return c.json({ items: await repos.details.listBySession(userId, c.req.param("id")) });
+  });
 }

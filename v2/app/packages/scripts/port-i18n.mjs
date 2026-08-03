@@ -71,10 +71,12 @@ const AUTHORED = {
 
   // 붙여넣을 본문의 라벨(S-31). v1은 산문 템플릿(sum_*)이라 대응 원문이 없다.
   // 메인 AI가 읽을 글의 항목 이름이므로 화면 카피보다 간결하고 중립적으로 쓴다.
+  // 지시가 아니라 라벨이다. 지시는 brief_* 규칙 블록이 진다(C5-S2 T-7).
+  // 옛 문장("이미 알고 있다고 두고 답해 주세요")은 숙달 전제라 사전 기조와 어긋났다(T-15).
   primer_ask: {
-    en: "Assume I already know the terms below when you answer.",
-    ja: "以下の用語はすでに知っているものとして答えてください。",
-    zh: "回答时请假设我已经了解下面的术语。",
+    en: "Background terms the user recognizes",
+    ja: "ユーザーが認識している背景用語",
+    zh: "用户认得的背景术语",
   },
   primer_task: { en: "What I'm doing", ja: "やりたいこと", zh: "我想做的事" },
   primer_area: { en: "Field", ja: "分野", zh: "领域" },
@@ -90,6 +92,31 @@ const AUTHORED = {
     zh: "免费详情查看次数已用完。",
   },
   err_rate_limited: { en: "Please try again in a moment.", ja: "しばらくしてからお試しください。", zh: "请稍后再试。" },
+  // 배경 브리핑 규칙 블록(C5-S2 T-7). 사전 기조 — 인지이지 숙달이 아니다(T-15).
+  brief_head: { en: "[Background briefing — Vock note]", ja: "[背景ブリーフィング — Vock note]", zh: "[背景简报 — Vock note]" },
+  brief_intro: { en: "The following is reference material, not a question.", ja: "以下は参考資料です。質問ではありません。", zh: "以下是参考资料，不是问题。" },
+  brief_recognize: {
+    en: "· The user recognizes these terms — not memorized, but a dictionary they consult when needed.",
+    ja: "· ユーザーはこれらの用語を認識しています — 暗記ではなく、必要なときに引く辞書です。",
+    zh: "· 用户认得这些术语 — 不是背下来的，而是需要时查阅的词典。",
+  },
+  brief_depth: {
+    en: "· Use this level to calibrate the depth of the work in progress.",
+    ja: "· この水準を基準に、進行中の作業の深さを合わせてください。",
+    zh: "· 请以此水平为准，调整进行中工作的深度。",
+  },
+  brief_direction: { en: "· Do not change the direction of the work.", ja: "· 作業の方向は変えないでください。", zh: "· 不要改变工作的方向。" },
+  // 종착 화면
+  primer_title: { en: "Paste into your main AI", ja: "メインAIに貼り付け", zh: "粘贴到主 AI" },
+  primer_included: { en: "Included terms", ja: "含まれる用語", zh: "已包含的术语" },
+  primer_none: { en: "No terms included yet. Pick some below.", ja: "含まれる用語がありません。下から選べます。", zh: "还没有包含任何术语。可从下方选择。" },
+  primer_edit: { en: "Edit", ja: "編集", zh: "编辑" },
+  primer_scope_session: { en: "This exploration", ja: "今回の探索", zh: "本次探索" },
+  primer_scope_assets: { en: "Kept terms", ja: "保存した用語", zh: "已保存的术语" },
+  primer_from_kept: { en: "Kept", ja: "保存", zh: "已保存" },
+  primer_from_viewed: { en: "Viewed", ja: "閲覧", zh: "已查看" },
+  primer_saved: { en: "This exploration has been saved.", ja: "この探索は保存されました。", zh: "本次探索已保存。" },
+  kept_to_primer: { en: "Paste into your main AI", ja: "メインAIに貼り付け", zh: "粘贴到主 AI" },
   err_capacity: {
     en: "The service is busy right now. Please try again in a moment.",
     ja: "ただいま混み合っています。しばらくしてからお試しください。",

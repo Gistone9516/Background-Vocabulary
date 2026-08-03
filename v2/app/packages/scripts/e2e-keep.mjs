@@ -125,7 +125,8 @@ console.log("담기와 정리 검증:");
   const kept = [term("적분 와인드업", "적분이 쌓이는 현상")];
   const basic = buildBasicPrimer({ topic: "PID 튜닝", kept, locale: "ko" });
   const ai = buildPrimerText({ area: "", task_intent: "PID 튜닝", terms: ["적분 와인드업"], locale: "ko" }, kept);
-  const ask = "아래 어휘는 이미 알고 있다고 두고 답해 주세요.";
+  // 지시가 아니라 라벨이다(C5-S2 T-7 — 지시는 규칙 블록이 진다).
+  const ask = "인지하고 있는 배경 어휘";
   check("둘 다 같은 요청 문구를 쓴다", basic.includes(ask) && ai.includes(ask));
   check("둘 다 같은 어휘 줄 형식을 쓴다", basic.includes("- 적분 와인드업: 적분이 쌓이는 현상") && ai.includes("- 적분 와인드업: 적분이 쌓이는 현상"));
   // P-4: 어휘를 다시 설명해 달라고 요구하지 않는다
@@ -137,14 +138,18 @@ console.log("담기와 정리 검증:");
   const kept = [term("적분 와인드업", "적분이 쌓이는 현상")];
   const args = { topic: "PID 튜닝", kept, locale: "ko" };
   const basic = buildBasicPrimer(args);
+  // primerBody는 규칙 블록을 앞에 붙인다(C5-S2 T-7). 그래서 buildBasicPrimer와 문자열이 같지 않다.
+  // 여기서 지켜야 할 불변식은 "AI 정리가 실패해도 본문이 안 바뀐다"(P-7)이므로 idle과 비교한다.
+  const idle = primerBody({ phase: "idle" }, args);
+  check("기본 본문에 규칙 블록이 앞에 붙는다", idle.startsWith("[배경 브리핑") && idle.includes(basic));
 
   const locked = primerFailure({ kind: "pro_only", message: "pro 전용 기능이에요." });
   check("402 PRO_ONLY는 잠김 상태다", locked.phase === "locked" && locked.key === "err_pro_only");
-  check("잠겨도 본문은 기본 정리 그대로다", primerBody(locked, args) === basic);
+  check("잠겨도 본문은 그대로다", primerBody(locked, args) === idle);
 
   const failed = primerFailure({ kind: "network" });
   check("다른 실패는 실패 상태다", failed.phase === "failed" && failed.key === "err_network");
-  check("실패해도 본문은 기본 정리 그대로다", primerBody(failed, args) === basic);
+  check("실패해도 본문은 그대로다", primerBody(failed, args) === idle);
 
   // 형태가 어긋난 응답은 ready로 올라오면 안 된다. 렌더 도중에 터져 화면 전체가 죽는다(실측).
   check("옛 형태 응답은 PrimerDoc이 아니다", !isPrimerDoc({ area: "PID", paste_text: "…", vocab: [] }));
@@ -154,8 +159,9 @@ console.log("담기와 정리 검증:");
   check("배열에 문자열 아닌 것이 섞이면 아니다", !isPrimerDoc({ locale: "ko", area: "", task_intent: "", terms: [1] }));
   check("온전한 형태는 통과한다", isPrimerDoc({ locale: "ko", area: "", task_intent: "", terms: [] }));
   check("형태 위반은 malformed 실패로 떨어진다", primerFailure({ kind: "malformed" }).phase === "failed");
-  check("호출 전에도 본문은 기본 정리다", primerBody({ phase: "idle" }, args) === basic);
-  check("부르는 중에도 본문은 기본 정리다", primerBody({ phase: "loading" }, args) === basic);
+  check("부르는 중에도 본문은 그대로다", primerBody({ phase: "loading" }, args) === idle);
+  // 어휘가 없으면 안내 한 줄뿐이다 — 거기에 규칙 블록을 붙이면 안내가 묻힌다.
+  check("어휘가 없으면 규칙 블록도 없다", !primerBody({ phase: "idle" }, { ...args, kept: [] }).includes("[배경 브리핑"));
 
   const ready = primerBody(
     {

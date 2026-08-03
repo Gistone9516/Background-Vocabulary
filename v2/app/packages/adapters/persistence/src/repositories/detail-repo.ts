@@ -1,7 +1,7 @@
 // 펼친 상세 캐시 리포(FR-401). 행의 존재가 곧 "그 어휘를 조회했다"는 기록이다.
 // 조회 판정은 input_key만 본다(E-3) — term_norm은 표시·목록용이라 조회 조건이 아니다.
 
-import type { SqlRunner, DetailRepository, DetailRec, Prompt5Out } from "@vock/shared";
+import type { SqlRunner, DetailRepository, DetailRec, DetailSummary, Prompt5Out } from "@vock/shared";
 import { asJson, toJsonParam, asNum } from "../json.js";
 
 type Row = Record<string, unknown>;
@@ -25,6 +25,17 @@ export class DetailRepositoryImpl implements DetailRepository {
       body: asJson<Prompt5Out>(r.body),
       created_at: asNum(r.created_at),
     };
+  }
+
+  // 같은 어휘를 맥락을 바꿔 여러 번 열면 행이 여럿이다(키가 input_key라서).
+  // 패널은 어휘 단위로 보여야 하므로 term_norm으로 접고 첫 조회 시각을 남긴다.
+  async listBySession(userId: string, sessionId: string): Promise<DetailSummary[]> {
+    const rows = await this.sql.query<Row>(
+      `SELECT term_norm, MIN(created_at) AS created_at FROM details
+       WHERE user_id = $1 AND session_id = $2 GROUP BY term_norm ORDER BY MIN(created_at)`,
+      [userId, sessionId],
+    );
+    return rows.map((r) => ({ term_norm: r.term_norm as string, created_at: asNum(r.created_at) }));
   }
 
   async save(rec: DetailRec): Promise<void> {

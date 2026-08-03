@@ -6,6 +6,7 @@ import type {
   ClientLimits,
   OutputLocale,
   AssetSummary,
+  DetailSummary,
   Page,
   Project,
   RelateIn,
@@ -71,6 +72,8 @@ export interface ApiPort {
 
   // 프로젝트와 어휘 자산(S5-2).
   listAssets(projectId: string | null, cursor?: string | null, signal?: AbortSignal): Promise<Page<AssetSummary>>;
+  // 이 세션에서 펼친 어휘(C5-S2 스코프 1). body는 오지 않는다 — 이름은 세션의 generated에서 잇는다.
+  listViewed(sessionId: string, signal?: AbortSignal): Promise<DetailSummary[]>;
   listProjects(signal?: AbortSignal): Promise<Project[]>;
   createProject(name: string, signal?: AbortSignal): Promise<Project>;
   deleteProject(id: string, signal?: AbortSignal): Promise<void>;
