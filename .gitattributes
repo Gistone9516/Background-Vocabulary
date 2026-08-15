@@ -1,0 +1,19 @@
+# 줄바꿈은 이력에서 LF로 고정한다.
+#
+# 이 파일이 없는 동안 Windows에서 편집한 파일이 CRLF 그대로 커밋됐다. 2026-08-15 기준으로
+# 커밋본에 CR이 들어 있는 파일이 일곱 개다. v1/panel.html, v1의 theme.css, v2/docs의
+# SRS와 인터페이스계약, 그리고 src-tauri의 main.rs, build.rs, .gitignore.
+#
+# 지금 당장 깨지는 것은 없다. 리눅스에서 실행되는 .sh가 이 저장소에 하나도 없어서 shebang
+# 사고가 날 자리가 없기 때문이다. 문제는 diff다. 줄바꿈만 바뀐 파일이 전부 바뀐 것처럼 보이면
+# 진짜 변경이 그 안에 묻힌다.
+#
+# 이 설정은 앞으로 커밋되는 것을 막을 뿐, 이미 들어간 일곱 개를 고치지는 않는다.
+# 그것들은 다음에 손댈 때 정규화되거나, git add --renormalize 를 한 번 돌려 따로 정리한다.
+* text=auto eol=lf
+
+# 아래는 내용으로 판별되기 전에 못을 박아 둔다. 잘못 텍스트로 잡히면 파일이 깨진다.
+*.png    binary
+*.ico    binary
+*.icns   binary
+*.woff2  binary

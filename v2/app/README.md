@@ -31,13 +31,17 @@ packages/
 
 ## 실행·빌드
 전제: Node ≥ 22, pnpm 9(코어팩). 전역 pnpm shim이 없으면 `corepack pnpm ...`로 호출. Lambda 런타임(nodejs22.x)과 같은 메이저를 쓴다.
+
+게이트는 Node 말고 **`python` 도 부른다**(`relation-index.py`). 이름이 `python3`뿐인 리눅스에서는 그 자리에서 체인 전체가 멈추므로 `python-is-python3`처럼 이름을 맞춰 둔다. 파서 의존은 `packages/scripts/requirements.txt`에 적혀 있다.
 ```
+pip3 install --user -r packages/scripts/requirements.txt   # 게이트가 쓰는 파서(1회)
 corepack pnpm install                 # 워크스페이스 설치
 corepack pnpm run build               # tsc -b (프로젝트 레퍼런스 빌드 = 경계 게이트 ①)
 corepack pnpm run gate                # 목 게이트: build → guard → boundary → size → prompt-parity → e2e(mock)
 docker compose up -d --wait           # 로컬 Postgres(5433)
 corepack pnpm run gate-db             # PG 게이트: build → e2e-pg(영속 CRUD·조회 목록) → e2e-auth → e2e-gate
 ```
+2026-08-15 Ubuntu 22.04에서 `gate`·`gate-db`·`e2e-real`이 모두 통과하는 것을 확인했다. 리눅스에서 아직 안 되는 것은 데스크톱 빌드뿐이고, 이유는 Rust 툴체인 부재와 번들 타깃이 `nsis` 단독이라는 것 둘이다.
 개별 게이트: `guard`(런타임 누수) · `boundary`(순환·역참조·딥임포트) · `size`(300행 상한) · `prompt-parity`(프롬프트 무손실) · `check-i18n`(로케일 표) · `check-landing`(랜딩 JS 0·금지 문구) · `e2e`(local mock 관통) · `e2e-pg`(Docker PG CRUD).
 
 ## 현재 상태 (C1~C4 완료, C5 진행 중)
