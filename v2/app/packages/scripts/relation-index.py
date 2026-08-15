@@ -56,7 +56,11 @@ def rel(path):
 def collect_files():
     out = []
     for dirpath, dirnames, filenames in os.walk(PKG_ROOT):
-        dirnames[:] = [d for d in dirnames if d not in ("node_modules", "dist")]
+        # 빌드 산출물은 소스가 아니다. 제외하지 않으면 그때 그 머신에 우연히 남아 있던 산출물이
+        # 인덱스에 섞여 들어가고, 클린 클론에서 이 파일이 재현되지 않는다. 그러면 diff가 신호 노릇을
+        # 못 한다. 실제로 커밋본에는 Windows에서 돈 Tauri 릴리스 빌드의 CSS 한 줄이 박혀 있었다.
+        # .astro는 Astro가, target은 Tauri가 만들며 둘 다 gitignore 대상이다.
+        dirnames[:] = [d for d in dirnames if d not in ("node_modules", "dist", ".astro", "target")]
         for name in filenames:
             # .mjs 게이트 스크립트도 소비처다. 빼면 게이트만 쓰는 심볼이 미사용으로 보인다.
             if name.endswith((".ts", ".tsx", ".css", ".mjs")):
