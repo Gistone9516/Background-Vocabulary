@@ -2,11 +2,13 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 상태 | **초안 (2026-08-17)** — 탐색 6대 실측분. 비판 라운드 미실시 |
+| 문서 상태 | **v1.0 (2026-08-17)** — 탐색 6대 실측 + 비판 6대 대조 완료 |
 | 목적 | 화면에 무엇이 이미 있는지를 코드를 열지 않고 답한다 |
-| 방법 | 6개 구역을 병렬 실측. 모든 행이 `파일:행`을 갖는다 |
-| 범위 | 표면 15 · 요소 행 158 · 슬롯 6 · 불변식 24 · 드리프트 6 |
+| 방법 | 6개 구역을 병렬 실측한 뒤 같은 구역을 다른 여섯 대가 원문 대조. 모든 행이 `파일:행`을 갖는다 |
+| 범위 | 표면 15 · 요소 행 171 · 슬롯 6 · 불변식 26 · 드리프트 13 |
 | 코드 기준 | 커밋 `d9fe383` 시점 |
+| 절 구성 | §0 사용법 · §1 화면 목록 · §2 요소 표 · §3 슬롯 · §4 불변식 · §5 반응형 · §6 상태 관례 · §7 접근성 · §8 문구 · §9 토큰 · §10 드리프트 · §11 C5-S3 직결 · §12 유지 |
+| 비판 라운드 결과 | 서술 오류 3, 행 번호 오류 17, 누락 행 9, 신규 드리프트 4를 잡아 반영했다. 접근성 전수(§7)·문구 표(§8)·반응형(§5)은 불일치 0건으로 통과 |
 
 ## 0. 왜 이 문서가 있는가
 
@@ -72,8 +74,10 @@
 
 | # | 요소 | 클래스 | 표시 조건 | 문구 키 | 파일:행 |
 |---|---|---|---|---|---|
+| 0 | 최상위 그리드 | `.appRoot` | 항상 | — | `AppShell.tsx:45` |
 | 1 | 사이드바 컨테이너 | `.sidebar`(`.open` 토글) | 항상 DOM. `open`은 `drawerOpen`일 때 | — | `AppShell.tsx:46` |
 | 2 | 사이드바 머리 | `.sbHead` | 항상 | — | `AppShell.tsx:47` |
+| 2b | 브랜드 래퍼 | `.brand` | 항상. `Brand()`가 `.sbHead`와 `.hdrBrand` **두 곳에서 호출된다** | — | `AppShell.tsx:20` |
 | 3 | 로고 장식 | `.logo` | 항상, `aria-hidden` | — | `AppShell.tsx:21` |
 | 4 | 브랜드명 | `.brand b` | 항상 | `tr("brand")` | `AppShell.tsx:23` |
 | 5 | 브랜드 부제 | `.brand span` | 항상 (숨김 규칙이 안 걸림 — §10 참조) | `tr("brand_sub")` | `AppShell.tsx:24` |
@@ -90,6 +94,7 @@
 | 16 | 앱 컨테이너 | `#app` | 항상 | — | `AppShell.tsx:62` |
 | 17 | 헤더 바 | `header` | 항상 | — | `AppShell.tsx:63` |
 | 18 | 사이드바 여는 버튼 | `.iconbtn.sbToggle` | 항상 DOM. ≥64em에서 CSS 숨김 | `tr("menu")` | `AppShell.tsx:64` |
+| 18b | ㄴ 메뉴 아이콘 | `svg` | 항상, `aria-hidden` | — | `AppShell.tsx:11` |
 | 19 | 헤더 브랜드 | `.hdrBrand` | 항상 DOM. ≥64em에서 CSS 숨김 | — | `AppShell.tsx:67` |
 | 20 | 헤더 도구 묶음 | `.htools` | 항상 | — | `AppShell.tsx:72` |
 | 21 | 언어 선택 | `.langsel` | 항상 | `tr("lang_label")` | `LangSelect.tsx:11-22` |
@@ -139,6 +144,7 @@
 
 | # | 요소 | 클래스 | 표시 조건 | 문구 키 | 파일:행 |
 |---|---|---|---|---|---|
+| 0 | **화면 전체 드롭존** | `main.entryMain` | 항상. `onDragOver`·`onDrop`으로 파일 첨부(FR-901·DS4-5). 보이는 요소는 아니지만 상시 작동한다 | — | `EntryScreen.tsx:120-130` |
 | 1 | 복귀 사유 안내 | `.listnote` | `notice` truthy | 상위가 문자열 전달 | `EntryScreen.tsx:132` |
 | 2 | 히어로 | `.hero` | 항상 | — | `EntryScreen.tsx:136` |
 | 3 | 제목·부제 고정영역 | `.heroHead` | 항상 | — | `EntryScreen.tsx:137` |
@@ -169,13 +175,27 @@
 |---|---|
 | `.hero` **위** | 조건부 `notice` 한 줄뿐. 그 외 아무것도 놓인 적 없다 |
 | 입력창과 칩 **사이** | 조건부 셋(`errmsg`·`attachNote`·`condField`). 셋 다 꺼지면 완전히 빈다 |
-| 칩 **아래** | **아무것도 없다.** `.suggest`가 `<main>`의 마지막 자식이다 |
+| 칩 **아래** | **아무것도 렌더되지 않는다.** 단 `.suggest`는 `<main>`의 마지막 자식이 아니다 — 아래 중첩 구조를 볼 것 |
 
-칩 아래는 비어 있을 뿐 아니라 **의도된 자리**다. 오로라 주석이 그 구역을 명시적으로 제외한다.
+**중첩 구조를 착각하면 안 된다.** 실제는 3단이다.
+
+```
+main.entryMain
+└ .hero                    (flex:1 — 남는 세로 공간을 전부 가져간다)
+  ├ .heroHead              (고정 높이. 제목·부제만 들어 있다)
+  └ .heroGlow              (block. 자식 간격은 margin-top 관례)
+    ├ .aurora              (absolute, bottom:0 — heroGlow 바닥 기준)
+    ├ .composer … .condField
+    └ .suggest             ← 칩. 이 뒤로 아무것도 없다
+```
+
+`.suggest` 다음에 닫히는 것은 `.heroGlow` → `.hero` → `main` 셋이다. **`<main>`에 형제로 붙이면 된다고 읽으면 안 된다.**
+
+칩 아래가 비어 있는 것은 우연이 아니다. `.heroHead` 주석이 "앞으로 붙을 기능이 그 공간으로 흘러내린다"고 자리를 지정해뒀고, 오로라 주석이 그 구역을 배경 처리에서 뺀다.
 
 > 진입 오로라 하이라이트. 입력창부터 예시칩까지 감싸는 영역(제목과 부제 위, **하단 history 제외**).
 
-즉 칩 아래에 놓이는 것은 배경 하이라이트 밖이라 자기 표면(테두리·그림자)을 가져도 배경과 싸우지 않는다.
+**다만 이 제외는 보장이 아니라 조건이다.** `.aurora`의 `bottom:0`은 `.heroGlow` 바닥 기준이고, 그 바닥은 지금 `.suggest`가 정한다. 새 요소를 `.heroGlow` **안**에 넣으면 오로라가 그 요소까지 따라와 덮는다. 제외를 실제로 지키려면 `.heroGlow` **바깥**에 둬야 한다.
 
 ### 2-5. 좁히기 — `screens/narrow/` (모듈 756행)
 
@@ -191,7 +211,7 @@
 | `failed` | 실패, 제자리 재시도 | 실패 화면 |
 | `done` | 종료, handoff 중 | `null` |
 
-`asking` 안의 연결 턴은 별도 상태가 아니라 `connect` 플래그다. 이유가 주석에 있다 — "선택·직접입력 처리가 똑같아서 복제하면 두 벌이 된다"(`types.ts:50`). 그래서 요소 12·13·15는 상태명만으로 조건이 안 잡히고 `connect` 유무를 함께 봐야 한다.
+`asking` 안의 연결 턴은 별도 상태가 아니라 `connect` 플래그다. 이유가 주석에 있다 — "선택·직접입력 처리가 똑같아서 복제하면 두 벌이 된다"(`types.ts:50`). 그래서 **요소 12·13·14**는 상태명만으로 조건이 안 잡히고 `connect` 유무를 함께 봐야 한다. 요소 15(다음 버튼)는 `asking`이면 무조건 렌더되고 `disabled`도 `canConfirm`에서만 오므로 `connect`와 무관하다.
 
 | # | 요소 | 클래스 | 표시 조건 | 문구 키 | 파일:행 |
 |---|---|---|---|---|---|
@@ -226,7 +246,7 @@
 | 8 | ㄴ 난이도 막대 | `.diffbars` | 항상, `aria-hidden` | — | `DifficultyScreen.tsx:37` |
 | 9 | ㄴ 설명 | `.diffdesc` | 항상 | `diff_*_desc` | `DifficultyScreen.tsx:43` |
 | 10 | ㄴ 예시 | `.diffexTerm`/`.diffexLine` | `preview.phase==="ready"` && 샘플 존재 | 서버 원문 | `DifficultyScreen.tsx:45` |
-| 11 | ㄴ 예시 자리표시 | `.diffexSkel` | 샘플 없을 때, `aria-hidden` | — | `DifficultyScreen.tsx:51` |
+| 11 | ㄴ 예시 자리표시 | `.diffexSkel` | 샘플 없을 때, `aria-hidden` | — | `DifficultyScreen.tsx:52` |
 | 12 | 프리뷰 실패 안내 | `.listnote` | `preview.phase==="failed"` | `tr("diff_preview_failed")` | `DifficultyScreen.tsx:63` |
 
 **불변식:** "프리뷰는 한도에 집계하지 않는 보조 정보라 실패해도 선택은 계속할 수 있어야 한다"(`DifficultyScreen.tsx:2`). 실패해도 카드 선택을 막지 않는다.
@@ -235,9 +255,10 @@
 
 | # | 요소 | 클래스 | 표시 조건 | 문구 키 | 파일:행 |
 |---|---|---|---|---|---|
-| 1 | 담은 개수 링크 | `.link` | **`keptCount > 0`** — §10 D-7 | `kept_count` · `kept_view` | `TermsScreen.tsx:44` |
+| 1 | 담은 개수 링크 | `.link` | **`keptCount > 0`** — 재개된 세션에서는 항상 거짓, §4-8 | `kept_count` · `kept_view` | `TermsScreen.tsx:44` |
 | 2 | 로딩 안내 | `.lead` | `items.length===0 && streaming` | `tr("terms_loading")` | `TermsScreen.tsx:50` |
 | 3 | 어휘 카드 | `.card`(`.open`) | 각 항목 | — | `TermsScreen.tsx:56` |
+| 3b | ㄴ 카드 내부 래퍼 | `.crow` | 항상. **`cursor:pointer`·`:focus-visible`·`:active`가 걸려 있으나 핸들러가 없다 — §10 D-8** | — | `TermsScreen.tsx:57` |
 | 4 | ㄴ 순번 뱃지 | `.pri` | 항상 | — | `TermsScreen.tsx:58` |
 | 5 | ㄴ 용어명 | `.term` | 항상 | 서버 원문 | `TermsScreen.tsx:61` |
 | 6 | ㄴ 종류 칩 | `.gchip` | `t.kind` 존재 | 서버 원문 | `TermsScreen.tsx:62` |
@@ -251,23 +272,23 @@
 | 14 | 실패 메시지 | `.errmsg` | `failed` | `tr(errorKey(...))` | `TermsScreen.tsx:98` |
 | 15 | 재시도 | `.btn.btn-ghost` | `failed && onRetry` | `tr("retry")` | `TermsScreen.tsx:101` |
 
-**상태 처리:** 실패해도 이미 받은 카드는 남긴다 — "부분 결과도 가치가 있다". `settled`인데 `items.length===0`인 조합을 위한 문구는 **없다.**
+**상태 처리:** 실패해도 이미 받은 카드는 남긴다 — "부분 결과도 가치가 있다". `settled`인데 `items.length===0`인 조합을 위한 문구는 **없다.** 이 조합은 가상이 아니라 `machine.ts`의 워치독 전이("done도 error도 없이 조용히 멈춘 경우")로 실제 도달한다. 스트림이 첫 카드도 못 받고 멈추면 사용자는 완전히 빈 화면을 본다.
 
 ### 2-8. 카드 상세 — `screens/terms/TermDetail.tsx` (100행)
 
 | # | 요소 | 클래스 | 표시 조건 | 문구 키 | 파일:행 |
 |---|---|---|---|---|---|
-| 1 | 로딩 | `.dtext` | `loading` | `tr("detail_loading")` | `TermDetail.tsx:29` |
-| 2 | 잠김 | `.nosrc` | `locked` | 서버 원문(미번역) | `TermDetail.tsx:36` |
-| 3 | 실패 | `.errmsg` | `failed` | `tr(errorKey(...))` | `TermDetail.tsx:44` |
+| 1 | 로딩 | `.dtext` | `loading` | `tr("detail_loading")` | `TermDetail.tsx:30` |
+| 2 | 잠김 | `.nosrc` | `locked` | 서버 원문(미번역) | `TermDetail.tsx:38` |
+| 3 | 실패 | `.errmsg` | `failed` | `tr(errorKey(...))` | `TermDetail.tsx:46` |
 | 4 | 실패 재시도 | `.readbtn.close` | `failed` | `tr("retry")` | `TermDetail.tsx:47` |
 | 5 | 개념 | `.dpart` | `open` | `tr("detail_what")` | `TermDetail.tsx:60` |
 | 6 | 내 상황 | `.dpart.mine` | `open` | `tr("detail_whymine")` | `TermDetail.tsx:65` |
-| 7 | 활용 단계 | `.dsteps` | `open` | `tr("detail_how")` | `TermDetail.tsx:70` |
+| 7 | 활용 단계 | `.dsteps` | `open` | `tr("detail_how")` | `TermDetail.tsx:72` |
 | 8 | 메모 | `.dmemo` | `open && out.misc` | 서버 원문 | `TermDetail.tsx:79` |
 | 9 | 출처 라벨 | `.dlabel` | `open` | `tr("detail_sources")` | `TermDetail.tsx:82` |
-| 10 | 출처 링크 | `.src` | `open && sources.length>0` | 서버 원문 | `TermDetail.tsx:84` |
-| 11 | 출처 없음 | `.nosrc` | `open && sources.length===0` | `tr("detail_nosrc")` | `TermDetail.tsx:92` |
+| 10 | 출처 링크 | `.src` | `open && sources.length>0` | 서버 원문 | `TermDetail.tsx:85` |
+| 11 | 출처 없음 | `.nosrc` | `open && sources.length===0` | `tr("detail_nosrc")` | `TermDetail.tsx:94` |
 | 12 | (아무것도 안 그림) | — | 다른 카드가 열렸거나 `closed` | — | `TermDetail.tsx:25` |
 
 **불변식:** "출처가 비어 있으면 없다고 말한다. 지어내지 않는다"(`TermDetail.tsx:1-2`). "근거 없는 귀속보다 없다고 말하는 것이 낫다"(`:93`). 잠김은 실패와 다른 상태라 재시도 버튼을 주지 않는다 — "지금 다시 눌러도 안 되는 것. 재시도 버튼을 띄우면 사용자가 헛되이 누른다"(`detail-machine.ts:77`).
@@ -279,12 +300,12 @@
 | 1 | 뒤로 링크 | `.link` | 항상 | `tr("kept_back_terms")` | `KeptScreen.tsx:23` |
 | 2 | 제목 | `h2` | 항상 | `tr("kept_title")` | `KeptScreen.tsx:24` |
 | 3 | 안내 | `.lead` | 항상(문구가 갈림) | `kept_some` / `kept_none` | `KeptScreen.tsx:25` |
-| 4 | 카드 | `.card` | 각 항목 | — | `KeptScreen.tsx:27` |
+| 4 | 카드 | `.card` | 각 항목 | — | `KeptScreen.tsx:28` |
 | 5 | ㄴ 어휘명 | `.term` | 항상 | — | `KeptScreen.tsx:32` |
 | 6 | ㄴ 품사 칩 | `.gchip` | `t.kind` 존재 | — | `KeptScreen.tsx:33` |
 | 7 | ㄴ 한 줄 설명 | `.oneline` | 항상 | — | `KeptScreen.tsx:35` |
 | 8 | ㄴ 빼기 | `.readbtn.close` | 항상 | `tr("keep_on")` | `KeptScreen.tsx:38` |
-| 9 | 종착 이동 | `.btn.btn-primary` | `kept.length > 0` | `tr("kept_to_primer")` | `KeptScreen.tsx:44` |
+| 9 | 종착 이동 | `.btn.btn-primary` | `kept.length > 0` | `tr("kept_to_primer")` | `KeptScreen.tsx:45` |
 | 10 | 홈 링크 | `.link` | 항상 | `tr("kept_back_home")` | `KeptScreen.tsx:50` |
 
 **불변식:** "종착으로 가는 주 버튼(T-10). 담기 수로 자동 전환하지 않는다 — 계속 담고 싶은 사용자를 끊는 것이 오히려 마찰이다"(`KeptScreen.tsx:42-43`). "붙여넣을 본문은 여기 없다 — 종착 화면으로 옮겼다(T-1)"(`:1-5`).
@@ -298,7 +319,7 @@
 | 2 | 제목 | `h2` | 항상 | `tr("primer_title")` | `PrimerScreen.tsx:67` |
 | 3 | 구분선 | `.divider` | 항상 | `tr("primer_included")` | `PrimerScreen.tsx:69` |
 | 4 | 빈 안내 | `.listnote` | `chosen.length===0` | `tr("primer_none")` | `PrimerScreen.tsx:71` |
-| 5 | 포함 항목 | `.incRow` | `chosen` 각 항목 | — | `PrimerScreen.tsx:73` |
+| 5 | 포함 항목 | `.incRow` | `chosen` 각 항목 | — | `PrimerScreen.tsx:74` |
 | 6 | ㄴ 어휘명 | `.incTerm` | 항상 | — | `PrimerScreen.tsx:75` |
 | 7 | ㄴ 한 줄 설명 | `.incLine` | 항상 | — | `PrimerScreen.tsx:76` |
 | 8 | ㄴ 빼기 | `.incDrop` | 항상, `aria-label={t.term}` | — | `PrimerScreen.tsx:77` |
@@ -306,7 +327,7 @@
 | 10 | 복사 버튼 | `.btn.btn-primary` | 항상(`chosen` 0이면 disabled) | `copy` / `copy_done` | `PrimerScreen.tsx:86` |
 | 11 | 복사 실패 | `.errmsg` | `copied==="fail"` | `tr("copy_fail")` | `PrimerScreen.tsx:89` |
 | 12 | **복사 성공 안내(빈자리)** | `.listnote` | `copied==="ok"` | `tr("primer_saved")` | `PrimerScreen.tsx:91` |
-| 13 | AI 정리 버튼 | `.refinebtn` | `onRefine` 존재 | `ai_extra` / `refine_loading` | `PrimerScreen.tsx:94` |
+| 13 | AI 정리 버튼 | `.refinebtn` | `onRefine` 존재 | `ai_extra` / `refine_loading` | `PrimerScreen.tsx:95` |
 | 14 | 잠금 안내 | `.listnote` | `phase==="locked"` | `tr(state.key)` | `PrimerScreen.tsx:99` |
 | 15 | 실패 안내 | `.errmsg` | `phase==="failed"` | `tr(state.key)` | `PrimerScreen.tsx:100` |
 | 16 | 홈 링크 | `.link` | 항상 | `tr("kept_back_home")` | `PrimerScreen.tsx:102` |
@@ -319,8 +340,9 @@
 
 | # | 요소 | 클래스 | 표시 조건 | 문구 키 | 파일:행 |
 |---|---|---|---|---|---|
-| 1 | 세션 그룹 | `.srcGroup` | `session.length>0` | `tr("primer_scope_session")` | `SourcePanel.tsx:36,48` |
-| 2 | 어휘 블록 | `.srcBlock`(`.on`) | 각 항목, `aria-pressed` | — | `SourcePanel.tsx:19` |
+| 1 | 세션 그룹 | `.srcGroup` | `session.length>0` | — | `SourcePanel.tsx:36,48` |
+| 1b | ㄴ 그룹 제목 | `.srcHead`(`h3`) | 항상(그룹 내). `aria-labelledby` 연결은 없다 | `tr("primer_scope_session")` | `SourcePanel.tsx:39` |
+| 2 | 어휘 블록 | `.srcBlock`(`.on`) | 각 항목, `aria-pressed` | — | `SourcePanel.tsx:22` |
 | 3 | ㄴ 어휘명 | `.srcTerm` | 항상 | — | `SourcePanel.tsx:23` |
 | 4 | ㄴ 저장 태그 | `.srcTag` | `src.kept` | `tr("primer_from_kept")` | `SourcePanel.tsx:26` |
 | 5 | ㄴ 조회 태그 | `.srcTag` | `src.viewed` | `tr("primer_from_viewed")` | `SourcePanel.tsx:27` |
@@ -335,7 +357,7 @@
 
 | # | 요소 | 클래스 | 표시 조건 | 문구 키 | 파일:행 |
 |---|---|---|---|---|---|
-| 1 | 편집 진입 FAB | `.editFab` | `visible` && <64em | `tr("primer_edit")` | `EditSheet.tsx:52` |
+| 1 | 편집 진입 FAB | `.editFab` | `visible` && <64em | `tr("primer_edit")` | `EditSheet.tsx:53` |
 | 2 | ㄴ 아이콘 | — | 항상, `aria-hidden` | — | `EditSheet.tsx:54` |
 | 3 | 스크림 | `.sheetScrim` | `open` | — | `EditSheet.tsx:59` |
 | 4 | 시트 본체 | `.sheet` | `open`, `role="dialog" aria-modal` | — | `EditSheet.tsx:60` |
@@ -350,7 +372,7 @@
 | 항목 | 상태 |
 |---|---|
 | ESC 닫기 | **있음** (`:41-48`, `open`일 때만 리스너) |
-| 스크림 클릭 닫기 | 있음, 마우스 전용 |
+| 스크림 클릭 닫기 | 있음. **클릭 이벤트 기반이라 터치 탭도 동작한다.** 키보드만 불가(`div`에 `tabIndex`·`role` 없음) |
 | 포커스 트랩 | **없음** |
 | 열릴 때 초기 포커스 이동 | **없음** — `sheetRef`가 선언·연결됐으나 어디서도 읽히지 않는다(§10 D-5) |
 | 닫힐 때 포커스 복귀 | **없음** |
@@ -392,16 +414,16 @@
 
 | 슬롯 | 타입 | 선언 | 주입 | 현재 값 | 비었을 때 |
 |---|---|---|---|---|---|
-| `sessions` | 주입 노드 | `AppShell.tsx:32` | `journey.tsx:211-217` | `SessionList` | 대체 문구 |
-| `projects` | 주입 노드 | `AppShell.tsx:34` | 〃 | `ProjectList` | 대체 문구 |
-| `footer` | 주입 노드 | `AppShell.tsx:36` | `journey.tsx:225` | `AuthButton` | `.sbFoot:empty`가 빈 띠를 막는다 |
+| `sessions` | 주입 노드 | `AppShell.tsx:33` | 값 조립 `journey.tsx:211-217`, 주입 `:222` | `SessionList` | 대체 문구 |
+| `projects` | 주입 노드 | `AppShell.tsx:35` | 값 조립 〃, 주입 `:223` | `ProjectList` | 대체 문구 |
+| `footer` | 주입 노드 | `AppShell.tsx:38` | `journey.tsx:225` | `AuthButton` | `.sbFoot:empty`가 빈 띠를 막는다 |
 | `mapPanel` | `ReactNode \| null` | `PrimerScreen.tsx:24` → `SourcePanel.tsx:16` | `journey.tsx:288` | **`null`** | 절 자체가 안 뜬다 |
 | `children` | `ReactNode`(필수) | `EditSheet.tsx:17` | `PrimerScreen.tsx:107` | `panel` | 해당 없음 |
-| `offlineNotice` | 문자열\|null | `sidebar-slots.tsx:13` | `journey.tsx:216` | 조건부 | 고지 없음 |
+| `offlineNotice` | 문자열\|null | `sidebar-slots.tsx:14` | `journey.tsx:216` | 조건부 | 고지 없음 |
 
 **`mapPanel`이 이 제품의 슬롯 관례 정본이다.** 타입 있는 옵셔널 prop으로 선언하고, 배선 파일이 `null`을 명시적으로 주입하고, 소비처가 `{slot ?? null}`로 렌더한다. 비면 빈 래퍼조차 만들지 않는다. 주석이 근거를 적어둔다 — "`ShellDeps.auth`·`offline`과 같은 능력 모델이다".
 
-**주의:** `panel` 상수가 `.primerAside`와 `EditSheet` children **두 자리에 같은 인스턴스로 쓰인다.** `mapPanel`이 채워지면 넓은 화면 우측 열과 좁은 화면 시트 양쪽에 동시에 나타난다. 둘 중 하나만 고르는 로직은 없고 CSS가 표시 여부를 가른다.
+**주의:** `panel` 상수가 `.primerAside`와 `EditSheet` children **두 자리에 같은 인스턴스로 쓰인다.** 평상시에는 `64em` 분기가 둘을 상호배타로 갈라놓지만, 시트의 `open` 상태는 리사이즈에 반응하지 않는다. **좁은 화면에서 시트를 연 채 뷰포트를 `64em` 이상으로 넓히면** 우측 열이 나타나는 동시에 열린 시트도 남아 두 인스턴스가 실제로 동시에 보인다. 둘 중 하나만 고르는 로직은 없다.
 
 **`EntryScreen`에는 슬롯이 없다.** props는 `notice`·`attachLocked`·`maxContextChars`·`onSubmit` 넷뿐이다. 진입 화면에 무언가를 꽂으려면 이 관례를 따라 슬롯을 신설해야 한다.
 
@@ -454,6 +476,28 @@
 ### 4-6. 헤더 회귀 사례
 
 `shell.css`의 넓은 화면 블록 주석이 실측 회귀를 기록하고 있다. 헤더가 한때 통째로 숨겨져 있었고, 언어 선택이 헤더로 들어오면서 전제가 깨졌는데 숨긴 채로 배포돼 **데스크톱에서 언어를 바꿀 방법이 사라진 적이 있다.** 조건부 숨김의 전제가 바뀌는 것을 아무도 안 잡아준다는 사례다.
+
+### 4-7. 진입 화면 칩 아래에 무언가를 놓을 때의 함정
+
+C5-S3가 그 자리에 카드를 놓기로 했으므로 미리 모아 둔다. 일곱 개 전부 CSS를 읽어야만 나오는 것들이다.
+
+| # | 함정 |
+|---|---|
+| 1 | **붙일 자리가 셋이다.** `.heroGlow` 안(`.suggest` 형제) / `.hero` 안(`.heroGlow` 형제) / `.entryMain` 안(`.hero` 형제). 결과가 셋 다 다르다 |
+| 2 | **오로라가 따라온다.** `.heroGlow` 안에 넣으면 `.aurora{bottom:0}`이 새 요소까지 덮어 §4-2의 "하단 제외"가 깨진다 |
+| 3 | **읽기 폭을 두 목록에 등록해야 한다.** `shell.css`의 좁은 화면용·넓은 화면용 두 선택자 목록에 새 클래스를 넣지 않으면 상한이 아예 안 걸린다. 진입 화면의 `<main>`은 `pad` 클래스가 없고 `#app{max-width:none}`이라 뷰포트 전체 폭으로 늘어난다 |
+| 4 | **`.heroGlow`는 flex가 아니라 block이다.** 형제 간격이 전부 `margin-top` 관례로 만들어져 있어, 2트랙을 flex/grid로 짜며 `gap`을 쓰면 margin과 겹쳐 이중 여백이 생긴다 |
+| 5 | **칩 아래에 이미 예약된 여백이 있다.** `.suggest{padding-bottom}` 안에 "다시 뽑기" 버튼이 절대 위치로 떠 있다. 바로 붙이면 설명되지 않는 간격이 생긴다 |
+| 6 | **`.hero{flex:1}`이 남는 세로를 다 먹는다.** `.hero`의 형제로 붙이면 뷰포트가 클수록 새 요소가 화면 아래로 밀려 스크롤해야 보인다. 재인이 목적인 요소에는 치명적이다 |
+| 7 | **화면 전체가 드롭존이다.** `<main>`에 `onDragOver`·`onDrop`이 걸려 있어(§2-4 행 0) 새 요소의 상호작용이 버블링으로 파일 첨부 로직과 충돌할 수 있다 |
+
+### 4-8. 세션을 재개하면 담기 상태가 복원되지 않는다
+
+`journey.tsx`의 `kept`는 `useState<KeptMap>(emptyKept)`인 순수 로컬 상태이고 주석이 "담기는 화면 상태로만 유지한다"고 못박는다. 재개 경로는 생성 목록만 복원하고 `setKept`를 호출하지 않으며, `Resume` 유니온 타입 자체에 담기 필드가 없다.
+
+결과가 화면에 그대로 나온다. `TermsScreen`은 담은 어휘 링크를 `keptCount > 0`일 때만 그리므로(§2-7 행 1), **재개된 세션에서는 그 링크가 아예 렌더되지 않는다.** 이전에 몇 개를 담았든 마찬가지다.
+
+데이터는 서버에 있다. `AssetTerm`이 `session_id`를 갖고, `keep`/`unkeep` 포트가 있고, 담기 토글마다 `syncKeep`이 이미 서버에 쓴다. **없는 것은 저장이 아니라 재개 시 되읽는 배선이다.**
 
 ---
 
@@ -568,12 +612,15 @@
 
 **이름 함정:** `tokens.css`는 이름과 달리 토큰 파일이 아니다. **540행짜리 앱 컴포넌트 스타일시트**이고 실제 토큰은 맨 위 `@import "./vars.css"` 한 줄로만 들어온다. 처음에 변수 진입점을 `tokens.css`라는 이름으로 내보냈다가 이 동명이인이 결함으로 잡혔고, 그래서 지금 이름이 `vars.css`다.
 
-**손으로 맞춰야 하는 네 곳.** 진입점 이름이나 exports 매핑을 바꾸려면 함께 움직여야 한다. 넷 중 하나만 어긋나면 게이트가 조용히 통과하거나 조용히 막는다.
+**손으로 맞춰야 하는 다섯 곳.** 진입점 이름이나 exports 매핑을 바꾸려면 함께 움직여야 한다. 하나만 어긋나면 게이트가 조용히 통과하거나 조용히 막는다.
 
-1. `boundary-check.mjs`의 `ASSET_ALLOWED`
-2. 랜딩의 import 한 줄
-3. 스펙 `C3-S6-랜딩.md` §3·§4·§5
-4. `ui-shared/README.md`의 진입점 표
+1. **`ui-shared/package.json`의 `"exports"."./vars.css"` 매핑** — 이것이 정본이고 나머지가 이걸 가리킨다
+2. `boundary-check.mjs`의 `ASSET_ALLOWED`
+3. 랜딩의 import 한 줄
+4. 스펙 `C3-S6-랜딩.md` §3·§4·§5
+5. `ui-shared/README.md`의 진입점 표
+
+`_shadow` 노트는 넷으로 적고 있으나 1번이 빠져 있다. 이 문서는 다섯으로 센다.
 
 **재사용해도 되는 것:** `vars.css`의 색·그림자·그라디언트 변수, `scale.css`의 치수 변수.
 **건드리면 안 되는 것:** `tokens.css` 본문(디자인 변경 금지), `vars.css`의 값 자체, 그리고 **CSS를 절대 행 번호로 지목하는 것.**
@@ -594,13 +641,42 @@
 | **D-6** | 좁히기 선택지 체크 표시가 장식인데 `aria-hidden`이 없다. 다른 화면들은 전부 붙인다 | 코드 대조 | 확인됨 |
 | **D-7** | `useDetail`의 `close` 액션이 어디서도 호출되지 않는다 | grep | 확인됨 |
 | **D-8** | `.crow`에 `cursor:pointer`와 `:focus-visible` 스타일이 있으나 해당 `div`에 `onClick`·`tabIndex`·`role`이 없다. 클릭 가능해 보이지만 아니다 | 코드 대조 | 확인됨 |
-| **D-9** | `.modalCard`·`.tutCard`·`.plancard`·`.summary`·`.callout`의 사용처를 찾지 못했다 | grep | **미확인** — 부재 단정 아님 |
+| **D-9** | `.modalCard`·`.tutCard`·`.plancard`·`.summary`·`.callout` 미사용. 동적 조립·타 패키지·빌드 산출물까지 확인 | 전수 대조 | **미사용 확정** |
+| **D-10** | `.card.open .chev`가 정의돼 있으나 `.chev` 요소가 TSX 어디에도 없다. 펼침 표시용 쉐브론이 스타일로만 설계돼 있다 | grep | 확인됨 |
+| **D-11** | `.sbSearch`는 **정의가 없다.** 소비처는 둘(`SessionList`·`ProjectList`)인데 어느 스타일시트에도 규칙이 없어 브라우저 기본 스타일로 렌더된다. v1의 `.search`/`.searchwrap`이 이름만 바뀌고 CSS가 안 따라온 흔적 | 전수 grep | 확인됨. **지금까지와 반대 방향의 드리프트** |
+| **D-12** | 죽은 CSS의 규모가 D-3·D-4·D-9가 대표하는 것보다 훨씬 크다. `tokens.css`의 클래스 177개를 대조한 결과 **약 70개**가 소비처 없이 남아 있다 — 튜토리얼 세트 약 15종, AI 대화 카드 세트, 요금제, 스낵바, 모달 배경 등 | 1차 스크리닝 | **강한 정황.** 개별 전수 확인은 D-9의 5개만 마쳤다 |
+| **D-13** | **v1 재방문 카드 스타일이 통째로 남아 있다.** `.resume`·`.resume:hover`·`.resume:active`·`.resumeText`·`.resumeEy`·`.resumeText b`·`.resumeMeta`·`.resumeGo`·`.resume.inprog` 아홉 규칙. v2 소비처 0. 문구 키(`resume_*`)는 v2 문구표에 넘어오지 않았다 | 코드 대조 | 확인됨. **C5-S3 직결 — §11 참조** |
 
-**기존 게이트의 사각지대:** 관계 인덱스는 CSS 클래스를 정의로 나열하지만 `readers=` 수를 붙이지 않는다. 그 표기는 export된 심볼에만 있다. **따라서 죽은 CSS는 현재 어떤 게이트에도 안 걸린다.** D-3·D-4·D-9가 그 결과다.
+**기존 게이트의 사각지대:** 관계 인덱스는 CSS 클래스를 정의로 나열하지만 `readers=` 수를 붙이지 않는다. 그 표기는 export된 심볼에만 있다. **따라서 죽은 CSS는 현재 어떤 게이트에도 안 걸린다.** D-3·D-4·D-9·D-12·D-13이 전부 그 결과다.
 
 ---
 
-## 11. 유지
+## 11. C5-S3가 알아야 할 것 — v1 재방문 카드 잔존물
+
+D-13은 다음 슬라이스에 직접 걸리므로 따로 편다.
+
+`tokens.css`에 v1의 재방문 카드 스타일이 완성된 형태로 살아 있고 v2에서는 아무도 쓰지 않는다. v1 마크업 구조는 이렇다.
+
+```
+button.resume (.inprog 조건부)
+└ span.resumeText
+  ├ span.resumeEy      상태 라벨 — 진행 중이면 알약, 아니면 "이어서"
+  ├ b                  분야 또는 주제
+  └ span.resumeMeta    "어휘 N개 담음 · 날짜"
+└ span.resumeGo        "이어서 보기 →"
+```
+
+**v1은 메타 문구가 세 갈래였다.** 좁히기가 진행 중이면 남은 턴 수, 담은 게 있으면 담은 개수, 담은 게 0이면 생성된 개수. `.resume.inprog`가 첫 갈래의 테두리 강조다.
+
+C5-S3의 미확정 항목 중 둘이 여기 대응한다. **담은 개수가 0일 때의 문구**와 **`generating` 세션을 어떻게 보일지**다. `SessionSummary.generating`이 그 신호를 이미 내준다.
+
+**이것은 v1 기획이 아니라 v2 `tokens.css`에 지금 들어 있는 코드다.** v1 기획은 규칙이 아니지만(사용자 지시 2026-08-17), 저장소 안의 죽은 코드는 새 구현이 중복을 만들 대상이다. 되살릴지 지울지 새로 지을지는 S3가 정한다 — 모르고 새로 짓는 것만 피하면 된다.
+
+문구 키는 넘어오지 않았으므로 어느 쪽을 고르든 `AUTHORED`에 새로 넣어야 한다(§8).
+
+---
+
+## 12. 유지
 
 - 화면이나 요소를 더하거나 빼면 이 문서의 해당 표와 머리의 개수를 같은 커밋에서 고친다
 - 부재 주장("없음", "미사용")은 grep 0건으로 확정하지 않는다. 그 값이 들어갈 수 있는 단위를 통째로 읽고 판정한다
