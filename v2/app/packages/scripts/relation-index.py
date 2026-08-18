@@ -126,7 +126,8 @@ class FileFacts(object):
         self.identical_branches = []   # (행, 종류)
         self.auth_from_input = []      # (행, 표현)
         self.derived_stored = []       # (행, 멤버명, 주석)
-        self.class_tokens = set()      # tsx의 className 토큰
+        self.class_tokens = set()      # tsx의 className 토큰(표현식 식별자 포함 — 과다 집계)
+        self.class_literals = set()    # className의 **문자열 리터럴**에서만 뽑은 토큰(역방향 검사용)
         self.css_classes = []          # (클래스명, 행)
 
 
@@ -270,6 +271,19 @@ def extract_ts(path, src, tree, f):
         chunk = " ".join(g for g in m.groups() if g)
         for tok in re.findall(r"[A-Za-z][\w-]*", chunk):
             f.class_tokens.add(tok)
+        # 역방향(쓰이는데 정의 없음) 검사는 위 집합을 쓸 수 없다. 표현식 분기가 통째로 잡혀
+        # `open ? "card open" : "card"` 에서 open 같은 식별자가 클래스로 세어지기 때문이다.
+        # 과다 집계는 정방향(정의됐는데 안 쓰임)에서는 안전한 쪽으로만 틀리지만, 역방향에서는
+        # 거짓 양성이 목록을 덮어 검사를 못 쓰게 만든다. 그래서 문자열 리터럴에서만 다시 뽑는다.
+        plain = m.group(1) if m.group(1) is not None else m.group(2)
+        if plain is not None:
+            lit_chunks = [plain]
+        else:
+            expr = m.group(3) or m.group(4) or ""
+            lit_chunks = [g for t in re.findall(r'"([^"]*)"|\'([^\']*)\'|`([^`]*)`', expr) for g in t if g]
+        for lit in lit_chunks:
+            for tok in re.findall(r"[A-Za-z][\w-]*", lit):
+                f.class_literals.add(tok)
 
 
 def extract_css(path, src, tree, f):
@@ -467,6 +481,20 @@ def main():
             at = "%s:%d" % (rel(path), ln)
             if not allowed("auth_from_input", at):
                 violations.append("%s  권한이 요청 입력에서 온다: %s" % (at, expr))
+    # 쓰이는데 정의가 없는 클래스. 정방향(안 쓰이는 정의)과 달리 이쪽은 **하드 실패**다 —
+    # 정의 없는 클래스는 아무것도 하지 않으므로 정당한 예외가 없다. 다음 슬라이스가 쓸 정당한
+    # 미사용은 있어도, 다음 슬라이스가 쓸 정당한 "정의 없음"은 없다.
+    # 실측 계기(2026-08-18): .sbSearch 가 소비처 둘인데 어느 스타일시트에도 규칙이 없어
+    # 세션 검색창과 새 프로젝트 입력창이 브라우저 기본 스타일로 렌더되고 있었다.
+    defined_classes = set()
+    for f in facts.values():
+        for cls, _ln in f.css_classes:
+            defined_classes.add(cls)
+    for path, f in sorted(facts.items(), key=lambda x: rel(x[0])):
+        for cls in sorted(f.class_literals - defined_classes):
+            if not allowed("css_class_undefined", cls):
+                violations.append("%s  className에 쓰였는데 정의가 없다: .%s" % (rel(path), cls))
+
     for v in sorted(MUST_AGREE_LITERALS):
         where = lit_files.get(v, set())
         if len(where) >= 2 and not allowed("must_agree_literal", v):

@@ -69,6 +69,28 @@ body { display: block; }
   margin-right: auto;
 }
 
+/* 사이드바의 한 줄 입력(세션 검색·새 프로젝트 이름). v1 의 .search 를 사이드바 폭에 맞게
+   줄인 것이고 아이콘 자리(.searchwrap 의 좌측 패딩)는 쓰지 않는다 — 이 자리에 아이콘이 없다.
+
+   이 규칙이 존재하는 이유: `.sbSearch` 는 소비처가 둘(SessionList·ProjectList)인데 **어느
+   스타일시트에도 정의가 없었다.** 두 입력이 브라우저 기본 스타일로 렌더되고 있었고, 스크린샷을
+   찍어야 보이는 종류라 아무도 못 봤다. 관계 인덱스에 역방향 검사(쓰이는데 정의 없음)를 더한
+   계기가 이 건이다 — 정방향(정의됐는데 안 쓰임)은 이미 `## css-classes-unused` 로 있었다. */
+.sbSearch {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: .625rem;
+  padding: .4375rem .625rem;
+  font-size: .8125rem;
+  color: var(--text);
+  outline: none;
+  margin-bottom: .5rem;
+  transition: border-color .14s;
+}
+.sbSearch::placeholder { color: var(--faint); }
+.sbSearch:focus { border-color: var(--accent); }
+
 /* 사이드바 프로젝트 목록의 세로 스택. 세션 목록(.history)과 같은 모양이지만 이름을 나눠 둔다 —
    한쪽 간격을 손볼 때 다른 쪽이 따라 움직이면 그것도 결함이다.
 
