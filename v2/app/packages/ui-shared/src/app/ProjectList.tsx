@@ -32,7 +32,10 @@ export function ProjectList({ items, off, selected, onSelect, onCreate, onRemove
     <>
       {items.length === 0 ? <p className="sbEmpty">{tr("projects_empty")}</p> : null}
 
-      <ul className="drawerWrap">
+      {/* .drawerWrap 을 쓰면 안 된다. v1 의 플로팅 선택 패널을 화면에 띄우던 오버레이라
+          position:fixed; inset:0; z-index:45 다 — 사이드바 안의 평범한 목록에 붙이면 뷰포트
+          전체를 덮는 투명 레이어가 되어 앱 전체가 클릭을 못 받는다(실측 2026-08-18). */}
+      <ul className="plist">
         {items.map((p) => (
           <li key={p.project_id} className={p.project_id === selected ? "drawerItem sel" : "drawerItem"}>
             {/* 같은 것을 다시 누르면 선택이 풀린다. 전체 보기로 돌아가는 별도 버튼을 두지 않는다. */}

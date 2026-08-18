@@ -118,7 +118,25 @@ const AUTHORED = {
   primer_scope_assets: { en: "Kept terms", ja: "保存した用語", zh: "已保存的术语" },
   primer_from_kept: { en: "Kept", ja: "保存", zh: "已保存" },
   primer_from_viewed: { en: "Viewed", ja: "閲覧", zh: "已查看" },
-  primer_saved: { en: "This exploration has been saved.", ja: "この探索は保存されました。", zh: "本次探索已保存。" },
+  // [C5-S3 개정] 종료 확인(FR-608). 저장 통보에서 세션 종결 신호로 바꿨다 — 그 자리는 T-12가
+  // S3 몫으로 비워 둔 자리다. 숙달을 함의하지 않는다(V-21). ko가 바뀌었으므로 셋 다 새로 썼다.
+  primer_saved: {
+    en: "This exploration ends here. Your kept terms are saved.",
+    ja: "この探索はここで終わりです。保存した用語は残っています。",
+    zh: "本次探索到此结束。已保存的术语会保留。",
+  },
+  // [C5-S3 신규] 재진입 카드(FR-707). v1에 .resume 계열 스타일만 남아 있었고 문구는 넘어오지
+  // 않았다 — 전량 AI 작성이다. {n} 자리표시자는 네 로케일이 같아야 한다(check-i18n).
+  resume_eyebrow: { en: "Continue", ja: "続きから", zh: "继续" },
+  resume_in_progress: { en: "In progress", ja: "進行中", zh: "进行中" },
+  resume_go: { en: "Continue →", ja: "続きを見る →", zh: "继续查看 →" },
+  resume_meta_kept: { en: "{n} kept", ja: "保存した用語 {n}", zh: "已保存 {n}" },
+  resume_meta_progress: {
+    en: "You can pick up narrowing where you left off.",
+    ja: "絞り込みを続きから再開できます。",
+    zh: "可以继续之前的收窄。",
+  },
+  resume_meta_none: { en: "You can open it again.", ja: "もう一度開けます。", zh: "可以重新打开。" },
   kept_to_primer: { en: "Paste into your main AI", ja: "メインAIに貼り付け", zh: "粘贴到主 AI" },
   err_capacity: {
     en: "The service is busy right now. Please try again in a moment.",

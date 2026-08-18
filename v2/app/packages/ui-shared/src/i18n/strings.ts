@@ -120,6 +120,15 @@ export const ko = {
   kept_none: "아직 담은 어휘가 없어요. 어휘 화면에서 쓸 만한 카드를 담아보세요.",
   kept_back_terms: "← 어휘로 돌아가기",
   kept_back_home: "← 처음으로",
+  // 재진입 카드(C5-S3 FR-707). 분야는 문장에 섞지 않고 맨 라벨로만 쓴다(V-22) —
+  // 받침에 따라 조사를 고르는 유틸이 리포에 없어서, 문장에 넣는 순간 게이트가 못 잡는 위험이 생긴다.
+  resume_eyebrow: "이어서",
+  resume_in_progress: "진행 중",
+  resume_go: "이어서 보기 →",
+  // 메타 세 갈래(V-23). "0개 담음"은 재인 단서가 아니라 실패 통보로 읽혀서 쓰지 않는다.
+  resume_meta_kept: "담은 어휘 {n}",
+  resume_meta_progress: "좁히기를 이어서 할 수 있어요",
+  resume_meta_none: "다시 열어볼 수 있어요",
   // paste_head·paste_sub는 C5-S2에서 삭제했다. 담은 어휘 화면의 복사 UI가 종착 화면으로
   // 옮겨가면서 소비처가 사라졌고, paste_sub의 "이미 아는 맥락으로 두고"는 숙달 전제라
   // 사전 기조와 정면으로 어긋났다(T-15). 지금 그 자리는 primer_title·brief_* 가 진다.
@@ -151,7 +160,10 @@ export const ko = {
   primer_scope_assets: "담아 둔 어휘",
   primer_from_kept: "저장",
   primer_from_viewed: "조회",
-  primer_saved: "이 탐색은 저장됐어요.",
+  // 종료 확인(C5-S3 FR-608). 세션이 여기서 끝났다는 신호다. 돌아가는 문은 새로 만들지 않고
+  // 화면에 이미 있는 링크가 맡는다(V-26) — 같은 목적지로 가는 두 어휘를 한 화면에 두지 않는다.
+  // 숙달이나 학습 완료를 함의하지 않는다(V-21, T-15).
+  primer_saved: "이 탐색은 여기서 끝나요. 담은 어휘는 저장돼 있어요.",
   kept_to_primer: "메인 AI에 붙여넣기",
   primer_task: "하려는 일",
   primer_area: "분야",

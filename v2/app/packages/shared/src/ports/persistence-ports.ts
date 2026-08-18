@@ -46,6 +46,10 @@ export interface AssetRepository {
   unkeep(userId: string, sessionId: string, termNorm: string): Promise<boolean>;
   // FR-706 dedup 입력: 프로젝트 자산의 term_norm 목록(서버가 exclude에 병합).
   termNormsByProject(userId: string, projectId: string): Promise<string[]>;
+  // 세션 스코프 담은 어휘 전체(스펙 V-18). 재개 시 담기 복원과 재진입 카드의 개수가 이 하나를 공유한다.
+  // 요약이 아니라 AssetTerm인 이유: 화면의 KeptMap이 Term 전체를 들고 있어야 카드가 그려진다.
+  // 세션당 담기 상한이 무료 8·유료 32라 커서를 두지 않는다 — 목록 길이가 곧 담은 개수다.
+  listBySession(userId: string, sessionId: string): Promise<AssetTerm[]>;
 }
 
 // 펼친 상세의 읽기-통과 캐시(FR-401)이자 조회 기록.

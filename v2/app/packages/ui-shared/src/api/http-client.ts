@@ -5,6 +5,8 @@ import type {
   ClientLimits,
   OutputLocale,
   AssetSummary,
+  AssetTerm,
+  ResumeCard,
   DetailSummary,
   Page,
   Project,
@@ -189,6 +191,17 @@ export class HttpApiClient implements ApiPort, AuthPort {
 
   async listViewed(sessionId: string, signal?: AbortSignal): Promise<DetailSummary[]> {
     const res = await this.send<{ items?: DetailSummary[] }>("GET", `/sessions/${encodeURIComponent(sessionId)}/viewed`, undefined, signal);
+    return res.items ?? [];
+  }
+
+  // 카드가 없으면 서버가 null 을 준다. 없음과 실패를 가르기 위해 예외로 만들지 않는다.
+  async recentCard(projectId: string | null, signal?: AbortSignal): Promise<ResumeCard | null> {
+    const q = projectId ? `?project_id=${encodeURIComponent(projectId)}` : "";
+    return (await this.send<ResumeCard | null>("GET", `/sessions/recent${q}`, undefined, signal)) ?? null;
+  }
+
+  async listSessionAssets(sessionId: string, signal?: AbortSignal): Promise<AssetTerm[]> {
+    const res = await this.send<{ items?: AssetTerm[] }>("GET", `/sessions/${encodeURIComponent(sessionId)}/assets`, undefined, signal);
     return res.items ?? [];
   }
 

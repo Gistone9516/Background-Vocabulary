@@ -136,6 +136,14 @@ export interface SessionSummary {
   updated_at: number;
 }
 
+// 재진입 카드(FR-707). GET /sessions/recent 응답.
+// 요약을 여기서 다시 정의하지 않고 목록 항목을 그대로 싣는다 — 같은 세션의 두 표현이 갈라지지 않는다.
+// 소속은 목록이 정본이고 이 한 건의 내용은 카드가 정본이다(계약 3-3, 스펙 V-16).
+export interface ResumeCard {
+  session: SessionSummary;
+  kept_count: number;
+}
+
 // 자산 목록 요약(term 대형 JSONB 대신 표시 필드만).
 export interface AssetSummary {
   asset_id: string;

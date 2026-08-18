@@ -1,0 +1,66 @@
+/* 진입 화면 하단 트랙과 재진입 카드(C5-S3). tokens.css 는 v1 디자인 정본이라 건드리지 않고
+   primer.css 선례대로 슬라이스 스타일을 따로 낸다. 값은 vars.css 토큰만 쓴다. */
+
+/* 트랙 격자. DOM 순서는 카드 → 가변 → 마인드맵 하나뿐이고(V-2), 좁은 화면은 그 순서 그대로
+   쌓이므로 재배치가 없다(V-4). 넓은 화면에서만 격자가 마인드맵을 왼쪽 아래로 올린다(V-3).
+   그 결과 넓은 화면에서 Tab 이 왼쪽 위에서 오른쪽으로 갔다가 왼쪽 아래로 돌아온다(V-5) —
+   블록마다 자기 라벨이 있어 순서에 기대지 않는 것이 그 값을 상쇄한다(V-6). */
+.etracks {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  width: 100%;
+  /* 칩의 padding-bottom 이 이미 여백을 만든다("다시 뽑기" 버튼이 그 안에 떠 있다).
+     여기서 margin-top 을 또 주면 간격이 두 벌이 된다(V-9). */
+  margin-top: 0;
+}
+
+@media (min-width: 64em) {
+  .etracks {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "card flex"
+      "map  flex";
+  }
+  .etCard { grid-area: card; }
+  .etFlex { grid-area: flex; }
+  .etMap { grid-area: map; }
+}
+
+/* 마인드맵 칸은 비어도 자리를 지킨다(V-24). 카드가 왼쪽 열 전체로 넓어졌다가 S4 에서 반으로
+   줄어들면 같은 화면이 두 번 바뀐다. 이 높이는 잠정값이고 실측 뒤 정한다(스펙 §9). */
+.etMap:empty { min-height: 5.5rem; }
+
+/* 재진입 카드. 클래스를 새로 냈다(V-25) — v1 의 .resume 계열은 소비처가 없어 이 슬라이스에서
+   지웠고, 남긴 채 새로 지으면 어느 쪽이 진짜인지 다음 사람이 모른다. */
+.rcard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.875rem;
+  padding: 0.75rem 0.875rem;
+  box-shadow: var(--shadow);
+  transition: border-color 0.14s, box-shadow 0.14s;
+}
+.rcard:hover { border-color: var(--accent); box-shadow: var(--shadow-lg); }
+.rcard:active { transform: scale(0.99); }
+/* 좁히기가 안 끝난 세션. 테두리로만 구분한다 — 별도 배지를 두면 라벨과 두 벌이 된다. */
+.rcard.inprog { border-color: var(--accent); }
+
+.rcardText { display: flex; flex-direction: column; gap: 0.125rem; min-width: 0; }
+.rcardEy { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.04em; color: var(--accent-ink); }
+.rcardText b {
+  font-size: 0.90625rem;
+  font-weight: 700;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rcardMeta { font-size: 0.71875rem; color: var(--muted); }
+.rcardGo { flex: 0 0 auto; font-size: 0.8125rem; font-weight: 600; color: var(--accent-ink); white-space: nowrap; }

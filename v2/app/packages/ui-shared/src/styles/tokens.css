@@ -448,16 +448,7 @@ textarea.field{line-height:1.55}
 
 /* ───── 진입: 세션 스냅샷(이어서 보기, d-2)과 삭제 실행취소(c-1-4). 차분하게, 오로라 없이. ───── */
 /* 가장 최근 세션을 진입 상단에 능동 노출. 카드 패턴 계승 + 호버 시 accent. */
-.resume{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:14px;box-shadow:var(--shadow);transition:border-color .14s,box-shadow .14s}
-.resume:hover{border-color:var(--accent);box-shadow:var(--shadow-lg)}
-.resume:active{transform:scale(.99)}
-.resumeText{display:flex;flex-direction:column;gap:2px;min-width:0}
-.resumeEy{font-size:11px;font-weight:600;letter-spacing:.04em;color:var(--accent-ink)}
-.resumeText b{font-size:14.5px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.resumeMeta{font-size:11.5px;color:var(--muted)}
-.resumeGo{flex:0 0 auto;font-size:13px;font-weight:600;color:var(--accent-ink);white-space:nowrap}
 /* 진행 중(좁히기 미완) 세션 카드: 조용한 accent 테두리 + 작은 알약 배지로 완료 세션과 구분. */
-.resume.inprog{border-color:var(--accent)}
 .inprogPill{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.02em;color:var(--accent-ink);background:var(--accent-soft);border:1px solid var(--accent);border-radius:99px;padding:1.5px 7px;line-height:1.4}
 /* 삭제 실행취소 줄: 경고색이 아니라 조용한 surface-2 한 줄(삭제는 이미 됐고 되돌리기만 제안). */
 .snackbar{display:flex;align-items:center;justify-content:center;gap:12px;font-size:12.5px;color:var(--muted);background:var(--surface-2);border:1px solid var(--border);border-radius:11px;padding:9px 12px;margin-top:10px}

@@ -6,6 +6,8 @@ import type {
   ClientLimits,
   OutputLocale,
   AssetSummary,
+  AssetTerm,
+  ResumeCard,
   DetailSummary,
   Page,
   Project,
@@ -74,6 +76,10 @@ export interface ApiPort {
   listAssets(projectId: string | null, cursor?: string | null, signal?: AbortSignal): Promise<Page<AssetSummary>>;
   // 이 세션에서 펼친 어휘(C5-S2 스코프 1). body는 오지 않는다 — 이름은 세션의 generated에서 잇는다.
   listViewed(sessionId: string, signal?: AbortSignal): Promise<DetailSummary[]>;
+  // 재진입 카드(C5-S3 FR-707). null = 보일 세션이 없다.
+  recentCard(projectId: string | null, signal?: AbortSignal): Promise<ResumeCard | null>;
+  // 이 세션에서 담은 어휘 전체(C5-S3 V-18). 재개 시 담기 상태를 되살린다 — Term 전체가 온다.
+  listSessionAssets(sessionId: string, signal?: AbortSignal): Promise<AssetTerm[]>;
   listProjects(signal?: AbortSignal): Promise<Project[]>;
   createProject(name: string, signal?: AbortSignal): Promise<Project>;
   deleteProject(id: string, signal?: AbortSignal): Promise<void>;

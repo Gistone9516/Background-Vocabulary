@@ -28,6 +28,21 @@ export function registerCrudRoutes(app: Hono, repos: Repositories, resolveUserId
     return c.json(page);
   });
 
+  // 재진입 카드(C5-S3 FR-707). 반드시 "/sessions/:id" 앞에 등록한다 —
+  // 뒤에 두면 :id 가 "recent" 를 잡아 세션 단건 조회로 새고, 404 가 나므로 원인이 라우팅으로 안 보인다.
+  //
+  // 목록과 같은 정렬(updated_at DESC)의 첫 건에 담은 어휘 수를 붙인다. 개수를 위한 집계 쿼리를
+  // 따로 두지 않는다 — 세션당 담기 상한이 있어 목록 길이가 곧 개수다(V-18).
+  app.get("/sessions/recent", async (c) => {
+    const userId = await resolveUserId(c);
+    if (!userId) return c.json({ error: "UNAUTHENTICATED" }, 401);
+    const page = await repos.sessions.list({ userId, projectId: c.req.query("project_id") ?? null, limit: 1 });
+    const session = page.items[0];
+    if (!session) return c.json(null);
+    const kept = await repos.assets.listBySession(userId, session.session_id);
+    return c.json({ session, kept_count: kept.length });
+  });
+
   app.get("/sessions/:id", async (c) => {
     const userId = await resolveUserId(c);
     if (!userId) return c.json({ error: "UNAUTHENTICATED" }, 401);
@@ -146,5 +161,13 @@ export function registerCrudRoutes(app: Hono, repos: Repositories, resolveUserId
     const userId = await resolveUserId(c);
     if (!userId) return c.json({ error: "UNAUTHENTICATED" }, 401);
     return c.json({ items: await repos.details.listBySession(userId, c.req.param("id")) });
+  });
+
+  // 세션 스코프 담은 어휘(C5-S3 V-18). 재개 시 담기 복원이 읽고, 위 /sessions/recent 의 개수도
+  // 같은 리포 조회에서 나온다. 소유권 경계는 viewed 와 같은 이유로 WHERE user_id 하나다.
+  app.get("/sessions/:id/assets", async (c) => {
+    const userId = await resolveUserId(c);
+    if (!userId) return c.json({ error: "UNAUTHENTICATED" }, 401);
+    return c.json({ items: await repos.assets.listBySession(userId, c.req.param("id")) });
   });
 }

@@ -3,7 +3,7 @@
 // 잠금 여부(attachLocked)는 /config의 attachRequiresPro에서 온다. 판정은 서버가 같은 값으로 한다.
 // 제출은 주입된 콜백으로 넘긴다.
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import type { OutputLocale } from "@vock/shared";
 import { EXAMPLES, pickRandom } from "../i18n/examples.js";
 import { useOutputLocale, useTr } from "../i18n/locale.js";
@@ -53,9 +53,12 @@ export interface EntryScreenProps {
   attachLocked?: boolean;
   maxContextChars?: number;
   onSubmit?: (input: string, condition: string, context?: string) => void;
+  // 예시칩 아래 트랙(C5-S3). PrimerScreen 의 mapPanel 과 같은 능력 모델이다 —
+  // 화면은 자리만 주고 내용을 모른다. null 이면 그 자리가 뜨지 않는다.
+  tracks?: ReactNode | null;
 }
 
-export function EntryScreen({ onSubmit, notice, attachLocked, maxContextChars }: EntryScreenProps) {
+export function EntryScreen({ onSubmit, notice, attachLocked, maxContextChars, tracks }: EntryScreenProps) {
   const tr = useTr();
   const [input, setInput] = useState("");
   const [cond, setCond] = useState("");
@@ -221,6 +224,9 @@ export function EntryScreen({ onSubmit, notice, attachLocked, maxContextChars }:
             </button>
           </div>
         </div>
+        {/* 하단 트랙(C5-S3 V-1). heroGlow 의 형제이고 hero 안이다 — 오로라 밖이면서
+            hero{flex:1} 에 밀리지 않는 유일한 자리다. 무엇이 들어갈지는 이 화면이 모른다. */}
+        {tracks ?? null}
       </div>
     </main>
   );

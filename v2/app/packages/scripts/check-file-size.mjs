@@ -15,6 +15,15 @@ const SCAN_ROOT = join(APP_ROOT, "packages");
 // 등록 조건은 "이 파일이 책임 하나인가"에 예라고 답할 수 있는 경우뿐이다.
 const ALLOWLIST = [
   {
+    file: "packages/ui-shared/src/app/journey.tsx",
+    maxLines: 320,
+    // C5-S3에서 두 책임을 더 갈라낸 뒤의 값이다. 진입 화면 슬롯에 무엇을 넣을지는
+    // app/entry-slot.tsx, 저장된 기록을 화면 상태로 펴는 일은 app/resume-into.ts로 나갔다.
+    // 앞서 journey-state.ts(타입)와 shell-bridge.ts(능력 배선)가 같은 이유로 갈라졌다.
+    reason:
+      "여정 배선 한 벌. D-12가 웹과 데스크톱의 여정을 한 곳에 두라고 요구하므로 화면 수(7)만큼 커지는 것이 구조적이고, 화면별로 쪼개면 '지금 어느 화면인가'를 한 곳에서 답할 수 없게 된다. 갈라낼 수 있는 것(상태 타입·능력 배선·진입 슬롯·재개 배선)은 이미 네 번 갈라냈다.",
+  },
+  {
     file: "packages/ui-shared/src/api/http-client.ts",
     maxLines: 360,
     reason:

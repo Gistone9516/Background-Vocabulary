@@ -77,6 +77,10 @@ export function withOfflineCache(api: ApiPort, store: OfflineStore, onChange?: (
     keep: (sessionId, body, signal) => api.keep(sessionId, body, signal),
     listAssets: (projectId, cursor, signal) => api.listAssets(projectId, cursor, signal),
     listViewed: (sessionId, signal) => api.listViewed(sessionId, signal),
+    // 카드와 세션 자산은 캐시하지 않는다(V-20). 오프라인이면 실패가 그대로 올라가고
+    // 카드는 뜨지 않는다 — 개수 없는 카드는 재인 단서가 약해 존재 이유가 흐려진다.
+    recentCard: (projectId, signal) => api.recentCard(projectId, signal),
+    listSessionAssets: (sessionId, signal) => api.listSessionAssets(sessionId, signal),
     listProjects: (signal) => api.listProjects(signal),
     createProject: (name, signal) => api.createProject(name, signal),
     deleteProject: (id, signal) => api.deleteProject(id, signal),

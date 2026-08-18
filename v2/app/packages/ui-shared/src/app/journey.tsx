@@ -29,7 +29,10 @@ import { trIn } from "./../i18n/strings.js";
 import { LocaleProvider, useOutputLocale, useTr } from "../i18n/locale.js";
 import { limitsFor } from "../api/index.js";
 import { useShellBridge } from "./shell-bridge.js";
-import { useProjects, useSessionSync, resumeTarget } from "../session/index.js";
+import { useEntryTracks } from "./entry-slot.js";
+import { resumeInto } from "./resume-into.js";
+import { useProjects, useSessionSync } from "../session/index.js";
+import { EMPTY_META, metaFromCtx, type SessionMeta } from "../session/session-meta.js";
 import type { ClientLimits, Tier } from "@vock/shared";
 
 // 로케일 훅은 제공자 안에서만 유효하다. 그래서 제공자를 두는 컴포넌트와 그 훅을 쓰는 컴포넌트를
@@ -147,13 +150,18 @@ function AppBody({ deps }: { deps: ShellDeps }) {
 
   // 상세 요청은 카드와 세션 맥락에서 만든다. 화면은 세션을 모른다.
   const lastCtx = useRef<NarrowCtx | null>(null);
-  if (journey.at === "difficulty") lastCtx.current = journey.ctx;
+  // 프라이머가 읽는 네 값(V-19). 생산자는 둘, 소비자는 하나다.
+  const meta = useRef<SessionMeta>(EMPTY_META);
+  if (journey.at === "difficulty") {
+    lastCtx.current = journey.ctx;
+    meta.current = metaFromCtx(journey.ctx);
+  }
   const detailInput = useCallback((card: TermCard) => detailInputOf(card, lastCtx.current), []);
 
   // 종착 화면의 재료. 조회 목록과 자산은 그 화면에 있을 때만 부른다.
   const sources = usePrimerSources({
     api,
-    sessionId: lastCtx.current?.sessionId ?? null,
+    sessionId: meta.current.sessionId,
     kept: keptTerms,
     generated: "items" in terms.state ? terms.state.items : [],
     projectId: projects.selected,
@@ -183,24 +191,29 @@ function AppBody({ deps }: { deps: ShellDeps }) {
 
   // 세션 재개. /classify를 다시 부르지 않는다(S-6). 어디로 갈지는 순수 함수가 정한다.
   const resume = useCallback(
-    async (id: string) => {
-      const target = resumeTarget(await sync.load(id).catch(() => null));
-      if (target.to === "none") return;
-      if (target.to === "terms") {
-        setJourney({ at: "terms" });
-        terms.send({ t: "restore", items: target.items ?? [] });
-        return;
-      }
-      lastCtx.current = target.ctx;
-      if (target.to === "narrow") {
-        setJourney({ at: "narrow" });
-        narrow.send({ t: "resume", ctx: target.ctx, question: target.question });
-      } else {
-        setJourney({ at: "difficulty", ctx: target.ctx, reason: "user_jump" });
-      }
-    },
-    [narrow, sync, terms]
+    (id: string) =>
+      resumeInto(id, {
+        api,
+        load: sync.load,
+        setJourney,
+        setKept,
+        lastCtx,
+        meta,
+        restoreTerms: (items) => terms.send({ t: "restore", items: items ?? [] }),
+        resumeNarrow: (ctx, question) => narrow.send({ t: "resume", ctx, question }),
+      }),
+    [api, narrow, sync, terms]
   );
+
+  // 진입 화면 트랙에 들어갈 내용(C5-S3). 무엇을 넣을지는 entry-slot 이 정한다.
+  const entryTracks = useEntryTracks({
+    api,
+    signedIn,
+    atEntry: journey.at === "entry",
+    projectId: projects.selected,
+    firstListed: sync.list.items[0]?.session_id ?? null,
+    onOpen: resume,
+  });
 
   const home = useCallback(() => {
     narrow.send({ t: "leave" });
@@ -232,6 +245,7 @@ function AppBody({ deps }: { deps: ShellDeps }) {
           // 잠금 표시와 서버 판정이 같은 값(attachRequiresPro)에서 나온다(DS4-3).
           attachLocked={(limits?.attachRequiresPro ?? true) && tier !== "paid"}
           {...(limits ? { maxContextChars: limits.maxContextChars } : {})}
+          tracks={entryTracks}
         />
       ) : null}
 
@@ -271,15 +285,15 @@ function AppBody({ deps }: { deps: ShellDeps }) {
           assets={sources.assets}
           selection={sources.selection}
           onToggle={sources.onToggle}
-          topic={lastCtx.current?.topic ?? ""}
-          condition={lastCtx.current?.cond ?? ""}
+          topic={meta.current.topic}
+          condition={meta.current.cond}
           primerState={primer.state}
           onRefine={() =>
             primer.request({
-              area: lastCtx.current?.classifyOut.domain ?? "",
-              jobType: lastCtx.current?.classifyOut.job_type ?? [],
+              area: meta.current.area,
+              jobType: meta.current.jobType,
               kept: keptTerms,
-              condition: lastCtx.current?.cond ?? "",
+              condition: meta.current.cond,
             })
           }
           onBackToKept={() => setJourney({ at: "kept" })}

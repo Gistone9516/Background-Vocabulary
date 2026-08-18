@@ -12,6 +12,13 @@ export type KeptMap = ReadonlyMap<string, Term>;
 
 export const emptyKept: KeptMap = new Map();
 
+// 서버에서 받은 세션 자산으로 담기 상태를 되살린다(C5-S3 V-19).
+// 키는 서버가 들고 있는 term_norm 을 그대로 쓴다 — 담을 때 클라가 normTerm 으로 만들어 보낸
+// 값이고 구현이 한 벌이라, 여기서 다시 계산하면 같은 판정이 두 곳에 생긴다.
+export function keptFromAssets(assets: readonly { term: Term; term_norm: string }[]): KeptMap {
+  return new Map(assets.map((a) => [a.term_norm, a.term]));
+}
+
 export function isKept(kept: KeptMap, term: string): boolean {
   return kept.has(normTerm(term));
 }

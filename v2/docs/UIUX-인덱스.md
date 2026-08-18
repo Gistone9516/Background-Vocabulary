@@ -5,7 +5,7 @@
 | 문서 상태 | **v1.0 (2026-08-17)** — 탐색 6대 실측 + 비판 6대 대조 완료 |
 | 목적 | 화면에 무엇이 이미 있는지를 코드를 열지 않고 답한다 |
 | 방법 | 6개 구역을 병렬 실측한 뒤 같은 구역을 다른 여섯 대가 원문 대조. 모든 행이 `파일:행`을 갖는다 |
-| 범위 | 표면 15 · 요소 행 171 · 슬롯 6 · 불변식 26 · 드리프트 13 |
+| 범위 | 표면 15 · 요소 행 171 · 슬롯 6 · 불변식 26 · 드리프트 13(D-1·D-13 해소) |
 | 코드 기준 | 커밋 `d9fe383` 시점 |
 | 절 구성 | §0 사용법 · §1 화면 목록 · §2 요소 표 · §3 슬롯 · §4 불변식 · §5 반응형 · §6 상태 관례 · §7 접근성 · §8 문구 · §9 토큰 · §10 드리프트 · §11 C5-S3 직결 · §12 유지 |
 | 비판 라운드 결과 | 서술 오류 3, 행 번호 오류 17, 누락 행 9, 신규 드리프트 4를 잡아 반영했다. 접근성 전수(§7)·문구 표(§8)·반응형(§5)은 불일치 0건으로 통과 |
@@ -128,7 +128,7 @@
 |---|---|---|---|---|---|
 | 1 | 비로그인 안내(조기 반환) | `.sbEmpty` | `off` | `tr("projects_off")` | `ProjectList.tsx:22` |
 | 2 | 빈 목록 안내 | `.sbEmpty` | `items.length===0` | `tr("projects_empty")` | `ProjectList.tsx:33` |
-| 3 | 목록 컨테이너 | `.drawerWrap` | 항상 — **§10 D-1 참조** | — | `ProjectList.tsx:35` |
+| 3 | 목록 컨테이너 | `.plist` | 항상. C5-S3 이전에는 `.drawerWrap` 이었다 — §10 D-1 | — | `ProjectList.tsx:38` |
 | 4 | 항목 | `.drawerItem`(`.sel`) | 각 원소 | — | `ProjectList.tsx:37` |
 | 5 | ㄴ 선택 버튼 | `.histmain` | 항상. 같은 것 재클릭 시 선택 해제 | `p.name`(사용자 데이터) | `ProjectList.tsx:39` |
 | 6 | ㄴ 삭제 버튼 | `.histdel` | 항상 | `project_delete` / `project_delete_hint` | `ProjectList.tsx:42` |
@@ -633,7 +633,7 @@ C5-S3가 그 자리에 카드를 놓기로 했으므로 미리 모아 둔다. �
 
 | ID | 내용 | 근거 | 상태 |
 |---|---|---|---|
-| **D-1** | `ProjectList.tsx:35`가 `<ul className="drawerWrap">`을 쓰는데 `.drawerWrap`은 `position:fixed;inset:0;z-index:45`다. v1의 다른 UI용 클래스이고 한 세트인 `.drawerPanel`·`.drawerHead`·`.drawerDiv`는 v2에서 미사용. 같은 파일 2행 주석은 `.drawerItem`과 `.sel`만 계승했다고 적는다 | 코드 대조 | **실측 필요** — 실제로 화면을 덮는지 렌더 확인 전 |
+| **D-1** | ~~`ProjectList` 의 `<ul>` 이 `.drawerWrap`(v1 플로팅 오버레이, `position:fixed;inset:0;z-index:45`)을 쓰고 있었다~~ **해소(C5-S3, 2026-08-18).** `.plist` 신설로 교체 | 실측 | **확정된 결함이었다.** 넓은 화면에서 `elementFromPoint` 가 입력창·칩·카드·전송 버튼·사이드바 항목 **다섯 곳 모두** `UL.drawerWrap` 을 돌려줬다 — 로그인한 사용자에게 앱이 통째로 안 눌렸다. 교체 후 같은 다섯 좌표가 각자의 요소를 돌려준다 |
 | **D-2** | `21.5625em` 이하 헤더 압축 규칙의 부제 숨김 셀렉터가 `.brand span span`인데 마크업이 중첩 구조가 아니다. 이 규칙은 한 번도 안 걸린다 | 코드 대조 | 확인됨 |
 | **D-3** | `.progress`·`.track`·`.track.base`·`.track.extra`·`.promark`·`.prolock` 전체에 소비자가 없다. 좁히기 진행 표시는 텍스트 `.rangehint`가 한다. 주석은 "기본 트랙은 좌측 절반"이라는데 값은 `flex:0 0 31%` | grep 0건, 직접 확인 | 확인됨 |
 | **D-4** | `.card.kept` 정의만 있고 사용처 없음 | grep | 확인됨 |
@@ -645,7 +645,7 @@ C5-S3가 그 자리에 카드를 놓기로 했으므로 미리 모아 둔다. �
 | **D-10** | `.card.open .chev`가 정의돼 있으나 `.chev` 요소가 TSX 어디에도 없다. 펼침 표시용 쉐브론이 스타일로만 설계돼 있다 | grep | 확인됨 |
 | **D-11** | `.sbSearch`는 **정의가 없다.** 소비처는 둘(`SessionList`·`ProjectList`)인데 어느 스타일시트에도 규칙이 없어 브라우저 기본 스타일로 렌더된다. v1의 `.search`/`.searchwrap`이 이름만 바뀌고 CSS가 안 따라온 흔적 | 전수 grep | 확인됨. **지금까지와 반대 방향의 드리프트** |
 | **D-12** | 죽은 CSS의 규모가 D-3·D-4·D-9가 대표하는 것보다 훨씬 크다. `tokens.css`의 클래스 177개를 대조한 결과 **약 70개**가 소비처 없이 남아 있다 — 튜토리얼 세트 약 15종, AI 대화 카드 세트, 요금제, 스낵바, 모달 배경 등 | 1차 스크리닝 | **강한 정황.** 개별 전수 확인은 D-9의 5개만 마쳤다 |
-| **D-13** | **v1 재방문 카드 스타일이 통째로 남아 있다.** `.resume`·`.resume:hover`·`.resume:active`·`.resumeText`·`.resumeEy`·`.resumeText b`·`.resumeMeta`·`.resumeGo`·`.resume.inprog` 아홉 규칙. v2 소비처 0. 문구 키(`resume_*`)는 v2 문구표에 넘어오지 않았다 | 코드 대조 | 확인됨. **C5-S3 직결 — §11 참조** |
+| **D-13** | ~~**v1 재방문 카드 스타일이 통째로 남아 있다.**~~ **해소(C5-S3).** 아홉 규칙 삭제, `.rcard` 계열 신설. `.resume`·`.resume:hover`·`.resume:active`·`.resumeText`·`.resumeEy`·`.resumeText b`·`.resumeMeta`·`.resumeGo`·`.resume.inprog` 아홉 규칙. v2 소비처 0. 문구 키(`resume_*`)는 v2 문구표에 넘어오지 않았다 | 코드 대조 | 확인됨. **C5-S3 직결 — §11 참조** |
 
 **기존 게이트의 사각지대:** 관계 인덱스는 CSS 클래스를 정의로 나열하지만 `readers=` 수를 붙이지 않는다. 그 표기는 export된 심볼에만 있다. **따라서 죽은 CSS는 현재 어떤 게이트에도 안 걸린다.** D-3·D-4·D-9·D-12·D-13이 전부 그 결과다.
 

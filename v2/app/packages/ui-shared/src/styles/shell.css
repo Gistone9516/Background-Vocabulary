@@ -62,10 +62,26 @@ body { display: block; }
 .entryMain .composer,
 .entryMain .errmsg,
 .entryMain .condField,
-.entryMain .suggest {
+.entryMain .suggest,
+.entryMain .etracks {
   max-width: var(--measure);
   margin-left: auto;
   margin-right: auto;
+}
+
+/* 사이드바 프로젝트 목록의 세로 스택. 세션 목록(.history)과 같은 모양이지만 이름을 나눠 둔다 —
+   한쪽 간격을 손볼 때 다른 쪽이 따라 움직이면 그것도 결함이다.
+
+   이 규칙이 존재하는 이유: 이 자리에 v1 의 .drawerWrap 이 붙어 있었다. 그것은 플로팅 선택
+   패널을 띄우던 오버레이(position:fixed; inset:0; z-index:45)라, 사이드바 안의 목록에 붙자
+   뷰포트 전체를 덮는 투명 레이어가 됐다. 실측 2026-08-18: 넓은 화면에서 elementFromPoint 가
+   입력창·칩·카드·전송 버튼·사이드바 항목 다섯 곳 모두 UL.drawerWrap 을 돌려줬다 —
+   로그인한 사용자에게 앱이 통째로 안 눌리는 상태였다. */
+.plist {
+  margin-top: 1.125rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4375rem;
 }
 
 /* 사이드바는 좁은 화면에서 기본으로 접혀 있고 드로어로 열린다. */
@@ -162,7 +178,8 @@ body { display: block; }
   .entryMain .composer,
   .entryMain .errmsg,
   .entryMain .condField,
-  .entryMain .suggest { max-width: var(--measure-wide); }
+  .entryMain .suggest,
+  .entryMain .etracks { max-width: var(--measure-wide); }
 
   /* 오로라가 열 전체로 넓어지는 폭이므로 좌우 끝을 마스크로 지워 사이드바와 만나는 자리를 부드럽게 만든다.
      좁은 화면에서는 오로라 폭이 곧 페이지 폭이라 이 처리가 필요 없고, 넣으면 오히려 끝이 비어 보인다.

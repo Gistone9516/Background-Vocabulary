@@ -59,6 +59,17 @@ export class AssetRepositoryImpl implements AssetRepository {
     return { items, nextCursor: hasMore && last ? encodeCursor(last.created_at, last.asset_id) : null };
   }
 
+  // 세션 스코프 전체(V-18). 목록과 달리 term 전체를 싣는다 — 담기 복원이 Term을 필요로 한다.
+  // 세션당 상한이 있어 1MB 걱정이 없다. 정렬은 담은 순서다.
+  async listBySession(userId: string, sessionId: string): Promise<AssetTerm[]> {
+    const rows = await this.sql.query<Row>(
+      `SELECT asset_id, user_id, session_id, term, term_norm, domain_tags, project_id, created_at
+       FROM assets WHERE user_id = $1 AND session_id = $2 ORDER BY created_at`,
+      [userId, sessionId],
+    );
+    return rows.map(toAsset);
+  }
+
   async get(userId: string, assetId: string): Promise<AssetTerm | null> {
     const rows = await this.sql.query<Row>("SELECT asset_id, user_id, session_id, term, term_norm, domain_tags, project_id, created_at FROM assets WHERE asset_id = $1 AND user_id = $2", [assetId, userId]);
     return rows[0] ? toAsset(rows[0]) : null;
