@@ -106,13 +106,18 @@ export function registerCrudRoutes(app: Hono, repos: Repositories, resolveUserId
       const ok = await repos.assets.unkeep(userId, sessionId, termNorm);
       return c.json({ kept: false, removed: ok });
     }
+    // domain_tags 는 서버가 세션의 area 에서 파생시킨다(C5-S3b G-1). 요청 바디의 값은 읽지 않는다 —
+    // 권한과 판정이 요청 입력에서 오면 안 되고, area 는 분류 출력에서 파생돼 세션에 영구 보존되므로
+    // 서버가 이미 알고 있다. FR-706 dedup 이 같은 이유로 서버 책임인 것과 같은 형태다.
+    // topic 으로 대체하지 않는다(G-3) — 자유 문장이라 같은 분야를 다르게 적으면 교차 연결이 끊긴다.
+    const rec = await repos.sessions.get(userId, sessionId);
     const asset: AssetTerm = {
       asset_id: (body.asset_id as string) ?? crypto.randomUUID(),
       user_id: userId,
       session_id: sessionId,
       term: body.term as AssetTerm["term"],
       term_norm: termNorm,
-      domain_tags: (body.domain_tags as string[]) ?? [],
+      domain_tags: rec?.area ? [rec.area] : [],
       project_id: (body.project_id as string | null) ?? null,
       created_at: Date.now(),
     };

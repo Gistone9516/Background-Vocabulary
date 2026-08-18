@@ -94,6 +94,40 @@ try {
   const assets = await req(base, "GET", `/assets`, U);
   check("GET /assets 요약 포함(term_name 뽑힘)", assets.json?.items?.some((a) => a.term_norm === "anti-windup" && a.term_name === "안티와인드업"));
 
+  // C5-S3b: domain_tags 는 서버가 세션의 area 에서 파생시킨다(G-1). 위 담기 요청은 바디에
+  // domain_tags: ["control"] 을 실어 보냈다 — 그것이 **무시되는지**가 이 단언의 핵심이다.
+  // 세션의 area 는 CTX 의 classify.domain 에서 왔다.
+  check("담기: domain_tags 를 세션 area 에서 파생한다", JSON.stringify(keep.json?.asset?.domain_tags) === JSON.stringify([CLASSIFY.domain]),
+    `실제=${JSON.stringify(keep.json?.asset?.domain_tags)} 기대=${JSON.stringify([CLASSIFY.domain])}`);
+  check("담기: 요청 바디의 domain_tags 는 무시된다(음성)", !(keep.json?.asset?.domain_tags ?? []).includes("control"));
+
+  // area 가 없는 세션에서는 빈 배열이다(G-3). topic 으로 대체하지 않는다 —
+  // 자유 문장이라 같은 분야를 다르게 적으면 교차 연결이 오히려 끊긴다.
+  const sidNoArea = crypto.randomUUID();
+  await req(base, "PUT", `/sessions/${sidNoArea}`, U, {
+    topic: "분야 없는 세션", area: null, domain_risk: "low", job_type: [], gap_type: null,
+    user_condition: null, context_object: null, narrow: null, generated: null, primer: null,
+    project_id: null, pinned: false, created_at: Date.now(),
+  });
+  const keepNoArea = await req(base, "PUT", `/sessions/${sidNoArea}/keep`, U, {
+    keep: true, term_norm: "no-area", term: { term: "분야없음", kind: "개념", priority: 1, why: "w", one_line: "o" },
+  });
+  check("담기: area 가 없으면 빈 배열(음성)", JSON.stringify(keepNoArea.json?.asset?.domain_tags) === "[]",
+    `실제=${JSON.stringify(keepNoArea.json?.asset?.domain_tags)}`);
+
+  // 세션 스코프 자산 조회(C5-S3 V-18). 재개 시 담기 복원이 읽는 경로이고
+  // /sessions/recent 의 담은 어휘 수도 같은 리포 조회에서 나온다. 요약이 아니라 term 전체가 온다.
+  const sessionAssets = await req(base, "GET", `/sessions/${sid}/assets`, U);
+  check("GET /sessions/:id/assets 200", sessionAssets.status === 200);
+  check("세션 자산에 term 전체가 실린다", sessionAssets.json?.items?.[0]?.term?.priority === 1);
+  check("세션 스코프로 걸러진다", sessionAssets.json?.items?.every((a) => a.session_id === sid));
+
+  // 재진입 카드(C5-S3 FR-707). 목록과 같은 정렬의 첫 건에 담은 어휘 수가 붙는다.
+  const card = await req(base, "GET", `/sessions/recent`, U);
+  check("GET /sessions/recent 200", card.status === 200);
+  check("카드에 담은 어휘 수가 실린다", typeof card.json?.kept_count === "number");
+  check("카드가 목록 첫 항목과 같은 세션이다", card.json?.session?.session_id === (await req(base, "GET", `/sessions`, U)).json?.items?.[0]?.session_id);
+
   // 4. 상세 캐시 스키마(C5-S1 E-3·E-4·E-12). **캐시 왕복(find/save)은** HTTP로 못 탄다 —
   // 캐시는 gateUserId(JWT)에 걸려 있고 이 부트는 DEV x-user-id라 신원이 null이다.
   // 그래서 캐시에 대해서는 스키마가 보장하는 것만 본다: 소유자 분리와 키 멱등, 옛 테이블의 부재.

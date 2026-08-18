@@ -101,6 +101,5 @@ export interface KeepBody {
   term: Term;
   term_norm: string; // normTerm()의 결과. 서버는 다시 계산하지 않는다
   keep: boolean;
-  domain_tags?: string[];
   project_id?: string | null;
 }
